@@ -40,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5.10.0
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ghcr.io/runer-app/runer-api
           # server-v1.2.3 -> 1.2.3 and 1.2; latest is added by default for match tags.
