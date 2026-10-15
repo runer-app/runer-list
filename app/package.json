@@ -1,0 +1,31 @@
+{
+  "name": "runer",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/client-core",
+    "packages/platform-tauri",
+    "packages/ui",
+    "apps/tauri",
+    "e2e"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "cargo test && npm run test -w @runer/client-core -w @runer/platform-tauri -w @runer/ui",
+    "test:e2e": "npm run test -w @runer/e2e",
+    "lint": "eslint .",
+    "app:dev": "npm run tauri -w @runer/app -- dev",
+    "app:build": "npm run tauri -w @runer/app -- build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,112 @@
+# Installers for macOS, Windows and Linux, as a draft release on GitHub
+# (client-spec §12): on an `app-v*` tag, or by hand to try a build. Publishing the
+# draft is what releases it: installed copies then find it through the update
+# feed.
+#
+# Settings of the repository:
+#   variable RUNER_SERVER         the server the app suggests; must equal its PUBLIC_URL
+#   variable UPDATER_PUBKEY       the updater's public key; without it the build has no updater
+#   secret   TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD)   its private half
+#   variable MACOS_SIGNING_IDENTITY   the name of the macOS code-signing certificate
+#   secret   MACOS_CERTIFICATE (and _PASSWORD)   that certificate as a .p12 file, in base64
+#
+# There is no Apple developer account and no Windows certificate, so
+# neither system trusts the installers. The macOS certificate is a self-signed
+# one: it doesn't satisfy Gatekeeper, but it keeps the app's signature the same
+# from one release to the next, which the keychain needs (.cargo/run-signed.sh).
+# Without it the macOS build is signed ad hoc.
+name: app-release
+
+on:
+  push:
+    tags: ['app-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Where installed copies ask for updates. It answers with the newest release's `latest.json`.
+  UPDATE_FEED: https://update.runer.app/latest.json
+  TAURI_DEPS: libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev libdbus-1-dev pkg-config
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --target universal-apple-darwin
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+          # The oldest Ubuntu there is, so the build runs on older systems too.
+          - os: ubuntu-22.04
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $TAURI_DEPS
+      - run: npm ci
+      - name: Release settings
+        shell: bash
+        env:
+          RUNER_SERVER: ${{ vars.RUNER_SERVER }}
+          UPDATER_PUBKEY: ${{ vars.UPDATER_PUBKEY }}
+          MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          test -n "$RUNER_SERVER" || { echo "set the repository variable RUNER_SERVER"; exit 1; }
+          echo "VITE_RUNER_SERVER=$RUNER_SERVER" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = macOS ] && [ -n "$MACOS_CERTIFICATE" ]; then
+            # The certificate goes into a keychain of its own, which codesign may use without asking.
+            echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p "" build.keychain
+            security set-keychain-settings build.keychain
+            security unlock-keychain -p "" build.keychain
+            security import "$RUNNER_TEMP/cert.p12" -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain > /dev/null
+            security list-keychains -d user -s build.keychain login.keychain
+            rm "$RUNNER_TEMP/cert.p12"
+            export SIGN_AS="$MACOS_SIGNING_IDENTITY"
+          fi
+          node -e '
+            const fs = require("fs");
+            const path = "apps/tauri/src-tauri/tauri.conf.json";
+            const conf = JSON.parse(fs.readFileSync(path, "utf8"));
+            // Ad hoc ("-") without a certificate: Apple silicon runs nothing unsigned.
+            conf.bundle.macOS = { signingIdentity: process.env.SIGN_AS || "-" };
+            if (process.env.UPDATER_PUBKEY) {
+              conf.bundle.createUpdaterArtifacts = true;
+              conf.plugins.updater = { pubkey: process.env.UPDATER_PUBKEY, endpoints: [process.env.UPDATE_FEED] };
+            }
+            fs.writeFileSync(path, JSON.stringify(conf, null, 2));
+          '
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app/apps/tauri
+          tagName: app-v__VERSION__
+          releaseName: runer v__VERSION__
+          releaseDraft: true
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}

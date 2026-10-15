@@ -1,0 +1,11 @@
+[package]
+name = "runer-vault"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+runer-crypto = { path = "../runer-crypto" }
+serde_json = "1.0.151"
+zeroize = "1.9.0"

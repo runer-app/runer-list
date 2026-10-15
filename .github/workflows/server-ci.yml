@@ -1,0 +1,43 @@
+# Server: on every push to main and every pull request that touches server/
+# or protocol/: format, vet, lint, vulnerability scan, unit + e2e tests, and a
+# short fuzz run of the log validator.
+name: server-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "protocol/**"
+      - ".github/workflows/server-ci.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - "protocol/**"
+      - ".github/workflows/server-ci.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: server
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: make vet
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: server
+      - run: make vuln
+      # e2e uses testcontainers; the runner's Docker daemon covers it.
+      - run: make test
+      - run: make fuzz FUZZTIME=60s

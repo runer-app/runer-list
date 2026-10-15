@@ -1,0 +1,10 @@
+{
+  "name": "create_with_group",
+  "valid": false,
+  "entries": [
+    {
+      "raw": "eyJ2IjoxLCJncm91cCI6IngiLCJzZXEiOjAsInR5cGUiOiJjcmVhdGUiLCJhdXRob3IiOiJ1UGxJNDBQYUhCNW1xMG5CcWJtQm1LSGtXbXhYSEZaY1RhVTdSWTFkOEVrIiwiYXV0aG9yX2FncmVlIjoiLVdDbkFXN2EwS3BFRExiVnpkUjRreUlRLURiQVVMUTVBZHlzZVVGaXlNWSIsImVwb2NoIjowLCJ0cyI6MTc2OTA4MzIwMDAwMH0=",
+      "sig": "d6SHEuEXNmsL1Ni777u3e4mxF3wZNHYj1LCW+aYndMtNOx+55NoWdESLJFJoTUqOIzyzTMDomFEHePoLt0/vAQ=="
+    }
+  ]
+}

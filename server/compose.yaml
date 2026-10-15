@@ -1,0 +1,42 @@
+# Local dev stack: PostgreSQL + the server built from ./Dockerfile.
+#   docker compose up --build
+# Server on http://localhost:8080, Postgres on localhost:5432 (so `make run`
+# works against it too: `docker compose up -d db && make run`). Postgres is
+# bound to 127.0.0.1 only; the server listens on all interfaces so a phone on
+# the LAN can reach it. Login signatures cover PUBLIC_URL, so for the phone set
+# PUBLIC_URL=http://<this machine's LAN IP>:8080 (e.g. in .env.local, read by
+# `make up`) and point every client at that URL. In production let only the
+# reverse proxy reach the server, and set TRUSTED_PROXIES to that proxy's network.
+# Port 5432 taken? DB_PORT=5433 docker compose up
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: runer
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      # Postgres 18 images keep data under /var/lib/postgresql/18/docker.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d runer"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  server:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/runer?sslmode=disable
+      ORIGIN: ${ORIGIN:-tauri://localhost}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

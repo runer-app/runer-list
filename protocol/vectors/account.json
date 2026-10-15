@@ -1,0 +1,60 @@
+{
+  "description": "Account Key → auth and wrap keys (HKDF-SHA-256, empty salt, info = label, 32 bytes; the auth output is the Ed25519 seed), and the signed server messages label ‖ 0x00 ‖ uint16be(len(url)) ‖ url ‖ nonce. E2EE §3.",
+  "labels": {
+    "auth": "runer/v1/auth",
+    "wrap": "runer/v1/wrap",
+    "login": "runer/v1/login",
+    "rekey": "runer/v1/rekey",
+    "identity": "runer/v1/identity"
+  },
+  "cases": [
+    {
+      "name": "alice",
+      "account_key": "a89a98f8d8e745ad1a65e0190dfa2a2d",
+      "words": "possible state dilemma range inmate story hat rose boil hurt melody force",
+      "auth_seed": "c477e0e257ebc7dea45d0c54a3cd6ef3182068c2efea2c88b8817ab3acc04309",
+      "auth_pub": "04a766bb5252bb90663e96cde13276c7c0b050333f539564efdbd37413435aaa",
+      "wrap_key": "1743d74dd272ad30bc2ea2713452df1c5fd041c869e989a680b8be005a2d4bcf",
+      "server_url": "https://api.example.test",
+      "nonce": "19c85d9aecbb0bc596f80a219bd4805b5f33cfc0865dfd22d8b8cfd3976a2f04",
+      "messages": {
+        "login": {
+          "message": "72756e65722f76312f6c6f67696e00001868747470733a2f2f6170692e6578616d706c652e7465737419c85d9aecbb0bc596f80a219bd4805b5f33cfc0865dfd22d8b8cfd3976a2f04",
+          "auth_sig": "8dbf8bec0bd8292c990df3833950c388f4824c0d144d18c2cafec5a5e671807964ed67fc36dea84792709bf97bfa83b2561da289c9cdd91bd3c658aedbed920b"
+        },
+        "rekey": {
+          "message": "72756e65722f76312f72656b657900001868747470733a2f2f6170692e6578616d706c652e7465737419c85d9aecbb0bc596f80a219bd4805b5f33cfc0865dfd22d8b8cfd3976a2f04",
+          "auth_sig": "5c24c43f183e266c9145b1f307f23703884bb1d55176a35dd1d32d9a1cac1db3d57f16b7ad16f7775d9ee1e9ff5dfeb2d1e33c7478123298e156d93ebe4e4e0f"
+        },
+        "identity": {
+          "message": "72756e65722f76312f6964656e7469747900001868747470733a2f2f6170692e6578616d706c652e7465737419c85d9aecbb0bc596f80a219bd4805b5f33cfc0865dfd22d8b8cfd3976a2f04",
+          "auth_sig": "8bc3b26a101db1b1448b4f8c12897cf1c71c8944770987068012f873611b7a17116863ea366d331aeb8ea3fd0b870bc73918e29b7114ea27329fa0015354570e"
+        }
+      }
+    },
+    {
+      "name": "bob",
+      "account_key": "a2ffdd9bff6cd7e2c87766e256c20e9b",
+      "words": "pepper year group yard sniff vapor canyon under time render lonely daughter",
+      "auth_seed": "6a6b8ce30b8dd9a27737c937c732d6be4c99d618a3c2c53eb8131e8f32d80df0",
+      "auth_pub": "9d6112f56a6d2c1407dc20d8e0e2b57c84a4a0bc90e7198304d7f06ee814cb05",
+      "wrap_key": "2798a9072632743d838e49df13f35e3ce5506816d49118dd597f056430363daf",
+      "server_url": "https://api.example.test",
+      "nonce": "68b28802654c46c9ad67f58ae913c71497358f62f8f306b2fe744756d9d5baa2",
+      "messages": {
+        "login": {
+          "message": "72756e65722f76312f6c6f67696e00001868747470733a2f2f6170692e6578616d706c652e7465737468b28802654c46c9ad67f58ae913c71497358f62f8f306b2fe744756d9d5baa2",
+          "auth_sig": "bc451419ac8bfb86863d7bff7723f7a93147dc33b3575addaff97738830b9bf6bab9c6b17bf572b132d87c6d5c7b3db2a1c8cadbc198bc63d1de3ad06adfc60d"
+        },
+        "rekey": {
+          "message": "72756e65722f76312f72656b657900001868747470733a2f2f6170692e6578616d706c652e7465737468b28802654c46c9ad67f58ae913c71497358f62f8f306b2fe744756d9d5baa2",
+          "auth_sig": "7fe2ec8fbf65e8ca0d617c0de49a3a0cf315f80c01e528cff751521d740e6749213532b5bcb6d9c937bf3adc656d219b6edd52b0ef6a930b3ec9aa596352ab01"
+        },
+        "identity": {
+          "message": "72756e65722f76312f6964656e7469747900001868747470733a2f2f6170692e6578616d706c652e7465737468b28802654c46c9ad67f58ae913c71497358f62f8f306b2fe744756d9d5baa2",
+          "auth_sig": "de4fafe037778d0c4feff0eb03951cf7b337e3d7235d121f497ad1f047d18501b3e27cd2a9d19d90557f5e72efad51b7386ac4420a911f7349c231122071d107"
+        }
+      }
+    }
+  ]
+}

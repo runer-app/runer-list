@@ -1,0 +1,39 @@
+{
+  "description": "id = HKDF(s, info=\"runer/v1/invite-id\", 16 bytes) (sent to the server as base64url); enc, mac = HKDF(s, info=\"runer/v1/invite-enc\"/\"-mac\", 32 bytes). package = nonce(12) ‖ AES-256-GCM(enc, canonical JSON, AD = \"runer/v1/invite-package\" ‖ 0x00 ‖ id). join name = nonce(12) ‖ AES-256-GCM(enc, UTF-8 display name, AD = \"runer/v1/invite-join\" ‖ 0x00 ‖ id). invite_proof = HMAC-SHA-256(mac, id ‖ joiner sign_pub ‖ joiner agree_pub) (approve-first). E2EE §6, §6.2. Link invites: see \"link\".",
+  "labels": {
+    "invite_id": "runer/v1/invite-id",
+    "invite_enc": "runer/v1/invite-enc",
+    "invite_mac": "runer/v1/invite-mac",
+    "invite_package": "runer/v1/invite-package",
+    "invite_join": "runer/v1/invite-join"
+  },
+  "secret": "ecb9362d09034c031c5bc13fc7053be6a3e32d35b5a9cf7580105b7163bf8dec",
+  "id": "34b9b5e203ff7e58b8c5f0016b0ad294",
+  "enc": "78cd18661a9b9dfca9359cb98e6cc749f9be703fd080ad915904992f9fae9da5",
+  "mac": "61e713723507db8793dc85de26f741ea5e15b4f7ae5334dfd6cdce7ae418624c",
+  "package_text": "{\"v\":1,\"list\":\"b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d\",\"log_head\":\"NwW1Jh2S43DkIbeQ-KOpi1CNeXaQ-C7dNL0OaPawkcM\",\"owner\":\"UQS1JbANn8o3lXNCmmGB7fUzDoyyGa5T5PAbxrXCHko\",\"owner_agree\":\"ezhireL33mKg9TX_QNmiWbse2hF22C9XgjITKnU0t2o\",\"name\":\"Groceries & \\\"stuff\\\" <åäö>\"}",
+  "package_nonce": "32c253400814f2f5b81bbfeb",
+  "package": "32c253400814f2f5b81bbfebc0f0f94818d8f23fafdb36eb4b3ac652eba427f9d275d378e38bd2b0f9df9bd5ea4aa0a048f1f46d01b0884ba4e2db55b788207c49382982868cde473d26662f26d89f50b6c4dcff21b8eaf079593e3f1e850ac1bbc92a167f23b9ec432fa3c5aa3835b037afff17f4e62e5ede487074df1251d6e1c66444be2aa6d7432b55db4e69c4bb78c7e46d14e922ccf80bcbf0073c078de51d769455b7fef0d9e9c55707a57328f5d7a89e48561a8e94b8b75d0bcdd23a11331ea36ef27cc3c9907684d158801455bcdd7f106773eb687aa796cd784a29d1a4e6190e5e50a28ceb0d95a8f002f67ca98ca586ffe530e8921da1c63c9e938d66878e728b2f9f4b80a323bed986f290f077ea7b197b70146dd9ef06ca0c5ecfc7b43895928e0077b8b92c5c5385a46f3049481a11b6c7a0e3b9e7a25302e3",
+  "display_name": "Bob",
+  "join_nonce": "a4c629469596c00905118bf6",
+  "join_name": "a4c629469596c00905118bf64c72fb68aca5c7245714b0ee317b131c33244d",
+  "joiner_sign_pub": "f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+  "joiner_agree_pub": "8eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+  "invite_proof": "407130364b44f625a4b09b8874f84ff6875583cd690e62ae453d740064ee77b2",
+  "link": {
+    "description": "invite key seed = HKDF(s, info=\"runer/v1/invite-sign\", 32 bytes), an Ed25519 seed; invite_pub is its public key. The link package adds \"owner_name\" (the owner's account name; left out when empty), then \"epoch\" and \"list_key\" (base64url K_e) after \"name\", same AEAD and AD as above. join message = \"runer/v1/join\" ‖ 0x00 ‖ list_id(32 raw) ‖ joiner sign_pub ‖ joiner agree_pub; join_proof = Ed25519(invite key, join message), the join entry's invite_proof. E2EE §6.1.",
+    "labels": {
+      "invite_sign": "runer/v1/invite-sign",
+      "join": "runer/v1/join"
+    },
+    "invite_sign_seed": "dcd1d00c540731062f5a9ff31016780dc0ab4f54d41010b07916acf2dc458732",
+    "invite_pub": "62310a28c7b437dc711ae764871bd50045a969709f2a4781417bfc660abd4e4d",
+    "epoch": 2,
+    "list_key": "98fd1f75f03fa1974c420dea3bb0991a75a25391cf03a1f2adaf2b4c7ea2310f",
+    "package_text": "{\"v\":1,\"list\":\"b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d\",\"log_head\":\"36nDNObTFWs9v1HdjrBbcKwfYuX5fdxyy_iJpahNn2o\",\"owner\":\"UQS1JbANn8o3lXNCmmGB7fUzDoyyGa5T5PAbxrXCHko\",\"owner_agree\":\"ezhireL33mKg9TX_QNmiWbse2hF22C9XgjITKnU0t2o\",\"name\":\"Groceries & \\\"stuff\\\" <åäö>\",\"owner_name\":\"Alice Ö\",\"epoch\":2,\"list_key\":\"mP0fdfA_oZdMQg3qO7CZGnWiU5HPA6Hyra8rTH6iMQ8\"}",
+    "package_nonce": "91e647529cda71ab5e2b2dfc",
+    "package": "91e647529cda71ab5e2b2dfc7a8d5f87004fb11dff92135d3876976303c9a740297a7ed33a569a0ad5bc520f345fde3a9e4b0072f6da040fb90398e2ff8440c240a3b2e87984d24cbae9ce55e74ca988e71fded382603dac07e5382f31713e3efc72d9c1eefeab7a4943eb35b620aad3091fb6a9f6afb528a8c2a56b4c9869380c260092d69a7ce8faed3561d148d5f643106f1bab275cc5ca79bb201f0c85887291052b0111fc5ba51050bc485bd48391e104251841060cba5bbf053e06e99c7502ab67edacec5160a93f5bb7696d3f337b73e9e2f1c75e618a3c3049383b1634da9c03cfb715e3089a87c9802e5a15b9ce342ecdb75bf547696644acbe7256a7bf8a43e28c5d2097d46bc2a235c55ef021b4a29815a0d3be76b0d7270cad4e1e2c98756b9a2878f7aca4b83d7e3bd7f981adf91b299f3685979fbdc19cf13d574ef200cc56327dfaa496fdfdc532a19aa82dec5e0cf887a6ed350da4a6c77b045f27628d09080f873a5d79d95008cfe6c340c79b951328e48e31cde2dab90223ca1978ab6c8342d779caba1f1341f65267934b448156a96f68ba",
+    "join_message": "72756e65722f76312f6a6f696e00b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987df40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e18eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+    "join_proof": "0d6b215a58754e2494fec8b534e986a54bc842629889b27eb32c3b75740a0e053fae5c0384571f2981fea2e436e9ef4e6f333f27942fde2f74db512454b85b06"
+  }
+}

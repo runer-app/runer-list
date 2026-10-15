@@ -1,0 +1,17 @@
+{
+  "name": "@runer/client-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "cargo build -p runer-vault-node",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "yjs": "^13.6.33"
+  }
+}

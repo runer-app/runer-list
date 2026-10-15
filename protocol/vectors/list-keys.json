@@ -1,0 +1,69 @@
+{
+  "description": "document_key = HKDF(K_e, info=\"runer/v1/list\"); key_chain(e) = AES-256-GCM(HKDF(K_e, info=\"runer/v1/chain\"), nonce = 12 zero bytes, K_{e-1}, empty AD) (ciphertext ‖ tag, 48 bytes). Envelopes: HPKE base mode DHKEM(X25519, HKDF-SHA256)/HKDF-SHA256/AES-256-GCM, info = \"runer/v1/env\" ‖ 0x00 ‖ list_id(32 raw) ‖ uint64be(epoch) ‖ recipient identity_sign_pub(32), empty AAD, plaintext K_e; hpke_ciphertext = enc(32) ‖ ciphertext ‖ tag. E2EE §5.",
+  "labels": {
+    "list": "runer/v1/list",
+    "chain": "runer/v1/chain",
+    "envelope": "runer/v1/env"
+  },
+  "list": "b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d",
+  "epochs": [
+    {
+      "epoch": 0,
+      "list_key": "7f331827dc99788e0cf349895ae24e63708e4b80e4b6b9a7129d795241bf556b",
+      "document_key": "59a0476b36426d2288931b2a8a5f26ce726fcd07f4f5e909fb8daf96a8828e1b"
+    },
+    {
+      "epoch": 1,
+      "list_key": "481e7219ca1e8ae7275a8e286b8398bc7f62204649132a38a92b295abd90ffa0",
+      "document_key": "053e5ab00671c1b594d5e962a73eedf2f68f50c71effab57b23e5d4db0b8b8f5",
+      "key_chain": "5c1913c245ea4d58d7f55506fc32748aa19004e0ff6b3e6d1afa8f320eb77fb8c04bbe566ff6c2ad8d913805b9937dc5"
+    },
+    {
+      "epoch": 2,
+      "list_key": "98fd1f75f03fa1974c420dea3bb0991a75a25391cf03a1f2adaf2b4c7ea2310f",
+      "document_key": "98f63f1012aea123bceaa417829832fa8dae4fd93d336a3b8129b6718e95ff71",
+      "key_chain": "1353e4c8d893dc5fb273d8d10f71a80ba653f20bf2414aa36faeca122a5761649e91b6d04dc1c87501be3ea3b193101f"
+    }
+  ],
+  "envelopes": [
+    {
+      "name": "alice, epoch 0",
+      "list": "b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d",
+      "epoch": 0,
+      "recipient_sign_pub": "5104b525b00d9fca379573429a6181edf5330e8cb219ae53e4f01bc6b5c21e4a",
+      "recipient_agree_pub": "7b3862ade2f7de62a0f535ff40d9a259bb1eda1176d82f578232132a7534b76a",
+      "recipient_agree_private": "cd034e29c9efa8dae9b8ff489056da5bd4bcf150ac68e03eac6ab97658565cc7",
+      "ephemeral_private": "7d2c3d3b2fbaefc3c8d0913185117659fa3272834854faf594700f4ce91e1c78",
+      "ephemeral_pub": "fc392266f730015e11527613adaac91ab1e64c999e89d6fa5459c7212606432d",
+      "info": "72756e65722f76312f656e7600b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d00000000000000005104b525b00d9fca379573429a6181edf5330e8cb219ae53e4f01bc6b5c21e4a",
+      "list_key": "7f331827dc99788e0cf349895ae24e63708e4b80e4b6b9a7129d795241bf556b",
+      "hpke_ciphertext": "fc392266f730015e11527613adaac91ab1e64c999e89d6fa5459c7212606432ddc0bbbaa0ede8692f958e919bfcacb36d5f625e084493a03a8dd93c856556e7dc0eada0169a34a028141f7cca11fa507"
+    },
+    {
+      "name": "bob, epoch 0",
+      "list": "b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d",
+      "epoch": 0,
+      "recipient_sign_pub": "f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "recipient_agree_pub": "8eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+      "recipient_agree_private": "709f84b6d04b4e429a525f38e8ab9de468277bd6e58bb4d1ff70cee18ac45de4",
+      "ephemeral_private": "a497c4eda9d105491517f4651440cd283acde58ce996a91a270b7799a9440f29",
+      "ephemeral_pub": "3bf39e20f21d1862d237864c1d1e57e820f4760e51311dff688dd72cd1f3082f",
+      "info": "72756e65722f76312f656e7600b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d0000000000000000f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "list_key": "7f331827dc99788e0cf349895ae24e63708e4b80e4b6b9a7129d795241bf556b",
+      "hpke_ciphertext": "3bf39e20f21d1862d237864c1d1e57e820f4760e51311dff688dd72cd1f3082f66240e66e0b06b296e7547b3ee54d0963d10bdc5786d19438f87f7d765cacb18d3355f0f23841fe744010cdd6697cc99"
+    },
+    {
+      "name": "bob, epoch 2",
+      "list": "b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d",
+      "epoch": 2,
+      "recipient_sign_pub": "f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "recipient_agree_pub": "8eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+      "recipient_agree_private": "709f84b6d04b4e429a525f38e8ab9de468277bd6e58bb4d1ff70cee18ac45de4",
+      "ephemeral_private": "e6f6e64aa5eb6d14e9cbf3853f0fd729a90aa268acabd7907a2e2298c5fe1368",
+      "ephemeral_pub": "384af3d719be527a29077ae487cb3e6d66a18887e2f2b21c167932a21c8beb22",
+      "info": "72756e65722f76312f656e7600b22bbf1c4c68938d8d3ef3e222486b2655434f343bffadcbb2ea1feeaedd987d0000000000000002f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "list_key": "98fd1f75f03fa1974c420dea3bb0991a75a25391cf03a1f2adaf2b4c7ea2310f",
+      "hpke_ciphertext": "384af3d719be527a29077ae487cb3e6d66a18887e2f2b21c167932a21c8beb22a66592187ca3dd22d982a32a5a58ce3c2a79139aa8c9620499b52e36f82fdd80148c636ca382c80f07b7bcdb95ea0a78"
+    }
+  ]
+}

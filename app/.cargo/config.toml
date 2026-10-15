@@ -1,0 +1,4 @@
+# macOS: `cargo run` (and so `make dev`) signs the app before starting it, when RUNER_SIGN_IDENTITY names a
+# code-signing certificate. See run-signed.sh.
+[target.'cfg(target_os = "macos")']
+runner = ".cargo/run-signed.sh"
