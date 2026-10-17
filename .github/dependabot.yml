@@ -1,16 +1,36 @@
 # Weekly update pull requests for the server's Go modules and Dockerfile base
-# images, and for GitHub Actions.
+# images, and for GitHub Actions. Patch versions are skipped (security patches
+# come from Dependabot security updates instead), and minor versions are grouped
+# into one pull request per ecosystem.
 version: 2
 updates:
   - package-ecosystem: gomod
     directory: /server
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    groups:
+      minor:
+        update-types: ["minor"]
   - package-ecosystem: docker
     directory: /server
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    groups:
+      minor:
+        update-types: ["minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    groups:
+      minor:
+        update-types: ["minor"]
