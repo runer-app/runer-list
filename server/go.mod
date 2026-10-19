@@ -1,16 +1,16 @@
 module runer-api
 
-go 1.26.9
+go 1.27.2
 
 require (
 	filippo.io/edwards25519 v1.2.0
 	github.com/coder/websocket v1.8.15
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/labstack/echo/v5 v5.3.1
+	github.com/labstack/echo/v5 v5.4.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
-	golang.org/x/time v0.15.0
+	golang.org/x/time v0.16.0
 )
 
 require (

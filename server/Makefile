@@ -1,4 +1,4 @@
-.PHONY: up down reset image run build test test-unit test-e2e fmt vet lint vuln fuzz check tidy
+.PHONY: up down reset run build test test-unit test-e2e fmt vet lint vuln fuzz check tidy
 
 DATABASE_URL ?= postgres://postgres:postgres@localhost:5432/runer?sslmode=disable
 ORIGIN ?= tauri://localhost
@@ -64,7 +64,3 @@ down:
 reset:
 	docker compose down -v
 	$(MAKE) up
-
-## image: build runer-api:<full commit SHA> from server/ at commit REF (default HEAD) without touching the working tree (make image REF=<sha>)
-image:
-	REF=$$(git rev-parse --verify "$(or $(REF),HEAD)^{commit}") && git archive --format=tar $$REF:server | docker build -t runer-api:$$REF -
