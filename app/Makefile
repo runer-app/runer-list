@@ -6,7 +6,8 @@ PROD_API  ?= https://api.runer.app
 LOCAL_API ?= http://localhost:8080
 
 # Dev builds are their own app, so they install and keep their data and keychain entries beside the release.
-DEV_CONFIG = '{"identifier":"app.runer.dev","productName":"runer dev"}'
+# Their icon carries a DEV band (img/runer-icon-macos-dev.svg; regenerate with `tauri icon`).
+DEV_CONFIG = '{"identifier":"app.runer.dev","productName":"runer dev","bundle":{"icon":["icons-dev/32x32.png","icons-dev/128x128.png","icons-dev/128x128@2x.png","icons-dev/icon.icns","icons-dev/icon.ico"]}}'
 
 # iOS gets its own dev server port, so it runs beside `make dev*` (5173).
 IOS_CONFIG = '{"build":{"devUrl":"http://localhost:5174","beforeDevCommand":"npm run dev -- --port 5174"}}'
