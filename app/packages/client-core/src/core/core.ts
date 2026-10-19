@@ -9,7 +9,7 @@
  * invite named) and passes the same URL here, for the login message.
  */
 
-import { Account, type Session } from '../account/account.js';
+import { Account, type Notice, type Session } from '../account/account.js';
 import { toBase64url } from '../base64url.js';
 import type { AddOptions, AddTaskOptions } from '../list/doc.js';
 import type { ListSnapshot } from '../list/item.js';
@@ -17,7 +17,7 @@ import { moveItem } from '../list/move.js';
 import type { Platform } from '../platform/index.js';
 import { InviteError, openInvite, type OpenedInvite } from '../invite/join.js';
 import { parseInviteLink } from '../invite/link.js';
-import type { ListId, ListState, LogEvent, PublicIdentity, VaultWarning } from '../platform/vault.js';
+import type { ListId, ListState, PublicIdentity, VaultWarning } from '../platform/vault.js';
 import { Writable, type Readable } from '../readable.js';
 import { planReminders } from '../reminders/plan.js';
 import { searchLists, type SearchHit } from '../search/search.js';
@@ -427,8 +427,8 @@ export class ClientCore {
     return this.account.platform.vault.safetyCode(id);
   }
 
-  /** Others joining, being added or removed, leaving, and new epochs, in our lists ("Anna joined"). */
-  get notices(): Readable<LogEvent[]> {
+  /** Others joining, being added or removed, leaving, and new epochs, in our lists ("Anna joined"); lists we lost access to. */
+  get notices(): Readable<Notice[]> {
     return this.account.notices;
   }
 

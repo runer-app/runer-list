@@ -200,6 +200,7 @@ There is no extra PIN for sensitive invites.
 - **Known contacts include former members** of any of our lists, with the keys the log admitted them with.
 - **"Rotation due" is the vault's call, with its reason.** `ListState.rotationDue` is `member-left` after a `leave` (any member's app rotates, E2EE §8.2) or `invite-revoked` after an `uninvite` (only the owner's app rotates, E2EE §6.1); a leave outranks a revoked link. The next `remove` or `rotate` clears it. Only the owner's app rotates away an unused invite that expired. Two members racing rotate once: the loser's `409` refetches the log, and the rotation is no longer due.
 - **Notices only for news.** Membership events become `ClientCore.notices` when a log this device already held grows; a log fetched from genesis (a new device, a list just joined) replays its history silently, and our own entries never make a notice.
+- **"You no longer have access to Groceries."** When the server stops listing a list someone else owns, it is forgotten here and makes a `lost-access` notice, named as this device last saw it. It doesn't say whether the list was deleted or we were removed. The owner's own lists, and one left on this device, just go. A list whose log can't be fetched or verified keeps its last verified state and doesn't hold up the others.
 
 ### 3.5 Multi-server
 

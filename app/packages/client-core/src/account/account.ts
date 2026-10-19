@@ -71,11 +71,14 @@ const UNSENT_SETTINGS_TABLE = 'account-settings-unsent';
 /** How often a write that lost the race to another device is tried again. */
 const SETTINGS_RETRIES = 3;
 
+/** What `notices` holds: news from a log, or a list this account can no longer open, named as this device last saw it. */
+export type Notice = LogEvent | { kind: 'lost-access'; list: ListId; name: string };
+
 export class Account {
   /** Security warnings seen so far (client-spec §3.3). */
   readonly warnings = new Writable<VaultWarning[]>([]);
-  /** Membership changes seen in our lists ("Anna joined"), oldest first. */
-  readonly notices = new Writable<LogEvent[]>([]);
+  /** Membership changes seen in our lists ("Anna joined"), and lists we lost access to, oldest first. */
+  readonly notices = new Writable<Notice[]>([]);
   /**
    * What the user is called: `settings.name`, cleaned (`cleanName`). Empty
    * for an account without a name. The others in a shared list read it
@@ -348,6 +351,11 @@ export class Account {
     const me = toBase64url(this.identity.signPub);
     const news = events.filter((e) => e.kind === 'rotated' || toBase64url(e.member) !== me);
     if (news.length > 0) this.notices.set([...this.notices.value, ...news]);
+  }
+
+  /** Adds to `notices`: a list someone else owns that the server no longer lists for us, deleted or we were removed. */
+  lostAccess(list: ListId, name: string): void {
+    this.notices.set([...this.notices.value, { kind: 'lost-access', list, name }]);
   }
 
   showWords(): Promise<string[]> {

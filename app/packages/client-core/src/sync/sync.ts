@@ -102,6 +102,8 @@ export class Sync {
   private readonly inflight = new Map<string, OutboxItem & { coversSeq?: number }>();
   /** Lists made here that the server hasn't accepted yet, with their genesis. They aren't subscribed and nothing of theirs is sent until it has. */
   private readonly unannounced = new Map<ListId, WireEntry>();
+  /** Lists being left on this device: our own leave makes the server drop them, which is no news to us. */
+  private readonly leaving = new Set<ListId>();
   private queue: Promise<void> = Promise.resolve();
   private reconcileQueued = false;
   private attempt = 0;
@@ -225,8 +227,13 @@ export class Sync {
 
   /** Any member but the owner: leaves the list and forgets it here. */
   async leaveList(list: ListId): Promise<void> {
-    await leaveList(this.account, list);
-    await this.run(() => this.forget(list));
+    this.leaving.add(list);
+    try {
+      await leaveList(this.account, list);
+      await this.run(() => this.forget(list));
+    } finally {
+      this.leaving.delete(list);
+    }
   }
 
   /** Joins from an opened link invite and starts syncing the list. */
@@ -349,13 +356,27 @@ export class Sync {
 
   /**
    * Brings every log up to date, drops lists the server no longer lists for
-   * us (removed, left, deleted), and adds and subscribes new ones.
+   * us (removed, left, deleted), and adds and subscribes new ones. A list
+   * whose log can't be fetched or verified keeps its last verified state and
+   * is tried again next time; it doesn't hold up the others.
    */
   private async reconcile(): Promise<void> {
     await this.announce();
-    const states = await refreshLists(this.account);
-    const listed = new Set(states.map((s) => s.id));
-    for (const list of [...this.replicas.keys()]) if (!listed.has(list) && !this.unannounced.has(list)) await this.forget(list);
+    const { listed, states } = await refreshLists(this.account, (list, e) =>
+      this.opts.log(`sync: refreshing ${list} failed: ${e instanceof Error ? e.message : String(e)}`),
+    );
+    for (const list of [...this.replicas.keys()]) {
+      if (listed.has(list) || this.unannounced.has(list)) continue;
+      const left = this.leaving.has(list);
+      const name = this.replicas.get(list)?.doc.name ?? '';
+      const owner = await this.account.platform.vault.listState(this.account.handle, list).then(
+        (s) => toBase64url(s.owner.signPub),
+        () => null,
+      );
+      await this.forget(list);
+      // Someone else's list: deleted, or we were removed; which is not for us to know. Our own just goes.
+      if (!left && owner !== null && owner !== toBase64url(this.account.identity.signPub)) this.account.lostAccess(list, name);
+    }
     const fresh: Replica[] = [];
     for (const s of states) {
       const r = this.replicas.get(s.id);

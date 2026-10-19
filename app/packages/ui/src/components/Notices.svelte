@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { toBase64url, type ClientCore, type LogEvent } from '@runer/client-core';
+  import { toBase64url, type ClientCore, type Notice } from '@runer/client-core';
   import { fromStore } from 'svelte/store';
   import { t } from '../messages.js';
   import { allNames, initialOf, nameOf } from '../people.js';
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
 
-  /** Membership news in our lists ("Anna joined Weekend"), until dismissed. Rotations are not news to the user. */
+  /** Membership news in our lists ("Anna joined Weekend") and lists we lost access to, until dismissed. Rotations are not news to the user. */
   let { core }: { core: ClientCore } = $props();
 
   const stores = $derived({ notices: fromStore(core.notices), lists: fromStore(core.lists) });
@@ -15,7 +15,7 @@
   const shown = $derived(
     stores.notices.current
       .slice(dismissed)
-      .filter((e): e is Exclude<LogEvent, { kind: 'rotated' }> => e.kind !== 'rotated')
+      .filter((e): e is Exclude<Notice, { kind: 'rotated' }> => e.kind !== 'rotated')
       .slice(-3),
   );
 
@@ -38,8 +38,12 @@
   <div class="notices" role="status">
     <ul>
       {#each shown as e, i (i)}
-        {@const p = who(e)}
-        <li><Avatar id={p.id} initial={p.initial} size={22} />{t(`notice.${e.kind}`, { name: p.name, list: listName(e.list) })}</li>
+        {#if e.kind === 'lost-access'}
+          <li><span class="gone"><Icon name="lists" /></span>{t('notice.lost-access', { list: e.name || t('list.untitled') })}</li>
+        {:else}
+          {@const p = who(e)}
+          <li><Avatar id={p.id} initial={p.initial} size={22} />{t(`notice.${e.kind}`, { name: p.name, list: listName(e.list) })}</li>
+        {/if}
       {/each}
     </ul>
     <button aria-label={t('notice.dismiss')} onclick={() => (dismissed = stores.notices.current.length)}><Icon name="close" /></button>
@@ -73,6 +77,19 @@
     gap: 10px;
     /* A member's name is whatever their app wrote: a long one without spaces wraps. */
     overflow-wrap: anywhere;
+  }
+  /* Where an avatar would be: the list is no one's news. */
+  .gone {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    color: var(--text-muted);
+  }
+  .gone :global(svg) {
+    width: 14px;
+    height: 14px;
   }
   button {
     display: grid;

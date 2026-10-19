@@ -232,6 +232,7 @@ const en = {
   'notice.added': '{name} was added to {list}',
   'notice.removed': '{name} was removed from {list}',
   'notice.left': '{name} left {list}',
+  'notice.lost-access': 'You no longer have access to {list}',
   'notice.dismiss': 'Dismiss',
 
   'warning.banner.one': 'A security warning needs your attention.',

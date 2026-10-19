@@ -23,7 +23,7 @@ describe('lists and logs (E2EE §4)', () => {
   test('the Inbox comes with the account, every device knows it, and it cannot be deleted', async () => {
     const [a, b] = await twoDevices();
     expect(b.inbox).toBe(a.inbox);
-    const [inbox] = await refreshLists(b);
+    const { states: [inbox] } = await refreshLists(b);
     expect(inbox!.id).toBe(a.inbox);
     expect(inbox!.owner).toEqual(a.identity);
     expect((await rejection(deleteList(a, a.inbox))).status).toBe(403);
@@ -35,7 +35,7 @@ describe('lists and logs (E2EE §4)', () => {
     expect(created.epoch).toBe(0);
     expect(created.owner).toEqual(a.identity);
 
-    const seen = await refreshLists(b);
+    const { states: seen } = await refreshLists(b);
     expect(seen.find((s) => s.id === created.id)).toEqual(created);
 
     // Rotating needs the current key: b opened K_0 from the genesis.
@@ -43,7 +43,7 @@ describe('lists and logs (E2EE §4)', () => {
     await b.request('POST', `/v1/groups/${created.id}/log`, { entry: toB64(entry.raw), sig: toB64(entry.sig) });
 
     // a catches up from its own head.
-    const caught = await refreshLists(a);
+    const { states: caught } = await refreshLists(a);
     expect(caught.find((s) => s.id === created.id)!.epoch).toBe(1);
     expect(a.warnings.value).toEqual([]);
   });
@@ -53,8 +53,8 @@ describe('lists and logs (E2EE §4)', () => {
     const { id } = await createList(a);
     await refreshLists(b);
     await deleteList(a, id);
-    expect((await refreshLists(a)).map((s) => s.id)).toEqual([a.inbox]);
-    expect((await refreshLists(b)).map((s) => s.id)).toEqual([a.inbox]);
+    expect((await refreshLists(a)).states.map((s) => s.id)).toEqual([a.inbox]);
+    expect((await refreshLists(b)).states.map((s) => s.id)).toEqual([a.inbox]);
     expect((await rejection(b.request('GET', `/v1/groups/${id}/log`))).status).toBe(403);
   });
 
@@ -64,7 +64,7 @@ describe('lists and logs (E2EE §4)', () => {
     const [back] = await Account.resume(restart(a.platform));
     const { vault } = back!.platform;
     expect(await vault.listState(back!.handle, created.id)).toEqual(created);
-    expect((await refreshLists(back!)).find((s) => s.id === created.id)).toEqual(created);
+    expect((await refreshLists(back!)).states.find((s) => s.id === created.id)).toEqual(created);
     expect(back!.warnings.value).toEqual([]);
     await vault.rotate(back!.handle, created.id); // needs K_0, opened again from the stored log
   });

@@ -4,6 +4,7 @@ import { ClientCore, type ClientCoreOptions } from '../src/core/core.js';
 import { InviteError } from '../src/invite/join.js';
 import type { ListId, ListState } from '../src/platform/vault.js';
 import { rotationDue } from '../src/sync/members.js';
+import type { Sync } from '../src/sync/sync.js';
 import type { Readable } from '../src/readable.js';
 import { MemoryServer } from './platform-node/memory-server.js';
 import { createMemoryPlatform } from './platform-node/memory.js';
@@ -20,8 +21,8 @@ afterEach(async () => {
   for (const c of running.splice(0)) await c.stop();
 });
 
-async function person(name = 'Someone'): Promise<ClientCore> {
-  const { core } = await ClientCore.signUp(createMemoryPlatform({ transport: server.transport() }), SERVER, name, OPTS);
+async function person(name = 'Someone', transport = server.transport()): Promise<ClientCore> {
+  const { core } = await ClientCore.signUp(createMemoryPlatform({ transport }), SERVER, name, OPTS);
   running.push(core);
   return core;
 }
@@ -42,6 +43,8 @@ async function until(what: string, ok: () => boolean | Promise<boolean>, ms = 50
 
 const titles = (core: ClientCore, list: ListId) => value(core.list(list).content).items.map((i) => i.title);
 const has = (core: ClientCore, list: ListId) => value(core.lists).some((l) => l.id === list);
+/** Nothing left in flight on this device (the facade doesn't expose it). */
+const settled = (core: ClientCore) => (core as unknown as { sync: Sync }).sync.settled();
 const signPub = (core: ClientCore) => new Uint8Array(Buffer.from(core.me, 'base64url'));
 
 /** Alice owns "Groceries" with one task; Bob joins it by link. */
@@ -303,6 +306,34 @@ describe('sharing', () => {
     await until('Alice’s edit is accepted under the new epoch', () => server.groups.get(trip)!.updates.length >= 2);
   });
 
+  test('when Alice deletes the list, Bob is told he no longer has access; Alice is not', async () => {
+    const { alice, bob, list } = await aliceSharesWithBob();
+    await alice.list(list).delete();
+    await until('Bob loses the list', () => !has(bob, list));
+    expect(value(bob.notices).filter((n) => n.kind === 'lost-access')).toEqual([{ kind: 'lost-access', list, name: 'Groceries' }]);
+    expect(value(alice.notices).some((n) => n.kind === 'lost-access')).toBe(false);
+  });
+
+  test('a list whose log Bob can’t fetch doesn’t keep a deleted one on his device', async () => {
+    server = new MemoryServer();
+    const blocked = new Set<string>();
+    const inner = server.transport();
+    const transport = { ...inner, request: (m: string, path: string, body?: unknown) =>
+      [...blocked].some((id) => path.startsWith(`/v1/groups/${id}/log`)) ? Promise.reject(new Error('offline')) : inner.request(m, path, body) } as typeof inner;
+    const [alice, bob] = [await person(), await person('Bob', transport)];
+    const [gone, stuck] = [await alice.createList('Gone'), await alice.createList('Stuck')];
+    for (const list of [gone, stuck]) await (await bob.invites.open((await alice.list(list).createInvite()).link)).join();
+    await until('Bob has both', () => has(bob, gone) && has(bob, stuck));
+    await settled(bob);
+
+    // Stuck's log grows, but Bob can't fetch it; Gone is deleted.
+    blocked.add(stuck);
+    await alice.list(stuck).createInvite();
+    await alice.list(gone).delete();
+    await until('Gone is gone for Bob', () => !has(bob, gone));
+    expect(has(bob, stuck)).toBe(true);
+  });
+
   test('when Bob leaves, Alice’s app rotates the key', async () => {
     const { alice, bob, list } = await aliceSharesWithBob();
     await expect(alice.list(list).leave()).rejects.toThrow(/owner can't leave/);
@@ -310,6 +341,8 @@ describe('sharing', () => {
     expect(has(bob, list)).toBe(false);
     await until('Alice rotated', () => server.groups.get(list)!.epoch === 1);
     await until('Alice is told', () => value(alice.notices).some((n) => n.kind === 'left'));
+    await settled(bob);
+    expect(value(bob.notices).some((n) => n.kind === 'lost-access')).toBe(false);
   });
 
   test('revoking a link closes it and rotates; an unused link that expired is rotated away too', async () => {

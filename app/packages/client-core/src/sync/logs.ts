@@ -55,14 +55,26 @@ export async function announceList(account: Account, genesis: WireEntry): Promis
 
 /**
  * Brings every list the server lists for us up to date, verified from
- * genesis for lists new to this device. Returns their verified states.
- * Lists the server stops listing are dropped by sync's `group` handling.
+ * genesis for lists new to this device. Returns every listed id and the
+ * verified states of those that refreshed. Lists the server stops listing
+ * are dropped by sync's `group` handling. With `failed`, a list that can't
+ * be refreshed goes to it and the others go on; without, it throws.
  */
-export async function refreshLists(account: Account): Promise<ListState[]> {
+export async function refreshLists(
+  account: Account,
+  failed?: (list: ListId, e: unknown) => void,
+): Promise<{ listed: Set<ListId>; states: ListState[] }> {
   const groups = await account.request<GroupView[]>('GET', '/v1/groups');
   const states: ListState[] = [];
-  for (const g of groups) states.push(await refreshList(account, g));
-  return states;
+  for (const g of groups) {
+    try {
+      states.push(await refreshList(account, g));
+    } catch (e) {
+      if (failed === undefined) throw e;
+      failed(g.id, e);
+    }
+  }
+  return { listed: new Set(groups.map((g) => g.id)), states };
 }
 
 async function refreshList(account: Account, g: GroupView): Promise<ListState> {
