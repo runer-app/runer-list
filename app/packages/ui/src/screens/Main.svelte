@@ -444,20 +444,26 @@
       border-left: 0;
       background: var(--bg);
     }
+    /* A floating glass pill over the page, as on iOS; it sits just above the home indicator. */
     nav {
       position: fixed;
-      inset: auto 0 0 0;
+      inset: auto 16px max(12px, calc(env(safe-area-inset-bottom, 0px) - 12px)) 16px;
       top: auto;
       z-index: 1;
       height: auto;
+      overflow: visible;
       flex-direction: row;
       justify-content: space-around;
-      /* Clear of the home indicator on an iPhone. */
-      padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
-      border-top: 1px solid var(--divider);
-      border-right: 0;
+      padding: 4px;
+      border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--bg-popover) 72%, transparent);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      backdrop-filter: blur(20px) saturate(1.6);
+      box-shadow: 0 8px 28px rgb(0 0 0 / 0.28);
     }
     .item {
+      flex: 1;
       flex-direction: column;
       justify-content: center;
       gap: 2px;
@@ -465,6 +471,7 @@
       min-width: 44px;
       min-height: 44px;
       padding: 6px 8px;
+      border-radius: 999px;
       font-size: 11px;
     }
     .lists-tab,
@@ -479,6 +486,7 @@
       display: none;
     }
     .foot {
+      flex: 1;
       margin: 0;
       padding: 0;
     }

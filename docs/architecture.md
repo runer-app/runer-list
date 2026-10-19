@@ -306,12 +306,12 @@ The product's name, link scheme, app id and key-derivation label prefix are each
 |---|---|
 | Label prefix `runer/v1/` (E2EE §10.1) | `crates/runer-crypto/src/labels.rs` (the first line of `labels!`), then the vectors in `protocol/vectors` (`VECTORS_WRITE=1 cargo test -p runer-crypto --test generate the_committed` rewrites them). The server has its own copies of the labels |
 | Link scheme `runer` | `APP_SCHEME` in `packages/client-core/src/invite/link.ts`; `plugins.deep-link` in `apps/tauri/src-tauri/tauri.conf.json` (desktop and mobile); the server's `/join` page |
-| App id `app.runer` | `identifier` in `tauri.conf.json` (the keychain service follows it); the iOS project in `apps/tauri/src-tauri/gen/apple` |
+| App id `app.runer` | `identifier` in `tauri.conf.json` (the keychain service follows it); `DEV_CONFIG` in `Makefile` (`app.runer.dev`) and `.cargo/run-signed.sh` for dev builds; the iOS project in `apps/tauri/src-tauri/gen/apple` |
 | Product name `runer` | `PRODUCT_NAME` in `packages/ui/src/product.ts`; `productName` and the window `title` in `tauri.conf.json`; `<title>` in `apps/tauri/index.html` |
 
 Tests spell the scheme and the name out. The same name is in the crates (`runer-crypto`, `runer-vault`, `runer-vault-node`, `runer-app`), the npm scope (`@runer/*`), the `RUNER_PROFILE`, `RUNER_LINK` and `VITE_RUNER_SERVER` variables, the `runer://link` event inside the app, and the `runer-app/<version>` user agent (`packages/ui/src/devices.ts` reads it).
 
-A debug build started with `RUNER_PROFILE=<name>` (letters and digits) gets its own data directory (`…/profiles/<name>`) and keychain service (`app.runer.<name>`) and skips the single-instance check, so two copies run side by side as two accounts on one machine (`make dev2`). A release build ignores it. A dev copy isn't registered for `runer://`: to join by link, paste the link where a list is added, or start the copy with `make dev2 LINK='<the invite link>'`.
+Dev builds (`make dev*`, `make build-dev`) are their own app, `app.runer.dev` named "runer dev": they install beside the release and keep their own data directory and keychain entries, so a release never picks up a dev account. A debug build started with `RUNER_PROFILE=<name>` (letters and digits) gets its own data directory (`…/profiles/<name>`) and keychain service (`app.runer.dev.<name>`) and skips the single-instance check, so two copies run side by side as two accounts on one machine (`make dev2`). A release build ignores it. A dev copy isn't registered for `runer://`: to join by link, paste the link where a list is added, or start the copy with `make dev2 LINK='<the invite link>'`.
 
 ---
 
