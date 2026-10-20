@@ -2,12 +2,11 @@
 
 The client for a private, end-to-end encrypted list app, runer (runer.app). One Tauri 2 app for desktop and mobile, built on a headless TypeScript core, `client-core`, that holds all non-UI logic.
 
-Documentation is at the repo root, in `../docs/` and `../protocol/docs/`:
+Documentation is at the repo root:
 
 | File | What it is |
 |---|---|
-| `../docs/client-spec.md` | How the client is built: modules, `Platform` interface, API, screens, product decisions (**client-spec §n**) |
-| `../docs/architecture.md` | How the pieces fit together, with diagrams |
+| `../docs/app.md` | How the app is built: layers, `Platform` interface, API, screens, the vault |
 | `../protocol/docs/e2ee-protocol.md` | Accounts, keys, membership log, invites, removal, byte-level conventions (**E2EE §n**). Wins on protocol questions |
 | `../protocol/docs/sync-protocol.md` | WebSocket frames, catch-up, outbox (**Sync §n**) |
 | `../protocol/docs/api-reference.md` | HTTP endpoints and error codes |
@@ -16,12 +15,12 @@ Test data shared with the server is in `../protocol/`: `log-fixtures/` (membersh
 
 ## Working rules
 
-- **Layout** follows client-spec §2.1.
-- **Tooling:** TypeScript (strict, ESM), vitest, Node ≥ 22, and Rust (rustup) for the crates in `crates/`. iOS builds also need Xcode, `xcodegen` and `cocoapods` (Homebrew), the Rust iOS targets, and `rustup component add llvm-tools` (client-spec §6.2a). Keys, crypto and the membership logs are Rust (the vault, client-spec §8). Runtime dependencies need the maintainer's approval (client-spec §8); approved: `yjs`, and `svelte` for the UI. `platform-tauri` also uses `@tauri-apps/api`. No `@tauri-apps/*` imports outside the Tauri packages (lint rule).
+- **Layout** follows app.md §2.1.
+- **Tooling:** TypeScript (strict, ESM), vitest, Node ≥ 22, and Rust (rustup) for the crates in `crates/`. iOS builds also need Xcode, `xcodegen` and `cocoapods` (Homebrew), the Rust iOS targets, and `rustup component add llvm-tools` (app.md §6.2a). Keys, crypto and the membership logs are Rust (the vault, app.md §8). Runtime dependencies need the maintainer's approval (app.md §8); approved: `yjs`, and `svelte` for the UI. `platform-tauri` also uses `@tauri-apps/api`. No `@tauri-apps/*` imports outside the Tauri packages (lint rule).
 - **Protocol:** the protocol docs win on protocol questions. If one is wrong, vague or missing something, raise it in an issue; protocol changes are made in `../protocol/docs`, in the same change as the code on both sides.
 - **e2e:** the tests run against the real server: `e2e/against-server.sh` starts it with PostgreSQL in Docker and runs them, so they need Docker and Go. The unit tests use an in-memory server instead (`packages/client-core/test/platform-node/memory-server.ts`), which changes with the API.
 - **UI** never touches Yjs directly, only typed `list/` operations. No Tiptap: a list is rows, not a document editor.
-- **Choices the specs leave open:** write how the client behaves into `../docs/client-spec.md`. A gap in a protocol doc is closed in `../protocol/docs`, not noted here.
+- **Choices the specs leave open:** write how the client behaves into `../docs/app.md`. A gap in a protocol doc is closed in `../protocol/docs`, not noted here.
 
 ## Commands
 

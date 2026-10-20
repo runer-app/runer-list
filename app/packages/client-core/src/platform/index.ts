@@ -1,5 +1,5 @@
 /**
- * The only thing each shell implements (client-spec §4). client-core depends
+ * The only thing each shell implements. client-core depends
  * on these interfaces and nothing else: no DOM, no Tauri, no Node.
  *
  * Keys and crypto are in the vault (`vault.ts`), which is Rust on every
@@ -39,8 +39,7 @@ export interface Socket {
 
 /**
  * HTTP and WebSocket to the server. The implementation holds the session
- * cookie and sends the configured `Origin` on every mutation and upgrade
- * (client-spec §5).
+ * cookie and sends the configured `Origin` on every mutation and upgrade.
  */
 export interface Transport {
   request(method: string, path: string, body?: unknown): Promise<HttpResponse>;

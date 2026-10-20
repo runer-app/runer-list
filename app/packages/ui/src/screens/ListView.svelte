@@ -11,7 +11,7 @@
   import { dismiss } from '../dismiss.js';
 
   /**
-   * One list, or the Inbox (client-spec §7.1): a bar with who can see it,
+   * One list, or the Inbox: a bar with who can see it,
    * Share and the "⋯" menu (show completed tasks; for a list also rename,
    * delete or leave), then the title and the
    * list as a page of tasks and notes, edited in place (ListEditor).

@@ -1,5 +1,5 @@
 /**
- * Invite links (E2EE §6, client-spec §6.3): `https://<server>/join#<s>`, or
+ * Invite links (E2EE §6): `https://<server>/join#<s>`, or
  * the app's own `runer://join?host=<server>#<s>` that the server's `/join`
  * page hands over. The fragment is the link secret `s`: it is a key, so
  * nothing here logs it, puts it in an error, or sends it anywhere.

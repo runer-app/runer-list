@@ -75,7 +75,7 @@ const SETTINGS_RETRIES = 3;
 export type Notice = LogEvent | { kind: 'lost-access'; list: ListId; name: string };
 
 export class Account {
-  /** Security warnings seen so far (client-spec §3.3). */
+  /** Security warnings seen so far. */
   readonly warnings = new Writable<VaultWarning[]>([]);
   /** Membership changes seen in our lists ("Anna joined"), and lists we lost access to, oldest first. */
   readonly notices = new Writable<Notice[]>([]);

@@ -1,5 +1,5 @@
 /**
- * The adversarial proxy (client-spec §11): a `Transport` that sits between
+ * The adversarial proxy: a `Transport` that sits between
  * one device and the server and plays a hostile server. Each test sets
  * `tamper` to rewrite responses and frames, drop them, or `inject` its own.
  * It also keeps a copy of everything that crossed it, for the network

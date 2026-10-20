@@ -6,7 +6,7 @@ const s = Buffer.from(secret).toString('base64url');
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('invite links (client-spec §6.3)', () => {
+describe('invite links', () => {
   test('the link is the list server’s /join with the secret in the fragment', () => {
     expect(formatInviteLink('https://runer.test/', secret)).toBe(`https://runer.test/join#${s}`);
     expect(parseInviteLink(formatInviteLink('https://runer.test', secret))).toEqual({ server: 'https://runer.test', secret });

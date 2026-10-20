@@ -1,6 +1,6 @@
 /**
- * The vault: the Rust side that holds every key and every verified log
- * (client-spec §8), behind Tauri commands in the app and a napi-rs add-on in
+ * The vault: the Rust side that holds every key and every verified log,
+ * behind Tauri commands in the app and a napi-rs add-on in
  * Node (`crates/runer-vault-node`).
  *
  * What the vault guarantees, even to a compromised webview:
@@ -86,7 +86,7 @@ export interface ListState {
   rotationDue: 'member-left' | 'invite-revoked' | null;
 }
 
-/** The log-derived subset of client-spec §3.3. */
+/** The security warnings that come from the verified logs. */
 export type VaultWarning =
   | { kind: 'log-fork' | 'log-rollback'; list: ListId }
   | { kind: 'withheld-removal'; list: ListId }

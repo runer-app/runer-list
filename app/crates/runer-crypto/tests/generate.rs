@@ -8,10 +8,10 @@
 //! (`VECTORS_DIR` picks another directory). A changed
 //! vector counts once the server's Go check passes too (`make test-unit` in `server/`).
 //!
-//! HPKE picks a random ephemeral key for an envelope; here it comes from a
-//! fixed RNG output through HPKE's `DeriveKeyPair`, and the vector records
-//! the derived private key, which is what the Go test re-seals with
-//! (client-spec §8, "Sealed vectors").
+//! The `hpke` crate won't take a raw ephemeral key, so envelopes are sealed
+//! with a fixed-output RNG: `hpke` turns its output (SHA-256 of the
+//! envelope's name) into the ephemeral key with `DeriveKeyPair`, and the
+//! vector records that derived private key, which the Go test re-seals with.
 
 use hpke::aead::AesGcm256;
 use hpke::kdf::HkdfSha256;

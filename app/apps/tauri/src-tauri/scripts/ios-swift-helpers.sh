@@ -3,7 +3,7 @@
 # so the Rust side can't link to them. swift-rs 1.0.8 makes each package's own
 # exports global again, but not those of its SwiftRs helper module, which every
 # package embeds a copy of. This does the rest: in the built library it makes
-# those helpers global and weak, so the copies fold into one (client-spec §6.2a).
+# those helpers global and weak, so the copies fold into one.
 # Run by the Xcode project after "Build Rust Code"; needs `rustup component add llvm-tools`.
 set -eu
 

@@ -2,8 +2,9 @@
 
 One repo: `app/` (Tauri client: TypeScript, Svelte, Rust), `server/` (Go + PostgreSQL), `protocol/` (the protocol
 docs and the conformance data both sides test against). Each side has its own Makefile and README; the root
-Makefile delegates to them. Documentation is in `docs/` (architecture, client-spec, self-hosting, releasing) and
-`protocol/docs/`.
+Makefile delegates to them. The protocol rules are only in `protocol/docs/`; `docs/` covers the
+app (`app.md`), self-hosting and releasing, and links to the protocol instead of restating it. The server's layout is in
+`server/README.md`.
 
 ## Protocol data
 

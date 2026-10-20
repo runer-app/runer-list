@@ -1,7 +1,7 @@
 import type { Lifecycle, LinkSource, LocalStore, Notifier, Platform, Reminder, Transport } from '../../src/platform/index.js';
 import { NodeVault } from './vault.js';
 
-/** In-memory `Platform` for tests (client-spec §4.1, "Node" column). Not published. */
+/** In-memory `Platform` for tests. Not published. */
 
 type Tables = Map<string, Map<string, Uint8Array>>;
 

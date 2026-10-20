@@ -1,4 +1,4 @@
-//! All of the client's cryptography (client-spec §8): account, identity,
+//! All of the client's cryptography: account, identity,
 //! list keys, envelopes, content, invites and the safety code, following
 //! E2EE §3, §5, §6, §7 and the byte conventions in §10.1. Checked against
 //! the shared vectors in `protocol/vectors`.

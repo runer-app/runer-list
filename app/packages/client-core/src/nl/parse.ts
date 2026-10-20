@@ -119,7 +119,7 @@ interface TimeMatch {
 
 /**
  * The date and time typed in `text`, or `null` if there is none. What keeps
- * it from guessing (client-spec §7):
+ * it from guessing:
  *
  * - a number alone is never a date or a time; a time needs a colon, am/pm or "at";
  * - a month needs a day;

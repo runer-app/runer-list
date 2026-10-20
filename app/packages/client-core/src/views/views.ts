@@ -30,7 +30,7 @@ export interface MyTasks {
   planned: TaskRef[];
 }
 
-/** A task is the user's when it is assigned to them or to nobody (client-spec §7.2, REWORK §3.1). */
+/** A task is the user's when it is assigned to them or to nobody. */
 export function isMine(item: Item, me: string): boolean {
   return item.assignee === undefined || item.assignee === me;
 }

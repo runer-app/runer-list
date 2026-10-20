@@ -17,7 +17,7 @@
     signIn: (server: string) => void;
   } = $props();
 
-  // The server picker (client-spec §7.1). The login message covers this URL, so it must equal the server's PUBLIC_URL.
+  // The server picker. The login message covers this URL, so it must equal the server's PUBLIC_URL.
   // The hosted server is the default; a self-hosted one is tucked away in the footer.
   // The field starts blank: the hosted address is never shown, and cancelling goes back to it.
   let server = $state('');

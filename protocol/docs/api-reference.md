@@ -26,15 +26,15 @@ Everything is under `/v1` except `/healthz` and `/join`. The protocol behind the
 |---|---|---|---|
 | `POST` | `/v1/auth/challenge` | | `{auth_pub}` → `{nonce, pow_bits}` |
 | `POST` | `/v1/auth/login` | | `{auth_pub, nonce, sig, [identity_sign_pub, identity_agree_pub, identity_bundle, identity_sig, pow_nonce, inbox_entry, inbox_sig]}` → `{account_id, bundle_gen, session_id, inbox_id}` |
+| `POST` | `/v1/auth/logout` | 🔒 | → `{revoked}` |
+| `GET` | `/v1/sessions` | 🔒 | → `[{id, user_agent, created_at, last_seen_at, current}]` (`current`: the asking session) |
+| `DELETE` | `/v1/sessions/{id}` | 🔒 | → `{revoked}` |
 
 **Sign-up Inbox.** A sign-up also sends `inbox_entry` and `inbox_sig` (base64url): the signed `create` of the account's Inbox, checked as `POST /v1/groups` checks one, with `author` = `identity_sign_pub` and `author_agree` = `identity_agree_pub`. The account and its Inbox are created together; missing or invalid → `400 bad_request` and no account. `inbox_id` is in every login response (`null` only for accounts older than the Inbox).
 
 **No personal account info.** A sign-up sends keys and nothing else about the person: the server stores no name and no email ([E2EE §3.3](./e2ee-protocol.md#33-what-the-server-stores-per-account)). Unknown fields in the body are ignored.
 
 **Sign-up proof-of-work.** A first login (sign-up) needs `pow_nonce` such that `SHA-256(auth_pub ‖ nonce ‖ pow_nonce)` (raw bytes) has at least `pow_bits` leading zero bits. Use the `pow_bits` from the challenge: it's the same for every caller on a server (so it reveals nothing about whether an account exists), but operators can change it (`SIGNUP_POW_BITS`, [Self-hosting](../../docs/self-hosting.md#configuration)). Never hardcode it.
-| `POST` | `/v1/auth/logout` | 🔒 | → `{revoked}` |
-| `GET` | `/v1/sessions` | 🔒 | → `[{id, user_agent, created_at, last_seen_at, current}]` (`current`: the asking session) |
-| `DELETE` | `/v1/sessions/{id}` | 🔒 | → `{revoked}` |
 
 ### Account
 

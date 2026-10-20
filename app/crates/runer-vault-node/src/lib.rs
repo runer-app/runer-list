@@ -1,4 +1,4 @@
-//! The vault as a Node add-on, for tests and the e2e suite (client-spec §8).
+//! The vault as a Node add-on, for tests and the e2e suite.
 //! A thin mapping of `runer_vault::Vault` onto JavaScript values: handles
 //! are strings, bytes are `Uint8Array`s, and an error's `code` is the
 //! vault's error code (a log rule's name for a rejected log).

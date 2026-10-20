@@ -1,5 +1,5 @@
 /**
- * The sync engine (Sync protocol, client-spec §5.1): one WebSocket per
+ * The sync engine (Sync protocol): one WebSocket per
  * account, every list subscribed, catch-up from the stored `since`, the
  * outbox, snapshots, and a Yjs document per list that the UI edits through
  * `ListDoc`. Membership comes from the vault's verified logs; `group`
@@ -165,7 +165,7 @@ export class Sync {
         this.reconcileSoon();
       }),
     );
-    // Mobile: close the socket in the background, don't rely on background execution (client-spec §5.1).
+    // Mobile: close the socket in the background, don't rely on background execution.
     if (mobile) this.unhook.push(lifecycle.onBackground(() => this.socket?.close()));
     this.refreshTimer = setInterval(() => this.reconcileSoon(), this.opts.headRefreshMs);
     void this.connect();
@@ -183,7 +183,7 @@ export class Sync {
     await this.queue;
   }
 
-  /** Sign-out: stops, deletes this account's content here, then signs out of the account (client-spec §9). */
+  /** Sign-out: stops, deletes this account's content here, then signs out of the account. */
   async signOut(): Promise<void> {
     await this.stop();
     await this.store.clear();

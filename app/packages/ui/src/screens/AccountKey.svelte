@@ -5,7 +5,7 @@
   import Icon from '../components/Icon.svelte';
   import KeyWords from '../components/KeyWords.svelte';
 
-  /** Sign-up's last step (client-spec §7.1): show the 12 words once, then have the user type back three of them. */
+  /** Sign-up's last step: show the 12 words once, then have the user type back three of them. */
   let { words, done }: { words: string[]; done: () => void } = $props();
 
   let step = $state<'show' | 'confirm'>('show');

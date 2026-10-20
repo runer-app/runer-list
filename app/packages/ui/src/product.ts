@@ -1,2 +1,2 @@
-/** The product name, in one place (client-spec §7). */
+/** The product name, in one place. */
 export const PRODUCT_NAME = 'runer';

@@ -7,7 +7,7 @@
   import Centered from '../components/Centered.svelte';
 
   /**
-   * Join (client-spec §7.1): read the link, show the list's name and who
+   * Join: read the link, show the list's name and who
    * invited (by the name in the invite; a link made without one names
    * nobody), then join. The others see us by our account name. The link's
    * secret never leaves the device (§6.3).

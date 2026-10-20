@@ -1,7 +1,7 @@
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
 
-/* Theme tokens (client-spec §7). Dark first, after the mockups; light follows the system setting. */
+/* Theme tokens. Dark first, after the mockups; light follows the system setting. */
 :root {
   color-scheme: dark;
   --bg: #1b1823;
@@ -118,7 +118,7 @@ input[type='checkbox']:checked {
 }
 
 /*
- * Touch (client-spec §7): a button or a checkbox takes a finger within 44px,
+ * Touch: a button or a checkbox takes a finger within 44px,
  * whatever size it is drawn at. `:where` keeps this below a component's own
  * rules. Rows that touch each other (menus, task rows) are made 44px high
  * where they are styled, since two such areas would overlap.

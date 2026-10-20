@@ -1,7 +1,7 @@
 //! The `vault` commands: `runer_vault::Vault` behind IPC, the same mapping
 //! as the Node add-on (`crates/runer-vault-node`). Handles are strings and
 //! bytes are base64url; no command takes or returns key bytes, except the
-//! words on the two screens that must show them (client-spec §8) and an
+//! words on the two screens that must show them and an
 //! invite link's secret, which is in the link by nature (E2EE §6.1).
 //!
 //! Every command is async, so it runs off the main thread (the sign-up

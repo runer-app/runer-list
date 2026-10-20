@@ -12,8 +12,8 @@
 
   /**
    * The start screen: what's due, across every list, and
-   * capture straight into it. Below it, My tasks: the next 7 days and later
-   * (client-spec §3.6). Each section can be dragged into the
+   * capture straight into it. Below it, My tasks: the next 7 days and later.
+   * Each section can be dragged into the
    * user's own order (`ClientCore.setTaskOrder`), within the section, since
    * moving a task between sections would mean changing its date.
    */

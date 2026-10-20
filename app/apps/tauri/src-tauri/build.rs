@@ -1,6 +1,6 @@
 // The app's own commands, declared so that each needs an explicit
 // permission: the `default` capability lists them, and nothing else is
-// reachable from the webview (client-spec §6.1).
+// reachable from the webview.
 const COMMANDS: &[&str] = &[
     "vault_accounts",
     "vault_set_inbox",

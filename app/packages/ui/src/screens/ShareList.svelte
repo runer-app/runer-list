@@ -10,7 +10,7 @@
   import Icon from '../components/Icon.svelte';
 
   /**
-   * Share (client-spec §3.4, §7.1), a dialog over the list. Everyone sees
+   * Share, a dialog over the list. Everyone sees
    * who is in it; the owner adds known contacts directly, makes a
    * single-use link for someone new, turns links off and removes people.
    * Safety codes are behind one line at the bottom: few people compare

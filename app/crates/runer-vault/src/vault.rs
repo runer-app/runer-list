@@ -151,7 +151,7 @@ pub enum LogEvent {
     Rotated(u64),
 }
 
-/// The log-derived warnings of client-spec §3.3 that `apply_log` can see.
+/// The security warnings `apply_log` can see in a log.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VaultWarning {
     /// The server served an entry at a seq we have verified, with a different hash (E2EE §4.4).

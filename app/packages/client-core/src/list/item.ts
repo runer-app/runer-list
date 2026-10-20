@@ -1,4 +1,4 @@
-/** One row of a list (client-spec §3.1). */
+/** One row of a list. */
 export interface Item {
   /** Stable across edits, moves and lists. */
   id: string;

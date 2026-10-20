@@ -19,7 +19,7 @@ export interface ReminderPlanOptions {
 }
 
 /**
- * Which notifications this device should have scheduled (client-spec §7.2).
+ * Which notifications this device should have scheduled.
  * Run after every sync and pass the result to `Notifier.replaceAll`.
  *
  * A task qualifies when it has a future `remind_at`, is not done, and is

@@ -1,4 +1,4 @@
-//! The `notify` commands: the `Notifier` (client-spec §7.2). The
+//! The `notify` commands: the `Notifier`. The
 //! notification plugin shows desktop notifications at once and ignores a
 //! schedule (§6.2a), so on desktop we keep the schedule ourselves and show
 //! each reminder when it's due, while the app runs. On a phone the OS

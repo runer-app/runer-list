@@ -1,4 +1,4 @@
-//! Where the vault keeps what survives a restart (client-spec §6.2, §9): the
+//! Where the vault keeps what survives a restart: the
 //! OS keychain through `keyring`, and the vault's own SQLite file, which the
 //! `store` commands can't open.
 

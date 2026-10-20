@@ -1,6 +1,6 @@
 import tseslint from 'typescript-eslint';
 
-// Dependency rule (client-spec §2): only the Tauri packages may import @tauri-apps/*.
+// Dependency rule: only the Tauri packages may import @tauri-apps/*.
 const noTauri = {
   'no-restricted-imports': ['error', { patterns: [{ group: ['@tauri-apps/*'], message: 'Only packages/platform-tauri and apps/tauri may import @tauri-apps/*.' }] }],
 };

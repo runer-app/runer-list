@@ -4,7 +4,7 @@
   import { t } from '../messages.js';
   import Icon from '../components/Icon.svelte';
 
-  /** Detail for every security warning (client-spec §3.3): what happened, and what to do. */
+  /** Detail for every security warning: what happened, and what to do. */
   let { core, back }: { core: ClientCore; back: () => void } = $props();
 
   const stores = $derived({ warnings: fromStore(core.warnings), lists: fromStore(core.lists) });

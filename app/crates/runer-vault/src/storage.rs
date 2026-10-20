@@ -1,4 +1,4 @@
-//! Where the vault keeps what must survive a restart (client-spec §9): the
+//! Where the vault keeps what must survive a restart: the
 //! OS keychain for the Account Keys and the device cache key, and the
 //! vault's own store for everything else, sealed under the cache key.
 //! The app implements both in Rust (`keyring`, SQLite); tests and the Node

@@ -1,4 +1,4 @@
-//! The `net` commands: the `Transport` (client-spec §5). All HTTP and
+//! The `net` commands: the `Transport`. All HTTP and
 //! WebSocket traffic goes through here, which holds the session cookie (the
 //! webview never sees it) and sends the one `Origin` the server accepts on
 //! every request and the upgrade.

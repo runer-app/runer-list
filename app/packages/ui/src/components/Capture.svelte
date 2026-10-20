@@ -4,7 +4,7 @@
   import Icon from './Icon.svelte';
 
   /**
-   * The capture field on Today and Lists (client-spec §7): Enter adds, and the field stays ready for the next.
+   * The capture field on Today and Lists: Enter adds, and the field stays ready for the next.
    * An `add` that returns `false` took nothing, and the text stays.
    * `shortcut` is a key that jumps here from anywhere on the page that isn't a text field.
    * With `dates`, a date typed in the text ("tomorrow 9:30") shows as a chip and leaves the title when the task is

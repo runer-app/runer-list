@@ -15,7 +15,7 @@ import { NodeVault } from '../packages/client-core/test/platform-node/vault.js';
 import { device, server, transport } from './device.js';
 import { ProxyTransport } from './proxy.js';
 
-// The adversarial proxy (client-spec §11, E2EE §1): a hostile server between
+// The adversarial proxy (E2EE §1): a hostile server between
 // one device and the server. It can withhold, replay and rewrite; the
 // client must notice, or refuse, and never read or trust what it forged.
 

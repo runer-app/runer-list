@@ -425,7 +425,7 @@
     padding: max(20px, calc(4px + var(--titlebar))) 56px 64px;
   }
 
-  /* Phones: the sidebar becomes a bottom tab bar (client-spec §7); lists and search are reached from it. */
+  /* Phones: the sidebar becomes a bottom tab bar; lists and search are reached from it. */
   @media (max-width: 700px) {
     .app,
     .app.panel {

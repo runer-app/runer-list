@@ -87,7 +87,7 @@ targets:
     preBuildScripts:
       - script: |
           npm run -- tauri ios xcode-script -v --platform "${PLATFORM_DISPLAY_NAME:?}" --sdk-root "${SDKROOT:?}" --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration "${CONFIGURATION:?}" ${FORCE_COLOR} ${ARCHS:?}
-          # Xcode 27, Release: make swift-rs's helper symbols linkable again (client-spec §6.2a).
+          # Xcode 27, Release: make swift-rs's helper symbols linkable again.
           for lib in "${SRCROOT}"/Externals/*/"${CONFIGURATION}"/libapp.a; do "${SRCROOT}/../../scripts/ios-swift-helpers.sh" "$lib"; done
         name: Build Rust Code
         basedOnDependencyAnalysis: false

@@ -14,11 +14,11 @@ The protocol is implemented twice, in Go and in Rust, and the two must agree byt
 
 | Document | What it covers |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | How the app and the server are put together, with diagrams |
-| [docs/client-spec.md](docs/client-spec.md) | How the app is built and behaves: modules, platform layer, screens, the vault |
+| [protocol/docs/](protocol/docs) | The rules both sides implement: [E2EE](protocol/docs/e2ee-protocol.md), [Sync](protocol/docs/sync-protocol.md), [API reference](protocol/docs/api-reference.md) |
+| [docs/app.md](docs/app.md) | How the app is built: layers, the vault, sync, screens |
+| [server/README.md](server/README.md) | How the server is built and developed |
 | [docs/self-hosting.md](docs/self-hosting.md) | Running your own server: Docker, configuration, limits, retention, backups |
 | [docs/releasing.md](docs/releasing.md) | Versions, tags, and the one-time release setup |
-| [protocol/docs/](protocol/docs) | The protocol: [E2EE](protocol/docs/e2ee-protocol.md), [Sync](protocol/docs/sync-protocol.md), [API reference](protocol/docs/api-reference.md) |
 
 ## Commands
 

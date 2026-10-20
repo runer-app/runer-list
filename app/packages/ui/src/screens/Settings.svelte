@@ -11,7 +11,7 @@
   import Icon from '../components/Icon.svelte';
 
   /**
-   * Settings (client-spec §7.1), one section per row: what it is on the
+   * Settings, one section per row: what it is on the
    * left, the controls on the right. The account key, devices (sessions),
    * reminders and their privacy, the time format, and the server and
    * sign-out.

@@ -1,4 +1,4 @@
-//! What survives a restart (client-spec §9): accounts in the keychain and
+//! What survives a restart: accounts in the keychain and
 //! the store, logs re-verified from the store, keys opened again from them.
 
 mod common;

@@ -11,7 +11,7 @@ import { formatInviteLink } from '../invite/link.js';
 import type { ListId, ListState } from '../platform/vault.js';
 import { append } from './logs.js';
 
-/** A link invite lasts 48 hours unless asked otherwise (client-spec §3.4), at most 7 days (E2EE §4.2 rule 9). */
+/** A link invite lasts 48 hours unless asked otherwise, at most 7 days (E2EE §4.2 rule 9). */
 export const DEFAULT_INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 
 export interface CreatedInvite {

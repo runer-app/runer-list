@@ -1,5 +1,5 @@
 /**
- * The `ClientCore` facade (client-spec §3.2): one object per signed-in
+ * The `ClientCore` facade: one object per signed-in
  * account, which is all the UI talks to. It owns the account and its sync
  * engine, and turns them into `Readable`s: the lists, Today, My tasks, the
  * connection and the security warnings.
@@ -36,7 +36,7 @@ export interface ClientCoreOptions {
 
 /** The account's preferences as the UI sees them, wherever each is kept. */
 export interface Settings {
-  /** Notifications show the task title and list name (default), or only a generic text (client-spec §7.2). This device only. */
+  /** Notifications show the task title and list name (default), or only a generic text. This device only. */
   reminderTitles: boolean;
   /** Times shown on a 12- or 24-hour clock; unset follows the device's language. The same on every device (`AccountSettings`). */
   clock?: '12h' | '24h';
@@ -51,7 +51,7 @@ const SETTINGS_TABLE = 'settings';
 /** The Inbox document's view order for Today and My tasks (`ListDoc.viewOrder`). */
 const TASK_ORDER = 'tasks';
 
-/** client-spec §3.3. All but `invite-already-used` come from the vault. */
+/** Security warnings the UI must show until they clear. All but `invite-already-used` come from the vault. */
 export type SecurityWarning = VaultWarning | { kind: 'invite-already-used' };
 
 export interface ListSummary {
@@ -97,7 +97,7 @@ export interface JoinableInvite extends OpenedInvite {
   join(): Promise<ListId>;
 }
 
-/** One list: its document operations (client-spec §3.1) and, from the verified log, who is in it. */
+/** One list: its document operations and, from the verified log, who is in it. */
 export interface ListHandle {
   readonly id: ListId;
   readonly inbox: boolean;
@@ -125,7 +125,7 @@ export interface ListHandle {
   /** Owner only; the server refuses the Inbox. */
   delete(): Promise<void>;
 
-  // Sharing (client-spec §3.4). The owner-only ones are refused for members, by the vault and the server.
+  // Sharing. The owner-only ones are refused for members, by the vault and the server.
   /** Link invites still open, from the verified log (expired ones too, until the owner's app rotates). */
   readonly openInvites: { invitePub: Uint8Array; expires: number }[];
   /** Owner: adds one of `knownContacts()` (E2EE §6.3). */
@@ -258,8 +258,8 @@ export class ClientCore {
   }
 
   /**
-   * Writes our name into the lists we share, where the others read it
-   * (client-spec §3.7). Only where nothing was written yet, unless
+   * Writes our name into the lists we share, where the others read it.
+   * Only where nothing was written yet, unless
    * `overwrite`: then the name just came from the user or another device
    * and replaces an older one, and an empty name clears it. A device that
    * hasn't heard of a change yet mustn't write the old name back, which is
@@ -304,7 +304,7 @@ export class ClientCore {
     return this.prefs;
   }
 
-  /** The privacy setting for notifications (client-spec §7.2); reschedules at once. */
+  /** The privacy setting for notifications; reschedules at once. */
   async setReminderTitles(show: boolean): Promise<void> {
     await this.saveDevice({ reminderTitles: show });
     this.queueReminders();
@@ -417,7 +417,7 @@ export class ClientCore {
     };
   }
 
-  /** Everyone we share, or shared, a list with: "Share with…" offers these before a link (client-spec §3.4). */
+  /** Everyone we share, or shared, a list with: "Share with…" offers these before a link. */
   knownContacts(): Promise<PublicIdentity[]> {
     return this.account.platform.vault.knownContacts(this.account.handle);
   }
@@ -548,7 +548,7 @@ export class ClientCore {
 
   /**
    * After every change, local or synced: hand the OS the reminders this
-   * device should have (client-spec §7.2), once per tick and only when
+   * device should have, once per tick and only when
    * they differ from what it already has.
    */
   private queueReminders(): void {

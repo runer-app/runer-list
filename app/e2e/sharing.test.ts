@@ -2,7 +2,7 @@ import { ClientCore, toBase64url, type ClientCoreOptions, type ListId, type Read
 import { afterEach, describe, expect, test } from 'vitest';
 import { device, server } from './device.js';
 
-// Sharing against the server (client-spec §11): link invites, a direct
+// Sharing against the server: link invites, a direct
 // add of a known contact, removal with rotation, leaving, revoking.
 
 const OPTS: ClientCoreOptions = { sync: { backoff: { firstMs: 50, maxMs: 200, jitterMs: 10 }, snapshotDelayMs: () => 0 } };

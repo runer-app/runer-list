@@ -1,4 +1,4 @@
-//! The Tauri shell (client-spec §6): the `Platform` capabilities behind
+//! The Tauri shell: the `Platform` capabilities behind
 //! commands. Protocol logic in Rust is only the vault; sync, the list
 //! document and the views stay in `client-core`.
 //!
@@ -28,7 +28,7 @@ fn links_initial(app: tauri::AppHandle) -> Option<String> {
     app.deep_link().get_current().ok().flatten()?.first().map(|u| u.to_string())
 }
 
-/// Signed updates (client-spec §12), in builds that were given an update
+/// Signed updates, in builds that were given an update
 /// feed and its key: the release workflow adds `plugins.updater` to the
 /// config, so a build from a laptop never updates itself. Checked once at
 /// start, from Rust: the webview gets no updater command.

@@ -160,7 +160,7 @@ describe('ClientCore', () => {
     void b;
   });
 
-  describe('reminders (client-spec §7.2)', () => {
+  describe('reminders', () => {
     const at = NOW.getTime() + 3_600_000;
 
     test('are scheduled after every change, with the list name as body; the Inbox gets the UI’s name for it', async () => {

@@ -7,7 +7,7 @@
   import Icon from '../components/Icon.svelte';
   import Ring from '../components/Ring.svelte';
 
-  /** Every list (client-spec §7.1): "New list" (or a pasted invite link, which `join` takes), then "Shared" and "Only me", each with its open tasks and who's in it. */
+  /** Every list: "New list" (or a pasted invite link, which `join` takes), then "Shared" and "Only me", each with its open tasks and who's in it. */
   let { core, open, join }: { core: ClientCore; open: (id: ListId) => void; join: (text: string) => 'opened' | 'ignored' | 'name' } = $props();
 
   const store = $derived(fromStore(core.lists));

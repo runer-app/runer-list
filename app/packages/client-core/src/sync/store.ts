@@ -1,5 +1,5 @@
 /**
- * List content on this device (client-spec §9, Sync §4): the server's
+ * List content on this device (Sync §4): the server's
  * ciphertext as delivered, the highest `seq` held per list, and the outbox.
  * Everything here is ciphertext; plaintext lives only in memory.
  *
@@ -188,7 +188,7 @@ export class ContentStore {
     });
   }
 
-  /** Everything this account has here (sign-out, client-spec §9). */
+  /** Everything this account has here (sign-out). */
   async clear(): Promise<void> {
     await this.store.tx(async (tx) => {
       for (const table of ['content', 'outbox', 'cursor', 'created']) {

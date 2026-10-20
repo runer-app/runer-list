@@ -812,7 +812,7 @@
         {#if menuOpen && (menuFor === row.key || (menuFor === null && focused === row.key))}<SlashMenu choices={menuChoices} active={menuActive} {choose} />{/if}
       </div>
     {:else}
-      <!-- A type from a newer version: shown as text, kept as it is (client-spec §3.1). -->
+      <!-- A type from a newer version: shown as text, kept as it is. -->
       <div class="row other" class:dragged={dragging === row.key} class:drop={dropGap === blockIndex.get(row.key)} use:rowEl={row.key}>
         <span class="gutter"><Grip down={(e) => beginDrag(e, row.key)} key={(e) => keyOnGrip(e, row.key)} /></span>
         <span class="lead"></span>

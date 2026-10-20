@@ -9,7 +9,7 @@ import type { Readable } from '../src/readable.js';
 import { MemoryServer } from './platform-node/memory-server.js';
 import { createMemoryPlatform } from './platform-node/memory.js';
 
-// Sharing through the facade (client-spec §3.4): two or three people, each
+// Sharing through the facade: two or three people, each
 // on their own device and session, against the in-process server and the real vault.
 
 const SERVER = 'https://runer.test';

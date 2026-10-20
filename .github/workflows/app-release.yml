@@ -1,5 +1,5 @@
-# Installers for macOS, Windows and Linux, as a draft release on GitHub
-# (client-spec §12): on an `app-v*` tag, or by hand to try a build. Publishing the
+# Installers for macOS, Windows and Linux, as a draft release on GitHub:
+# on an `app-v*` tag, or by hand to try a build. Publishing the
 # draft is what releases it: installed copies then find it through the update
 # feed.
 #

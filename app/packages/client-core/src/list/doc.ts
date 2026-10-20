@@ -20,7 +20,7 @@ export interface AddTaskOptions extends AddOptions {
 }
 
 /**
- * The list document (client-spec §3.1): typed operations over one Yjs doc.
+ * The list document: typed operations over one Yjs doc.
  *
  * ```text
  * name:   Y.Text

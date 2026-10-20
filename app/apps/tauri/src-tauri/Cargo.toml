@@ -33,7 +33,7 @@ url = "2"
 [target.'cfg(not(target_os = "ios"))'.dependencies]
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 
-# `keyring` can't set a keychain item's accessibility class (client-spec §6.2).
+# `keyring` can't set a keychain item's accessibility class.
 [target.'cfg(target_os = "ios")'.dependencies]
 security-framework = "3"
 

@@ -1,5 +1,5 @@
 /**
- * The Tauri `Platform` (client-spec §4.1), desktop and mobile. One per
+ * The Tauri `Platform`, desktop and mobile. One per
  * server: the transport names the server on every call.
  */
 

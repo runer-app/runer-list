@@ -10,7 +10,7 @@
 
 - The server stores an **ordered log of encrypted updates per list** plus occasional encrypted snapshots. It never inspects them.
 - Delivery is **at-least-once, in server `seq` order**. Updates are idempotent; the client also de-duplicates by `seq`.
-- Frames are **JSON text**, binary fields **base64url**. Kept simple: ~33 % overhead on ciphertext; switch to CBOR only if bandwidth is measured to matter.
+- Frames are **JSON text**, binary fields **base64url**.
 - One WebSocket per app instance, multiplexing all subscribed lists.
 - The protocol version is in the URL (`/v1/…`).
 

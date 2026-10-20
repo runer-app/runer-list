@@ -2,7 +2,7 @@ import type { ClientCore } from '@runer/client-core';
 
 /**
  * What the app entry hands the UI: getting a `ClientCore`, with the
- * platform already chosen. The UI never sees a platform (client-spec §2).
+ * platform already chosen. The UI never sees a platform.
  */
 export interface Shell {
   /** The server the Welcome screen suggests. */
@@ -15,6 +15,6 @@ export interface Shell {
   signUp(server: string, name: string): Promise<{ core: ClientCore; accountKeyWords: string[] }>;
   /** `null` for a typo in the words, caught before any request. */
   signIn(server: string, words: string[]): Promise<ClientCore | null>;
-  /** Invite links the app was opened with, or that arrive while it runs (client-spec §6.3). */
+  /** Invite links the app was opened with, or that arrive while it runs. */
   links?: { initial(): Promise<string | null>; onLink(cb: (link: string) => void): () => void };
 }

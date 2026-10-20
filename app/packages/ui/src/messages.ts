@@ -1,5 +1,5 @@
 /**
- * Every string the UI shows (client-spec §7: English, one catalogue, so
+ * Every string the UI shows (English, one catalogue, so
  * other languages can follow). `{name}` placeholders are filled by `t`.
  */
 

@@ -9,7 +9,7 @@
   import Icon from '../components/Icon.svelte';
 
   /**
-   * Task detail (client-spec §7.1), in a panel beside the page: done, title,
+   * Task detail, in a panel beside the page: done, title,
    * description, and rows of properties: the date (a date, or a date and time, which is the reminder),
    * who it's assigned to (shared lists only) and its list. Reordering is the
    * list's drag handle, not here. Text is saved when a field is left, and

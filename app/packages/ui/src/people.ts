@@ -4,8 +4,7 @@ import { t } from './messages.js';
 /**
  * Members go by their account names, which each one's app writes into the
  * list (`ListSummary.names`). Until a name has synced, a member is shown by
- * a short tag from their key, "Member 3FA2", the same on every device
- * (client-spec §3.7).
+ * a short tag from their key, "Member 3FA2", the same on every device.
  */
 
 /** What people are called, by member id. */

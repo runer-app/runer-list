@@ -1,4 +1,4 @@
-//! The `store` commands: `LocalStore` (client-spec §4) on its own SQLite
+//! The `store` commands: `LocalStore` on its own SQLite
 //! file. Only get, range and an all-or-nothing batch of writes; no SQL
 //! reaches the webview. Everything stored is already ciphertext.
 

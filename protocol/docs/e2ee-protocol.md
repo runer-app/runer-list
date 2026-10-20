@@ -91,7 +91,7 @@ Sessions expire after 30 days idle and 180 days absolute; the client silently re
 - In the **OS keychain**: the Account Key and a random 256-bit device cache key.
 - In the app's local database, encrypted under the device cache key: identity keys, list keys, and the **encrypted** server messages (with their `seq`), never plaintext.
 
-Plaintext document state and the search index exist only in memory and are rebuilt at startup. Kept simple: rebuilding is O(total content); persist an encrypted index only if startup measurably suffers.
+Plaintext document state and the search index exist only in memory and are rebuilt at startup.
 
 ---
 
@@ -189,7 +189,7 @@ List key K_e (per list, per epoch)
 
 ## 5.1 The list document
 
-Each list has exactly one encrypted Yjs document, holding its name and a flat, ordered sequence of blocks (tasks and notes). Its shape is a client concern; the server stores and relays it without knowing any of it. For reference, the client uses a Yjs document as a data store: `name: Y.Text`, `order: Y.Array<item_id>` and `items: Y.Map<item_id, Y.Map>`, each item `{type: task|note, title, body?, done, due?, remind_at?, assignee?}`; a note's `title` is its text, a small subset of Markdown. The Inbox's document also holds `views: Y.Map<view, item_id[]>`, the user's own order of their computed views (Today, My tasks). Blocks are flat (a heading is a note, not a container), and unknown types from a newer client are kept, never dropped. Due dates, reminders and assignees exist only in this encrypted document.
+Each list has exactly one encrypted Yjs document: its name and a flat, ordered sequence of tasks and notes. The server stores and relays it without knowing its shape, which is the client's ([app.md §3.1](../../docs/app.md#31-the-list-document)). Due dates, reminders and assignees exist only in this document.
 
 ---
 
@@ -407,7 +407,7 @@ No custom primitives.
 
 **Signature edge cases.** Client and server must accept exactly the same signatures, and Ed25519 libraries differ on unusual inputs. Conformance means the verdicts of Go's `ed25519.Verify`: cofactorless, accepting small-order keys and non-canonical key encodings, rejecting a non-canonical `R` or `S`. `protocol/vectors/ed25519-edge.json` pins 31 such cases, replayed by both test suites; in `ed25519-dalek` this is plain `verify`, not `verify_strict`. Separately, the server refuses to register a non-canonical or small-order `auth_pub` or `identity_sign_pub`, since anyone can make a signature that verifies under a small-order key.
 
-The official client's crypto runs in one Rust crate, in the Tauri app's Rust side, so keys never enter the webview: JavaScript holds opaque handles, and a compromised webview can use keys while the compromise lasts but can't copy them out. There is one implementation on every platform, checked against the vectors (`protocol/vectors`). It is built on RustCrypto `aes-gcm`, `hkdf`, `hmac`, `sha2`; `ed25519-dalek`, `x25519-dalek`; `hpke`; `bip39`; adding to that list is a security decision. The protocol doesn't depend on the implementation: any code that reproduces the vectors byte for byte is conformant.
+Any code that reproduces the vectors (`protocol/vectors`) byte for byte is conformant. The official client's implementation is described in [app.md §8](../../docs/app.md#8-the-vault-and-the-crypto).
 
 ## 10.1 Byte-level conventions
 

@@ -2,7 +2,7 @@
   import { t } from '../messages.js';
   import Icon from './Icon.svelte';
 
-  /** Security warnings can't be dismissed silently (client-spec §3.3): this stays until they're gone. */
+  /** Security warnings can't be dismissed silently: this stays until they're gone. */
   let { count, open }: { count: number; open: () => void } = $props();
 </script>
 

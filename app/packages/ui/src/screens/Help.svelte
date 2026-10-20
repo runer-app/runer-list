@@ -5,7 +5,7 @@
   import Icon from '../components/Icon.svelte';
 
   /**
-   * What can be typed (client-spec §7.1). The examples are the language's own sheet (`nl/en.ts`), read against
+   * What can be typed. The examples are the language's own sheet (`nl/en.ts`), read against
    * today's date by the same parser the capture field uses, so this page can't say something the app doesn't do.
    */
   let { back }: { back: () => void } = $props();

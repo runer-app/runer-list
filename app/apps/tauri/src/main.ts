@@ -1,5 +1,5 @@
 /**
- * The app's entry (client-spec §2.1): mounts the UI with the Tauri platform.
+ * The app's entry: mounts the UI with the Tauri platform.
  * The only place that knows both.
  */
 
