@@ -93,7 +93,7 @@ jobs:
             const path = "apps/tauri/src-tauri/tauri.conf.json";
             const conf = JSON.parse(fs.readFileSync(path, "utf8"));
             // Ad hoc ("-") without a certificate: Apple silicon runs nothing unsigned.
-            conf.bundle.macOS = { signingIdentity: process.env.SIGN_AS || "-" };
+            conf.bundle.macOS = { ...conf.bundle.macOS, signingIdentity: process.env.SIGN_AS || "-" };
             if (process.env.UPDATER_PUBKEY) {
               conf.bundle.createUpdaterArtifacts = true;
               conf.plugins.updater = { pubkey: process.env.UPDATER_PUBKEY, endpoints: [process.env.UPDATE_FEED] };
