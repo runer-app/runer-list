@@ -33,7 +33,7 @@ Each side's README has its setup: [app](app/README.md) · [server](server/README
 
 ## Releases
 
-App and server are versioned and released separately, with tags `app-vX.Y.Z` and `server-vX.Y.Z` made by `make tag`. See [docs/releasing.md](docs/releasing.md).
+App and server are versioned and released separately, with tags `app-vX.Y.Z` and `server-vX.Y.Z` made by `make bump-app` and `make bump-server`. See [docs/releasing.md](docs/releasing.md).
 
 ## Contributing and security
 

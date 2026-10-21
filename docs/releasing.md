@@ -7,14 +7,21 @@ App and server are versioned separately: the app might be at 1.3.0 while the ser
 | `app-vX.Y.Z` | Installers for macOS, Windows and Linux, as a draft GitHub release. Publishing the draft is what ships it to installed copies |
 | `server-vX.Y.Z` | The Docker image `ghcr.io/runer-app/runer-api` as `X.Y.Z`, `X.Y` and `latest` |
 
-Tag from an up-to-date `main`, then push the tags yourself:
+Each side has its own target. Both bump by `PART=patch` (the default), `minor` or `major`, run only from a clean `main` that is in sync with `origin`, and never push:
 
 ```sh
-make tag APP=1.3.0 SERVER=0.10.0      # either or both; checks you're on a clean, synced main
-git push origin app-v1.3.0 server-v0.10.0
+make versions                         # current versions and what each bump would make them; changes nothing
+
+make bump-app                         # bumps the version in the app's files, commits and tags it
+git push origin main app-v1.3.1
+
+make bump-server                      # tags HEAD with the next version after the newest server-v* tag
+git push origin server-v0.10.1
 ```
 
-Releasing both at once is two tags on the same commit; each starts its own workflow. The image is out as soon as its job ends, while the app waits as a draft, so when the new app needs the new server, deploy the server first and then publish the app. Self-hosted servers update later, so the app has to keep working against the previous server. GitHub starts no workflows when more than three tags are pushed at once.
+The app's version lives in `app/apps/tauri/src-tauri/tauri.conf.json` (and the crate's `Cargo.toml`), which `bump-app` changes together. The server's version is only its tag.
+
+To release both, run one target and push, then the other and push; each tag starts its own workflow. The image is out as soon as its job ends, while the app waits as a draft, so when the new app needs the new server, deploy the server first and then publish the app. Self-hosted servers update later, so the app has to keep working against the previous server. GitHub starts no workflows when more than three tags are pushed at once.
 
 CI runs only the side whose files changed, and both when `protocol/` changes.
 
@@ -102,9 +109,8 @@ Because the address is ours, the repo can move later: only the redirect changes.
 
 ### 5. Making an app release
 
-1. Set the new version in `app/apps/tauri/src-tauri/tauri.conf.json` (`version`), commit and push.
-2. `make tag APP=0.1.0` at the root, then `git push origin app-v0.1.0`. The tag is only the trigger: the release is named after the version in the file.
-3. The `app-release` workflow builds macOS, Windows and Linux and makes a **draft** release with the installers. To try a build without a tag: the repository's **Actions** tab → **app-release** → **Run workflow**.
-4. Try the installers. Then publish the draft on GitHub: from that moment installed copies update to it at their next start.
+1. `make bump-app` at the root (`PART=minor` or `PART=major` for bigger steps), then push the commit and the tag it prints. The tag is only the trigger: the release is named after the version in the file.
+2. The `app-release` workflow builds macOS, Windows and Linux and makes a **draft** release with the installers. To try a build without a tag: the repository's **Actions** tab → **app-release** → **Run workflow**.
+3. Try the installers. Then publish the draft on GitHub: from that moment installed copies update to it at their next start.
 
 What testers meet on first install, since nothing is signed by Apple or Microsoft: on macOS "Open Anyway" under System Settings → Privacy & Security; on Windows "More info" → "Run anyway".
