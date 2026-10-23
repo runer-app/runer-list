@@ -32,6 +32,7 @@ make dev           # the desktop app with hot reload, against the dev API (dev-p
 make dev2          # a second copy beside a running `make dev*`, as another account with its own data and keychain entries
                    # (dev builds only; `PROFILE=<name>` for more). To join by link: `make dev2 LINK='<the invite link>'`
 make ios-dev       # the iOS app in the simulator, against the dev API (ios-prod: the prod API)
+make ios-phone     # build and install on the connected iPhone (API=prod for the prod API)
 make build-dev     # installers for this OS, against the dev API, as the separate app "runer dev" (build-prod: the prod API, as the release app); a build never uses the local API
 make design        # the real UI in a browser on sample data (http://localhost:5199), for look-and-feel work; no server needed
 ```

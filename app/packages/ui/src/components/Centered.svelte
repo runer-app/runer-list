@@ -80,7 +80,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 32px 16px;
+    padding: 32px max(32px, env(safe-area-inset-right, 0px)) 32px max(32px, env(safe-area-inset-left, 0px));
   }
   /* Optically centred: the top bar's height again below. */
   main.pad {
@@ -142,19 +142,13 @@
     text-decoration: underline;
   }
   footer {
-    height: 56px;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
     flex: none;
-    padding: 0 32px;
+    padding: 0 32px env(safe-area-inset-bottom, 0px);
     display: flex;
     align-items: center;
     justify-content: space-between;
     color: var(--text-faint);
     font-size: 13px;
-  }
-  @media (max-width: 700px) {
-    header,
-    footer {
-      padding: 0 16px;
-    }
   }
 </style>

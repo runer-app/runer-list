@@ -46,7 +46,9 @@ pub async fn notify_replace_all<R: Runtime>(app: AppHandle<R>, mut reminders: Ve
     use tauri_plugin_notification::Schedule;
     let err = |e: tauri_plugin_notification::Error| Error::new("notify", e.to_string());
     reminders.retain(|r| r.at > now_ms());
-    app.notification().cancel_all().map_err(err)?;
+    // Not `cancel_all()`: it sends no arguments, which the iOS plugin can't decode, so it always fails there.
+    let pending = app.notification().pending().map_err(err)?;
+    app.notification().cancel(pending.iter().map(|p| p.id()).collect()).map_err(err)?;
     for (id, r) in reminders.into_iter().enumerate() {
         let Some(date) = fire_time(r.at, r.offset) else { continue };
         let mut n = app.notification().builder().id(id as i32).title(r.title).schedule(Schedule::At {

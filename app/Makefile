@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod build-dev build-prod macos-icon design test
+.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone build-dev build-prod macos-icon design test
 
 # Each must equal that server's PUBLIC_URL.
 DEV_API   ?= https://api-dev.runer.app
@@ -36,6 +36,11 @@ ios-dev: ## iOS app in the simulator, against the dev API; ARGS=--open for Xcode
 
 ios-prod: ## iOS app in the simulator, against the prod API; ARGS=--open for Xcode
 	VITE_RUNER_SERVER=$(PROD_API) npm run tauri -w @runer/app -- ios dev $(ARGS) --config $(IOS_CONFIG)
+
+ios-phone: ## build and install on the connected iPhone, against the dev API (API=prod for the prod API)
+	VITE_RUNER_SERVER=$(if $(filter prod,$(API)),$(PROD_API),$(DEV_API)) npm run tauri -w @runer/app -- ios build --debug
+	xcrun devicectl device install app apps/tauri/src-tauri/gen/apple/build/arm64/runer.ipa --device \
+		"$$(xcrun devicectl list devices | sed -nE 's/.* ([0-9A-F-]+) \(UDID\) +(connected|available).*physical.*/\1/p' | head -1)"
 
 build-dev: ## installers for this OS, against the dev API
 	VITE_RUNER_SERVER=$(DEV_API) npm run app:build -- --config $(DEV_CONFIG)
