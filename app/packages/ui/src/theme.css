@@ -1,8 +1,24 @@
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
 
-/* Theme tokens. Dark first, after the mockups; light follows the system setting. */
+/*
+ * Theme tokens. Dark first, after the mockups. `appearance.svelte.ts` sets
+ * `data-theme` (the theme) and `data-mode` (light or dark, the device's
+ * setting unless overridden) on the root; the theme picker in Settings sets
+ * them on its previews too, so each preview is drawn with the real tokens.
+ * A theme defines every color token, in both modes.
+ */
 :root {
+  /* Geist, bundled with the app (no font requests); Mono for key words, addresses and times. */
+  --font: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Room at the top for window controls drawn over the app (macOS overlay title bar), or the iOS status bar. The app entry sets it. */
+  --titlebar: env(safe-area-inset-top, 0px);
+}
+
+/* Default: violet. Also what is drawn before the app entry has chosen. */
+:root,
+[data-theme='default'] {
   color-scheme: dark;
   --bg: #1b1823;
   --bg-sidebar: #201c29;
@@ -19,6 +35,8 @@
   --text-muted: #9f99ad;
   --text-faint: #7d778b;
   --ring-track: #4a4458;
+  /* An unticked checkbox's edge. */
+  --checkbox: #5c566c;
   --accent: #b39df5;
   --accent-text: #1b1823;
   /* A set value: the date chip, a reminder's time. */
@@ -30,38 +48,187 @@
   --danger-strong: #c9605f;
   /* Done right: a checked word, this device. */
   --ok: #7fc8a0;
-  /* Geist, bundled with the app (no font requests); Mono for key words, addresses and times. */
-  --font: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
-  /* Room at the top for window controls drawn over the app (macOS overlay title bar), or the iOS status bar. The app entry sets it. */
-  --titlebar: env(safe-area-inset-top, 0px);
+}
+[data-theme='default'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #faf8fd;
+  --bg-sidebar: #f3f0f8;
+  --bg-popover: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #ebe5f5;
+  --border: #d9d1e8;
+  --border-strong: #8a72c0;
+  --divider: #e6e0ef;
+  --text: #1e1a2b;
+  --text-soft: #3d3650;
+  --text-muted: #6b6480;
+  --text-faint: #8a8399;
+  --ring-track: #d9d1e8;
+  --checkbox: #a49cb6;
+  --accent: #6e4fc2;
+  --accent-text: #ffffff;
+  --accent-soft: #ebe4fa;
+  --accent-soft-text: #4b2f9e;
+  --accent-label: #5d3fb3;
+  --danger: #b84040;
+  --danger-strong: #b84040;
+  --ok: #2f8a5b;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #faf8fd;
-    --bg-sidebar: #f3f0f8;
-    --bg-popover: #ffffff;
-    --surface: #ffffff;
-    --surface-hover: #ebe5f5;
-    --border: #d9d1e8;
-    --border-strong: #8a72c0;
-    --divider: #e6e0ef;
-    --text: #1e1a2b;
-    --text-soft: #3d3650;
-    --text-muted: #6b6480;
-    --text-faint: #8a8399;
-    --ring-track: #d9d1e8;
-    --accent: #6e4fc2;
-    --accent-text: #ffffff;
-    --accent-soft: #ebe4fa;
-    --accent-soft-text: #4b2f9e;
-    --accent-label: #5d3fb3;
-    --danger: #b84040;
-    --danger-strong: #b84040;
-    --ok: #2f8a5b;
-  }
+/* Moss: sage green; warm paper in light. */
+[data-theme='moss'] {
+  color-scheme: dark;
+  --bg: #161b17;
+  --bg-sidebar: #1a201b;
+  --bg-popover: #1f2620;
+  --surface: #222a23;
+  --surface-hover: #263027;
+  --border: #344036;
+  --border-strong: #5f8f6a;
+  --divider: #232a24;
+  --text: #e8eee8;
+  --text-soft: #c4cec5;
+  --text-muted: #97a499;
+  --text-faint: #76837a;
+  --ring-track: #3f4b41;
+  --checkbox: #56635a;
+  --accent: #8fd19e;
+  --accent-text: #142016;
+  --accent-soft: #253a2a;
+  --accent-soft-text: #cdeed4;
+  --accent-label: #a8dcb3;
+  --danger: #e6a07a;
+  --danger-strong: #c4604f;
+  --ok: #7fcf9a;
+}
+[data-theme='moss'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #f6f5ef;
+  --bg-sidebar: #eeede5;
+  --bg-popover: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #e5e6dc;
+  --border: #d6d8cb;
+  --border-strong: #5d8a67;
+  --divider: #e3e4d9;
+  --text: #1c241e;
+  --text-soft: #354238;
+  --text-muted: #5f6b61;
+  --text-faint: #7f8a80;
+  --ring-track: #cfd3c4;
+  --checkbox: #a3ab9f;
+  --accent: #2f7a45;
+  --accent-text: #ffffff;
+  --accent-soft: #dcebdc;
+  --accent-soft-text: #1f5a31;
+  --accent-label: #2a6b3d;
+  --danger: #b5452f;
+  --danger-strong: #b5452f;
+  --ok: #2f7a45;
+}
+
+/* Harbor: cool blue. */
+[data-theme='harbor'] {
+  color-scheme: dark;
+  --bg: #12161d;
+  --bg-sidebar: #161b24;
+  --bg-popover: #1b212c;
+  --surface: #1e2531;
+  --surface-hover: #222a37;
+  --border: #2f3a4a;
+  --border-strong: #4f7cc4;
+  --divider: #1f2632;
+  --text: #e7ecf3;
+  --text-soft: #c2cad6;
+  --text-muted: #929eb0;
+  --text-faint: #717d8f;
+  --ring-track: #3a4555;
+  --checkbox: #4b5668;
+  --accent: #7fb0ff;
+  --accent-text: #0f1520;
+  --accent-soft: #1f2f4a;
+  --accent-soft-text: #cfe0ff;
+  --accent-label: #9cc2ff;
+  --danger: #f0a27a;
+  --danger-strong: #c8604f;
+  --ok: #6fd0a8;
+}
+[data-theme='harbor'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #f7f9fc;
+  --bg-sidebar: #eef2f7;
+  --bg-popover: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #e3eaf3;
+  --border: #d3dce8;
+  --border-strong: #3f6fb8;
+  --divider: #e2e8f0;
+  --text: #141b26;
+  --text-soft: #313c4d;
+  --text-muted: #5a6678;
+  --text-faint: #7d889a;
+  --ring-track: #cbd5e2;
+  --checkbox: #9eabbd;
+  --accent: #2563c9;
+  --accent-text: #ffffff;
+  --accent-soft: #e0eafb;
+  --accent-soft-text: #1a4a99;
+  --accent-label: #1f56b0;
+  --danger: #b8432f;
+  --danger-strong: #b8432f;
+  --ok: #23855a;
+}
+
+/* Ember: amber on warm browns. */
+[data-theme='ember'] {
+  color-scheme: dark;
+  --bg: #1c1714;
+  --bg-sidebar: #211b17;
+  --bg-popover: #261f1a;
+  --surface: #2b231e;
+  --surface-hover: #302720;
+  --border: #42362d;
+  --border-strong: #b07a45;
+  --divider: #2a221c;
+  --text: #f2ebe4;
+  --text-soft: #d4c8bc;
+  --text-muted: #a89a8c;
+  --text-faint: #85776a;
+  --ring-track: #4c3f35;
+  --checkbox: #5f5247;
+  --accent: #f0b264;
+  --accent-text: #1c1714;
+  --accent-soft: #3d2c1c;
+  --accent-soft-text: #fadcb4;
+  --accent-label: #f5c587;
+  --danger: #ef8f7f;
+  --danger-strong: #c4554f;
+  --ok: #9fcf8a;
+}
+[data-theme='ember'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #fcf8f3;
+  --bg-sidebar: #f5efe7;
+  --bg-popover: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #efe5d9;
+  --border: #e4d7c7;
+  --border-strong: #b0703a;
+  --divider: #eee4d8;
+  --text: #2a1f17;
+  --text-soft: #4a3a2e;
+  --text-muted: #75655a;
+  --text-faint: #94857a;
+  --ring-track: #ddd0bf;
+  --checkbox: #bcaa98;
+  --accent: #b45a1c;
+  --accent-text: #ffffff;
+  --accent-soft: #f8e6d3;
+  --accent-soft-text: #84400f;
+  --accent-label: #9a4c16;
+  --danger: #b33a3a;
+  --danger-strong: #b33a3a;
+  --ok: #3d7f3a;
 }
 
 * {
@@ -96,7 +263,7 @@ input[type='checkbox'] {
   width: 18px;
   height: 18px;
   margin: 0;
-  border: 1.5px solid #5c566c;
+  border: 1.5px solid var(--checkbox);
   border-radius: 5px;
   background: transparent;
   cursor: pointer;
@@ -105,11 +272,6 @@ input[type='checkbox']:checked {
   border-color: var(--accent);
   background: var(--accent);
   box-shadow: inset 0 0 0 3px var(--bg);
-}
-@media (prefers-color-scheme: light) {
-  input[type='checkbox'] {
-    border-color: #a49cb6;
-  }
 }
 
 :focus-visible {
