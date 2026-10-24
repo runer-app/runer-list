@@ -352,9 +352,11 @@ Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, And
 | Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
-| Settings | Sessions, show/change account key, notifications, name, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
+| Settings | Sessions, show/change account key, notifications, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
+
+**Appearance** is a theme (Default, Moss, Harbor, Ember) and a mode (System, Light, Dark), for this device and not the account. It lives in the webview's `localStorage` (`appearance.svelte.ts` in `packages/ui`), outside `LocalStore`, because it holds before sign-in and is read synchronously before the first paint. The entry calls `startAppearance()`, which sets `data-theme` and `data-mode` (light or dark, resolved from the system setting for System) on the root element. The colors are tokens in `theme.css`, one block per theme and mode; a new theme is one more pair of blocks and a name in `THEMES`.
 
 ### 7.2 Reminders
 

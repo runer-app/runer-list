@@ -5,6 +5,7 @@ import { MemoryServer } from '../../client-core/test/platform-node/memory-server
 import { createMemoryPlatform, ManualLinkSource, RecordingNotifier } from '../../client-core/test/platform-node/memory.js';
 import App from '../src/App.svelte';
 import Main from '../src/screens/Main.svelte';
+import { startAppearance } from '../src/appearance.svelte.js';
 import type { Shell } from '../src/shell.js';
 
 // The screens through the real components and ClientCore, on
@@ -892,6 +893,35 @@ describe('settings', () => {
     await waitFor(() => expect(value(core.settings).clock).toBe('12h'));
     await fireEvent.click(nav().getByRole('button', { name: 'Today' }));
     expect(await screen.findByText(/9:30\sPM/)).toBeTruthy();
+  });
+
+  test('the look: a theme and light or dark, kept on this device and drawn at once', async () => {
+    server = new MemoryServer();
+    localStorage.clear();
+    startAppearance();
+    const root = document.documentElement;
+    expect(root.dataset['theme']).toBe('default');
+    const core = await person();
+    await signedIn(core);
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    expect((screen.getByRole('radio', { name: 'System' }) as HTMLInputElement).checked).toBe(true);
+
+    await fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(root.dataset['mode']).toBe('light');
+    await fireEvent.click(screen.getByRole('radio', { name: 'Moss' }));
+    expect(root.dataset['theme']).toBe('moss');
+    // The theme previews are drawn in the mode the app is in.
+    const preview = screen.getByRole('radio', { name: 'Harbor' }).parentElement!.querySelector('[data-theme]')!;
+    expect(preview.getAttribute('data-mode')).toBe('light');
+
+    // The next start reads it back before anything is drawn.
+    root.removeAttribute('data-theme');
+    startAppearance();
+    expect([root.dataset['theme'], root.dataset['mode']]).toEqual(['moss', 'light']);
+    await fireEvent.click(screen.getByRole('radio', { name: 'System' }));
+    // jsdom has no system setting: System is dark there.
+    expect(root.dataset['mode']).toBe('dark');
+    localStorage.clear();
   });
 
   test('a setting the device could not keep says so, and the choice goes back', async () => {

@@ -5,7 +5,7 @@
 
 import { ClientCore, type ClientCoreOptions } from '@runer/client-core';
 import { createTauriPlatform, storedServers } from '@runer/platform-tauri';
-import { App, t, type Shell } from '@runer/ui';
+import { App, startAppearance, t, type Shell } from '@runer/ui';
 import '@runer/ui/theme.css';
 import { mount } from 'svelte';
 import { setUpChrome } from './chrome.js';
@@ -38,4 +38,5 @@ const shell: Shell = {
 };
 
 setUpChrome();
+startAppearance();
 mount(App, { target: document.getElementById('app')!, props: { shell } });
