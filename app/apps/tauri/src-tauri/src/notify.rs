@@ -39,6 +39,10 @@ fn fire_time(at: u64, offset: i32) -> Option<time::OffsetDateTime> {
     time::OffsetDateTime::from_unix_timestamp_nanos((i128::from(at) + shift) * 1_000_000).ok()
 }
 
+/// iOS keeps at most 64 pending notifications; past that it drops the rest. The nearest ones are scheduled.
+#[cfg(mobile)]
+const MAX_PENDING: usize = 64;
+
 /// Makes the scheduled set exactly `reminders`. Ones already due are dropped, not fired late.
 #[cfg(mobile)]
 #[tauri::command]
@@ -46,10 +50,12 @@ pub async fn notify_replace_all<R: Runtime>(app: AppHandle<R>, mut reminders: Ve
     use tauri_plugin_notification::Schedule;
     let err = |e: tauri_plugin_notification::Error| Error::new("notify", e.to_string());
     reminders.retain(|r| r.at > now_ms());
-    // Not `cancel_all()`: it sends no arguments, which the iOS plugin can't decode, so it always fails there.
-    let pending = app.notification().pending().map_err(err)?;
-    app.notification().cancel(pending.iter().map(|p| p.id()).collect()).map_err(err)?;
-    for (id, r) in reminders.into_iter().enumerate() {
+    reminders.sort_by_key(|r| r.at);
+    // Not `cancel_all()`: it sends no arguments, which the iOS plugin can't decode. Not `pending()` either: the iOS
+    // plugin leaves out `schedule`, which the Rust side requires, so it fails once anything is scheduled. Our ids are
+    // 0..MAX_PENDING, so cancel those.
+    app.notification().cancel((0..MAX_PENDING as i32).collect()).map_err(err)?;
+    for (id, r) in reminders.into_iter().take(MAX_PENDING).enumerate() {
         let Some(date) = fire_time(r.at, r.offset) else { continue };
         let mut n = app.notification().builder().id(id as i32).title(r.title).schedule(Schedule::At {
             date,

@@ -10,12 +10,18 @@ import { TauriVault } from '../src/vault.js';
 
 type Handler = (args: Record<string, unknown>) => unknown;
 
-function fakeIpc(handlers: Record<string, Handler>): Ipc & { channels: ((m: unknown) => void)[]; calls: [string, Record<string, unknown>][] } {
+function fakeIpc(handlers: Record<string, Handler>): Ipc & {
+  channels: ((m: unknown) => void)[];
+  calls: [string, Record<string, unknown>][];
+  events: Map<string, (payload: unknown) => void>;
+} {
   const channels: ((m: unknown) => void)[] = [];
   const calls: [string, Record<string, unknown>][] = [];
+  const events = new Map<string, (payload: unknown) => void>();
   return {
     channels,
     calls,
+    events,
     async invoke<T>(cmd: string, args: Record<string, unknown> = {}) {
       calls.push([cmd, args]);
       const h = handlers[cmd];
@@ -26,8 +32,9 @@ function fakeIpc(handlers: Record<string, Handler>): Ipc & { channels: ((m: unkn
       channels.push(onMessage as (m: unknown) => void);
       return { id: channels.length };
     },
-    async listen() {
-      return () => undefined;
+    async listen<T>(event: string, cb: (payload: T) => void) {
+      events.set(event, cb as (payload: unknown) => void);
+      return () => void events.delete(event);
     },
   };
 }
@@ -192,7 +199,7 @@ describe('platformKind', () => {
 describe('PageLifecycle', () => {
   it('follows the page being shown and hidden, and stops when unhooked', () => {
     const page = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState });
-    const life = new PageLifecycle(page);
+    const life = new PageLifecycle(fakeIpc({}), page);
     const seen: string[] = [];
     const offFore = life.onForeground(() => seen.push('fore'));
     const offBack = life.onBackground(() => seen.push('back'));
@@ -207,6 +214,70 @@ describe('PageLifecycle', () => {
     offBack();
     turn('hidden');
     expect(seen).toEqual(['back', 'fore']);
+  });
+});
+
+describe('onWake', () => {
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  // The debug log lines aren't part of the handshake.
+  const handshake = (ipc: { calls: [string, unknown][] }) => ipc.calls.map(([c]) => c).filter((c) => c !== 'debug_log_append');
+
+  it('runs a wake that came before the listener, and one after, and reports each done once the work settles', async () => {
+    let pending = true;
+    const ipc = fakeIpc({ wake_pending: () => [pending, (pending = false)][0], wake_done: () => undefined });
+    const life = new PageLifecycle(ipc, Object.assign(new EventTarget(), { visibilityState: 'hidden' as DocumentVisibilityState }));
+    let finish!: () => void;
+    let runs = 0;
+    life.onWake(() => {
+      runs++;
+      return new Promise<void>((r) => (finish = r));
+    });
+    await settle();
+    expect(runs).toBe(1);
+    expect(handshake(ipc)).toEqual(['wake_pending']);
+    finish();
+    await settle();
+    expect(handshake(ipc)).toEqual(['wake_pending', 'wake_done']);
+
+    pending = true;
+    ipc.events.get('runer://wake')!(null);
+    await settle();
+    expect(runs).toBe(2);
+    finish();
+    await settle();
+    expect(handshake(ipc)).toEqual(['wake_pending', 'wake_done', 'wake_pending', 'wake_done']);
+  });
+
+  it('runs a wake once when its event comes after the start claimed it', async () => {
+    let pending = true;
+    const ipc = fakeIpc({ wake_pending: () => [pending, (pending = false)][0], wake_done: () => undefined });
+    const life = new PageLifecycle(ipc, Object.assign(new EventTarget(), { visibilityState: 'hidden' as DocumentVisibilityState }));
+    let runs = 0;
+    life.onWake(async () => void runs++);
+    await settle();
+    // The event for the wake the start already claimed.
+    ipc.events.get('runer://wake')!(null);
+    await settle();
+    expect(runs).toBe(1);
+    expect(handshake(ipc).filter((c) => c === 'wake_done')).toHaveLength(1);
+  });
+
+  it('reports done when the work fails, and runs nothing without a wake', async () => {
+    let pending = false;
+    const ipc = fakeIpc({ wake_pending: () => [pending, (pending = false)][0], wake_done: () => undefined });
+    const life = new PageLifecycle(ipc, Object.assign(new EventTarget(), { visibilityState: 'hidden' as DocumentVisibilityState }));
+    let runs = 0;
+    life.onWake(async () => {
+      runs++;
+      throw new Error('sync did not settle');
+    });
+    await settle();
+    expect(runs).toBe(0);
+    pending = true;
+    ipc.events.get('runer://wake')!(null);
+    await settle();
+    expect(runs).toBe(1);
+    expect(handshake(ipc)).toEqual(['wake_pending', 'wake_pending', 'wake_done']);
   });
 });
 

@@ -9,6 +9,7 @@
   import { t } from '../messages.js';
   import Confirm from '../components/Confirm.svelte';
   import KeyWords from '../components/KeyWords.svelte';
+  import type { DebugLog } from '../shell.js';
   import Icon from '../components/Icon.svelte';
 
   /**
@@ -17,7 +18,12 @@
    * reminders and their privacy, the look, the time format, and the server and
    * sign-out.
    */
-  let { core, signedOut, help }: { core: ClientCore; signedOut: () => void; help: () => void } = $props();
+  let {
+    core,
+    signedOut,
+    help,
+    debugLog,
+  }: { core: ClientCore; signedOut: () => void; help: () => void; debugLog?: DebugLog | undefined } = $props();
 
   const WEEK = 7 * 24 * 60 * 60 * 1000;
   const ACTIVE = 5 * 60 * 1000;
@@ -60,6 +66,23 @@
     void loadSessions();
     void core.notificationPermission().then((p) => (permission = p), () => (permission = null));
   });
+
+  // Debug builds: the device's log, newest first, in local time.
+  let log = $state('');
+  async function readLog() {
+    const raw = (await debugLog?.read().catch(() => '')) ?? '';
+    log = raw
+      .split('\n')
+      .filter((l) => l !== '')
+      .reverse()
+      .map((l) => {
+        const at = new Date(Number(l.slice(0, l.indexOf(' '))));
+        const when = at.toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        return `${when}  ${l.slice(l.indexOf(' ') + 1)}`;
+      })
+      .join('\n');
+  }
+  onMount(() => void readLog());
 
   async function guard(fn: () => Promise<void>, message = t('settings.failed')) {
     error = '';
@@ -272,6 +295,20 @@
   </div>
 </section>
 
+{#if debugLog}
+  <section>
+    {@render about(t('settings.debugLog'), t('settings.debugLogLead'))}
+    <div class="stack">
+      <div class="line">
+        <button class="small" onclick={() => void readLog()}>{t('settings.debugLogRefresh')}</button>
+        <button class="small" onclick={() => void navigator.clipboard.writeText(log).catch(() => undefined)}>{t('settings.debugLogCopy')}</button>
+        <button class="small" onclick={() => void debugLog.clear().then(readLog)}>{t('settings.debugLogClear')}</button>
+      </div>
+      <pre class="log">{log === '' ? t('settings.debugLogEmpty') : log}</pre>
+    </div>
+  </section>
+{/if}
+
 <section class="last">
   {@render about(t('settings.advanced'))}
   <div>
@@ -362,6 +399,17 @@
     flex-direction: column;
     gap: 14px;
     min-width: 0;
+  }
+  .log {
+    max-height: 420px;
+    margin: 0;
+    overflow: auto;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    user-select: text;
   }
   .stack.roomy {
     gap: 18px;

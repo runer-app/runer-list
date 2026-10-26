@@ -44,6 +44,11 @@ const COMMANDS: &[&str] = &[
     "notify_replace_all",
     "notify_permission",
     "notify_request_permission",
+    "wake_pending",
+    "wake_done",
+    "debug_log_append",
+    "debug_log_read",
+    "debug_log_clear",
     "links_initial",
 ];
 

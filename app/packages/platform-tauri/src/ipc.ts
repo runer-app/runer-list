@@ -26,7 +26,11 @@ export function isIpcError(e: unknown): e is IpcError {
 }
 
 export const tauriIpc: Ipc = {
-  invoke: (cmd, args) => invoke(cmd, args),
+  // An `Error`, so whoever shows it gets the message, not `[object Object]`; `code` stays for `isIpcError`.
+  invoke: <T>(cmd: string, args?: Record<string, unknown>) =>
+    invoke<T>(cmd, args).catch((e: unknown) => {
+      throw isIpcError(e) ? Object.assign(new Error(e.message), { code: e.code }) : e;
+    }),
   channel<T>(onMessage: (message: T) => void) {
     const ch = new Channel<T>();
     ch.onmessage = onMessage;

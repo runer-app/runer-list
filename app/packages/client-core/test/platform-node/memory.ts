@@ -83,16 +83,25 @@ export class ManualLifecycle implements Lifecycle {
   private bg = new Emitter();
   private up = new Emitter();
   private down = new Emitter();
+  private wakes = new Set<() => Promise<void>>();
   isOnline = () => this.online;
   onForeground = (cb: () => void) => this.fg.on(cb);
   onBackground = (cb: () => void) => this.bg.on(cb);
   onOnline = (cb: () => void) => this.up.on(cb);
   onOffline = (cb: () => void) => this.down.on(cb);
+  onWake = (cb: () => Promise<void>) => {
+    this.wakes.add(cb);
+    return () => void this.wakes.delete(cb);
+  };
   foreground = () => this.fg.emit();
   background = () => this.bg.emit();
   goOnline() {
     this.online = true;
     this.up.emit();
+  }
+  /** Resolves when the platform would report done. */
+  async wake(): Promise<void> {
+    await Promise.allSettled([...this.wakes].map((cb) => cb()));
   }
   goOffline() {
     this.online = false;

@@ -251,6 +251,7 @@ Beyond Sync §2:
 
 - Subscribe to every list on connect; Today needs all of them.
 - On mobile, close the socket in the background and reconnect in the foreground.
+- **Background refresh (iOS)** (`app.runer.refresh`, `src-tauri/src/wake.rs`): iOS runs it when it sees fit. Rust holds the wake and emits `runer://wake`; the webview claims it with `wake_pending`, on that event and once when it starts listening, for a wake that came before. It connects, catches up, reconciles and waits until settled (at most 20 s), waits until the reminders are with the OS, closes the socket again and calls `wake_done`. Rust ends the run after 25 s if the webview doesn't.
 - **Reconcile** (`GET /v1/groups`, catch up changed logs, `checkHead`, drop lost lists, add new ones) on a `group` frame, on foreground, hourly and after a `forbidden`.
 
 ### 5.2 Sync
@@ -363,7 +364,7 @@ Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, And
 Computed on the device. After every change, at most once per tick, `reminders/` plans the reminders for tasks with `remind_at` that are assigned to the user or to nobody, and calls `notifications.replaceAll` with the nearest `maxPending` when the set changed. Past reminders are dropped.
 
 - **Text:** the task title, list name as body. A per-device privacy setting (`LocalStore` table `settings`, plain JSON, the one non-ciphertext value) switches to a generic title with no body, since scheduled notifications sit in plaintext outside the app.
-- **No push.** A device knows a reminder only once it has synced, so one set elsewhere may not fire, a moved one may fire late, and every device fires its own.
+- **No push.** A device knows a reminder only once it has synced, so one set elsewhere may not fire, a moved one may fire late, and every device fires its own. On iOS the background refresh (§5.1) may sync in between, but iOS decides when: a few times a day at best, not in Low Power Mode, with Background App Refresh off, or after the app is swiped away.
 
 ---
 
@@ -427,6 +428,8 @@ A browser app would load its code from a server on every visit, so whoever contr
 | Smoke | Sign up → add a task → restart → still there; reminders on a real phone | By hand |
 
 The in-memory server checks little of what the real one does; the e2e suite is what holds the app to the server. There is no WebDriver test: Tauri's driver runs only on Linux.
+
+Debug builds keep a debug log (`src-tauri/src/debuglog.rs`): timestamped lines from Rust and the webview (start, foreground and background, the background refresh, the sync's connection and catch-up), naming events and ids, never content. Settings → Debug log shows it. Release builds write nothing.
 
 ---
 

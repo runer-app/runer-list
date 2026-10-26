@@ -59,6 +59,12 @@ export interface Lifecycle {
   onBackground(cb: () => void): () => void;
   onOnline(cb: () => void): () => void;
   onOffline(cb: () => void): () => void;
+  /**
+   * The OS woke the app in the background to refresh (iOS only). `cb` runs
+   * for every wake, also one that came before it subscribed; the OS hears
+   * the app is done once the promises settle, resolved or rejected.
+   */
+  onWake(cb: () => Promise<void>): () => void;
 }
 
 /** A local notification the device should have scheduled. */

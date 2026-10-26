@@ -51,6 +51,11 @@
     "allow-notify-replace-all",
     "allow-notify-permission",
     "allow-notify-request-permission",
+    "allow-wake-pending",
+    "allow-wake-done",
+    "allow-debug-log-append",
+    "allow-debug-log-read",
+    "allow-debug-log-clear",
     "allow-links-initial"
   ]
 }

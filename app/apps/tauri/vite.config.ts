@@ -10,6 +10,8 @@ export default defineConfig(({ command }) => {
   return {
     plugins: [svelte()],
     clearScreen: false,
+    // TAURI_ENV_DEBUG: the Tauri CLI sets it for a debug build (main.ts turns the sync log on).
+    envPrefix: ['VITE_', 'TAURI_ENV_'],
     server: { port: 5173, strictPort: true },
     build: { target: ['es2022', 'safari15'], outDir: 'dist', emptyOutDir: true },
   };

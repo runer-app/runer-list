@@ -77,6 +77,7 @@ targets:
     dependencies:
       - framework: libapp.a
         embed: false
+      - sdk: BackgroundTasks.framework
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework

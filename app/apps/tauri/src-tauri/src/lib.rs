@@ -5,11 +5,13 @@
 //! The webview gets exactly the commands listed in `build.rs` and the
 //! `default` capability: no plugin commands, no filesystem, no shell.
 
+mod debuglog;
 mod device;
 mod net;
 mod notify;
 mod store;
 mod vault;
+mod wake;
 mod wire;
 
 use tauri::{Emitter, Manager};
@@ -91,6 +93,8 @@ pub fn run() {
                 dir = dir.join("profiles").join(profile);
             }
             std::fs::create_dir_all(&dir)?;
+            debuglog::init(&dir);
+            debuglog::log("app: started");
             let keychain = device::OsKeychain::new(&app.config().identifier);
             let vault = device::SqliteVaultStore::open(&dir.join("vault.sqlite"))
                 .and_then(|s| runer_vault::Vault::open(Box::new(keychain), Box::new(s)).map_err(|e| e.to_string()));
@@ -104,6 +108,8 @@ pub fn run() {
             app.manage(notify::Reminders::default());
             #[cfg(desktop)]
             update(app.handle())?;
+            #[cfg(target_os = "ios")]
+            wake::register(app.handle());
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
@@ -111,6 +117,19 @@ pub fn run() {
                 }
             });
             Ok(())
+        })
+        .on_window_event(|_, _event| {
+            #[cfg(mobile)]
+            match _event {
+                tauri::WindowEvent::Suspended => {
+                    debuglog::log("app: to background");
+                    // Ask again on leaving the foreground, so the next refresh comes a while after this sync.
+                    #[cfg(target_os = "ios")]
+                    wake::schedule();
+                }
+                tauri::WindowEvent::Resumed => debuglog::log("app: to foreground"),
+                _ => {}
+            }
         })
         .invoke_handler(tauri::generate_handler![
             vault::vault_accounts,
@@ -155,6 +174,11 @@ pub fn run() {
             notify::notify_replace_all,
             notify::notify_permission,
             notify::notify_request_permission,
+            wake::wake_pending,
+            wake::wake_done,
+            debuglog::debug_log_append,
+            debuglog::debug_log_read,
+            debuglog::debug_log_clear,
             links_initial,
         ])
         .run(tauri::generate_context!())

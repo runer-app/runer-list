@@ -1,6 +1,7 @@
 <script lang="ts">
   import { parseInviteLink, type ClientCore, type ListId } from '@runer/client-core';
   import { onMount } from 'svelte';
+  import type { DebugLog } from '../shell.js';
   import { fromStore } from 'svelte/store';
   import { clock, deviceHour12 } from '../clock.svelte.js';
   import { t } from '../messages.js';
@@ -25,6 +26,7 @@
     signedOut,
     pendingLink = null,
     links,
+    debugLog,
   }: {
     core: ClientCore;
     /** The account is gone from this device (sign-out); back to Welcome. */
@@ -33,6 +35,8 @@
     pendingLink?: string | null;
     /** Invite links opened while the app runs. */
     links?: ((cb: (link: string) => void) => () => void) | undefined;
+    /** Debug builds: the device's log, under Settings. */
+    debugLog?: DebugLog | undefined;
   } = $props();
 
   let view = $state<View>({ name: 'today' });
@@ -205,7 +209,7 @@
         />
       {/key}
     {:else if view.name === 'settings'}
-      <Settings {core} {signedOut} help={() => go({ name: 'help' })} />
+      <Settings {core} {signedOut} {debugLog} help={() => go({ name: 'help' })} />
     {:else if view.name === 'help'}
       <Help back={() => go({ name: 'settings' })} />
     {:else}

@@ -3,7 +3,7 @@ import { ClientCore, type ClientCoreOptions } from '../src/core/core.js';
 import type { Platform, Transport } from '../src/platform/index.js';
 import type { Readable } from '../src/readable.js';
 import { MemoryServer } from './platform-node/memory-server.js';
-import { createMemoryPlatform, RecordingNotifier } from './platform-node/memory.js';
+import { createMemoryPlatform, ManualLifecycle, RecordingNotifier } from './platform-node/memory.js';
 import { NodeVault } from './platform-node/vault.js';
 
 // The facade against the in-process server and the real vault: what the UI sees.
@@ -215,6 +215,41 @@ describe('ClientCore', () => {
       await until('scheduled', () => notifier.scheduled.length === 1);
       await core.signOut();
       expect(notifier.scheduled).toEqual([]);
+    });
+
+    test('a background wake catches up on another device’s reminder, schedules it, and closes the socket again', async () => {
+      server = new MemoryServer();
+      const { core: a, words } = await signedUp();
+      const phone = createMemoryPlatform({ transport: server.transport(), info: { kind: 'ios' } });
+      const life = phone.lifecycle as ManualLifecycle;
+      const notifier = phone.notifications as RecordingNotifier;
+      const b = (await ClientCore.signIn(phone, SERVER, words, OPTS))!;
+      running.push(b);
+      await until('online', () => value(b.connection) === 'online');
+      life.background();
+      await until('offline', () => value(b.connection) === 'offline');
+
+      const id = a.list(a.inbox).addTask('water the plants', { remindAt: at });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(notifier.scheduled).toEqual([]); // no socket in the background
+
+      await life.wake();
+      expect(notifier.scheduled).toEqual([{ id: `${a.inbox}:${id}`, at: new Date(at), title: 'water the plants', body: 'Indbakke' }]);
+      await until('offline again', () => value(b.connection) === 'offline');
+    });
+
+    test('a wake that can’t reach the server still ends, within its bound', async () => {
+      server = new MemoryServer();
+      const { words } = await signedUp();
+      const phone = createMemoryPlatform({ transport: server.transport(), info: { kind: 'ios' } });
+      const life = phone.lifecycle as ManualLifecycle;
+      const b = (await ClientCore.signIn(phone, SERVER, words, { ...OPTS, sync: { ...OPTS.sync, wakeMs: 100 } }))!;
+      running.push(b);
+      life.background();
+      server.offline = true;
+      const start = Date.now();
+      await life.wake();
+      expect(Date.now() - start).toBeLessThan(1000);
     });
   });
 });

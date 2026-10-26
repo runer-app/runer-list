@@ -320,6 +320,12 @@ const en = {
   'settings.help': 'Help',
   'settings.helpLead': 'What you can type, and what it becomes.',
   'settings.openHelp': 'Open Help',
+  'settings.debugLog': 'Debug log',
+  'settings.debugLogLead': 'Test builds only. What the app did on this device, newest first, also while in the background.',
+  'settings.debugLogRefresh': 'Refresh',
+  'settings.debugLogCopy': 'Copy',
+  'settings.debugLogClear': 'Clear',
+  'settings.debugLogEmpty': 'Nothing logged yet.',
 
   'help.dates': 'Typing dates',
   'help.datesLead': 'Type a date or a time in a new task, on Today or in a list. {product} sets the date, and the reminder if there’s a time, and takes the words out of the title. A chip shows what it understood before you press Enter.',
