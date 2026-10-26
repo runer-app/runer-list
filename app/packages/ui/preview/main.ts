@@ -21,7 +21,7 @@ import {
   type PublicIdentity,
 } from '@runer/client-core';
 import { mount } from 'svelte';
-import { App, type Shell } from '../src/index.js';
+import { App, startAppearance, type Shell } from '../src/index.js';
 import '../src/theme.css';
 
 const key = (n: number) => new Uint8Array(32).fill(n);
@@ -173,4 +173,5 @@ const shell: Shell = {
   signIn: async () => null,
 };
 
+startAppearance();
 mount(App, { target: document.getElementById('app')!, props: { shell } });

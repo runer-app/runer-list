@@ -2,6 +2,7 @@
   import type { ClientCore, Session } from '@runer/client-core';
   import { onMount } from 'svelte';
   import { fromStore } from 'svelte/store';
+  import { appearance, setMode, setTheme, THEMES } from '../appearance.svelte.js';
   import { deviceHour12 } from '../clock.svelte.js';
   import { agoLabel } from '../dates.js';
   import { describeDevice } from '../devices.js';
@@ -14,7 +15,7 @@
   /**
    * Settings, one section per row: what it is on the
    * left, the controls on the right. The account key, devices (sessions),
-   * reminders and their privacy, the time format, and the server and
+   * reminders and their privacy, the look, the time format, and the server and
    * sign-out.
    */
   let {
@@ -231,6 +232,43 @@
         <input class="switch" type="checkbox" role="switch" checked={settings.current.reminderTitles} onchange={(e) => save(() => core.setReminderTitles(e.currentTarget.checked))} />
       {/key}
     </label>
+  </div>
+</section>
+
+<section>
+  {@render about(t('settings.appearance'), t('settings.appearanceLead'))}
+  <div class="stack roomy">
+    <div>
+      <p class="label" id="mode-label">{t('settings.mode')}</p>
+      <div class="choice" role="radiogroup" aria-labelledby="mode-label">
+        {#each [['system', t('settings.modeSystem')], ['light', t('settings.modeLight')], ['dark', t('settings.modeDark')]] as const as [value, label] (value)}
+          <label>
+            <input type="radio" name="mode" {value} checked={appearance.mode === value} onchange={() => setMode(value)} />
+            <span>{label}</span>
+          </label>
+        {/each}
+      </div>
+    </div>
+    <div>
+      <p class="label" id="theme-label">{t('settings.theme')}</p>
+      <div class="themes" role="radiogroup" aria-labelledby="theme-label">
+        {#each THEMES as theme (theme)}
+          <label class="theme">
+            <input type="radio" name="theme" value={theme} checked={appearance.theme === theme} onchange={() => setTheme(theme)} />
+            <!-- Drawn in that theme's own tokens, in the mode the app is in now. -->
+            <span class="preview" data-theme={theme} data-mode={appearance.resolved} aria-hidden="true">
+              <span class="side"><i></i><i class="short"></i></span>
+              <span class="page">
+                <i class="title"></i>
+                <span class="row"><b class="done"></b><i></i></span>
+                <span class="row"><b></b><i class="short"></i></span>
+              </span>
+            </span>
+            <span class="theme-name">{t(`theme.${theme}`)}</span>
+          </label>
+        {/each}
+      </div>
+    </div>
   </div>
 </section>
 
@@ -555,6 +593,107 @@
   .choice input:focus-visible + span {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+
+  .label {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .themes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 10px;
+    max-width: 480px;
+  }
+  .theme {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 6px 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .theme:has(input:checked) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .theme:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .theme input {
+    position: absolute;
+    opacity: 0;
+  }
+  .theme-name {
+    padding-left: 2px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .preview {
+    display: flex;
+    height: 58px;
+    overflow: hidden;
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .preview i,
+  .preview b {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--text-muted);
+  }
+  .preview .short {
+    width: 60%;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 30%;
+    padding: 8px 5px;
+    background: var(--bg-sidebar);
+  }
+  .side i {
+    background: var(--text-faint);
+  }
+  .page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 7px;
+  }
+  .page .title {
+    width: 60%;
+    height: 5px;
+    background: var(--text);
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .row i {
+    flex: 1;
+    height: 3px;
+  }
+  .row b {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border: 1px solid var(--checkbox);
+    background: transparent;
+  }
+  .row b.done {
+    border-color: var(--accent);
+    background: var(--accent);
   }
 
   .line {
