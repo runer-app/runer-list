@@ -85,6 +85,7 @@
       core={screen.core}
       pendingLink={screen.link}
       links={shell.links ? (cb) => shell.links!.onLink(cb) : undefined}
+      debugLog={shell.debugLog}
       signedOut={() => {
         pendingLink = null;
         screen = { name: 'welcome' };

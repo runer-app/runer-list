@@ -11,6 +11,8 @@ import { TauriVault } from './vault.js';
 
 /** The event `src-tauri/src/lib.rs` emits for an incoming `runer://` link. */
 const LINK_EVENT = 'runer://link';
+/** The event it emits when iOS runs the background refresh task. */
+const WAKE_EVENT = 'runer://wake';
 
 /**
  * Which kind of device the webview runs on, from its user agent. An iPad
@@ -27,19 +29,61 @@ export function platformKind(
 
 /** Desktop: window focus and the browser's online events. */
 class WindowLifecycle implements Lifecycle {
+  private readonly wakes = new Set<() => Promise<void>>();
+  private listening = false;
+
+  constructor(private readonly ipc: Ipc) {}
+
   isOnline = () => navigator.onLine;
   onForeground = (cb: () => void) => on(window, 'focus', cb);
   onBackground = (cb: () => void) => on(window, 'blur', cb);
   onOnline = (cb: () => void) => on(window, 'online', cb);
   onOffline = (cb: () => void) => on(window, 'offline', cb);
+
+  /** iOS background refresh. A wake that came before the first subscriber is pending in Rust; the other platforms never wake. */
+  onWake(cb: () => Promise<void>): () => void {
+    this.wakes.add(cb);
+    if (!this.listening) {
+      this.listening = true;
+      // A pending wake runs the subscribers there are by then: with several accounts, one that starts later waits for the next wake.
+      void this.ipc
+        .listen(WAKE_EVENT, () => this.claim('event received'))
+        .then(() => this.claim('listening'))
+        .catch((e: unknown) => this.log(`wake: listening failed: ${e instanceof Error ? e.message : String(e)}`));
+    }
+    return () => void this.wakes.delete(cb);
+  }
+
+  /** Runs the wake Rust holds, if any. The event only says to ask, so a wake that comes while listening starts runs once. */
+  private claim(why: string): void {
+    void this.ipc.invoke<boolean>('wake_pending').then(
+      (pending) => {
+        this.log(`wake: ${why}, ${pending ? 'one pending' : 'none pending'}`);
+        return pending ? this.wake() : undefined;
+      },
+      (e: unknown) => this.log(`wake: asking failed: ${e instanceof Error ? e.message : String(e)}`),
+    );
+  }
+
+  private async wake(): Promise<void> {
+    this.log(`wake: running ${this.wakes.size} accounts`);
+    await Promise.allSettled([...this.wakes].map((cb) => cb()));
+    this.log('wake: telling iOS it is done');
+    await this.ipc.invoke('wake_done').catch(() => undefined);
+  }
+
+  /** To the debug log, which only debug builds write. */
+  private log(m: string): void {
+    void this.ipc.invoke('debug_log_append', { line: `web: ${m}` }).catch(() => undefined);
+  }
 }
 
 type Page = Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>;
 
 /** Phones: the page is hidden when the app leaves the foreground; the window there never loses focus. */
 export class PageLifecycle extends WindowLifecycle {
-  constructor(private readonly page: Page = document) {
-    super();
+  constructor(ipc: Ipc, private readonly page: Page = document) {
+    super(ipc);
     this.onForeground = (cb) => on(this.page, 'visibilitychange', () => this.page.visibilityState === 'visible' && cb());
     this.onBackground = (cb) => on(this.page, 'visibilitychange', () => this.page.visibilityState === 'hidden' && cb());
   }
@@ -100,7 +144,7 @@ export function createTauriPlatform(server: string, ipc: Ipc = tauriIpc): Platfo
     storage: new TauriLocalStore(ipc),
     transport: new TauriTransport(ipc, server),
     links: new TauriLinks(ipc),
-    lifecycle: kind === 'desktop' ? new WindowLifecycle() : new PageLifecycle(),
+    lifecycle: kind === 'desktop' ? new WindowLifecycle(ipc) : new PageLifecycle(ipc),
     notifications: new TauriNotifier(ipc),
     info: { kind },
   };

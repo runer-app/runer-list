@@ -32,6 +32,8 @@ export interface SyncOptions {
   backoff?: { firstMs: number; maxMs: number; jitterMs: number };
   /** E2EE §4.4: refetch every list's head at least this often. */
   headRefreshMs?: number;
+  /** How long a background wake may take to catch up (`wake`). */
+  wakeMs?: number;
   /** Where to report content the vault rejected and frames that can't be used. */
   log?: (message: string) => void;
 }
@@ -85,6 +87,7 @@ const DEFAULTS = {
   snapshotDelayMs: () => Math.random() * 30_000,
   backoff: { firstMs: 1000, maxMs: 30_000, jitterMs: 1000 },
   headRefreshMs: 60 * 60 * 1000,
+  wakeMs: 20_000,
   log: () => undefined,
 } satisfies Required<SyncOptions>;
 
@@ -111,6 +114,8 @@ export class Sync {
   private refreshTimer: ReturnType<typeof setInterval> | undefined;
   private readonly unhook: (() => void)[] = [];
   private stopped = true;
+  /** Mobile, in the background: the socket stays closed except during a wake. */
+  private hidden = false;
 
   constructor(
     readonly account: Account,
@@ -159,14 +164,24 @@ export class Sync {
     const { lifecycle, info } = this.account.platform;
     const mobile = info.kind === 'ios' || info.kind === 'android';
     this.unhook.push(
+      this.state.subscribe((s) => this.opts.log(`sync: ${s}`)),
       lifecycle.onOnline(() => this.reconnectNow()),
       lifecycle.onForeground(() => {
+        this.opts.log('sync: foreground');
+        this.hidden = false;
         this.reconnectNow();
         this.reconcileSoon();
       }),
     );
-    // Mobile: close the socket in the background, don't rely on background execution.
-    if (mobile) this.unhook.push(lifecycle.onBackground(() => this.socket?.close()));
+    // Mobile: close the socket in the background and keep it closed until the foreground or a wake.
+    if (mobile)
+      this.unhook.push(
+        lifecycle.onBackground(() => {
+          this.opts.log('sync: background, closing the socket');
+          this.hidden = true;
+          this.socket?.close();
+        }),
+      );
     this.refreshTimer = setInterval(() => this.reconcileSoon(), this.opts.headRefreshMs);
     void this.connect();
   }
@@ -250,7 +265,8 @@ export class Sync {
   async settled(timeoutMs = 10_000): Promise<void> {
     const end = Date.now() + timeoutMs;
     for (;;) {
-      await this.queue;
+      const queue = this.queue;
+      await queue;
       const busy =
         this.state.value !== 'online' ||
         this.reconcileQueued ||
@@ -258,9 +274,43 @@ export class Sync {
         this.inflight.size > 0 ||
         [...this.replicas.values()].some((r) => r.catchingUp || r.local.length > 0) ||
         (await this.store.outbox()).length > 0;
-      if (!busy) return;
-      if (Date.now() > end) throw new Error('sync did not settle');
+      // Something queued meanwhile (a connect that just came up subscribes on the queue): look again.
+      if (!busy && queue === this.queue) return;
+      if (Date.now() > end) {
+        const r = [...this.replicas.values()];
+        this.opts.log(
+          `sync: not settled: state ${this.state.value}, reconcile ${this.reconcileQueued}, unannounced ${this.unannounced.size}, ` +
+            `inflight ${this.inflight.size}, catching up ${r.filter((x) => x.catchingUp).length}/${r.length}, ` +
+            `local edits ${r.filter((x) => x.local.length > 0).length}, outbox ${(await this.store.outbox()).length}`,
+        );
+        throw new Error('sync did not settle');
+      }
       await new Promise((r) => setTimeout(r, 20));
+    }
+  }
+
+  /**
+   * A background wake (iOS): connect, catch up and reconcile as on coming
+   * to the foreground, wait until settled, then close again if still in the
+   * background. Rejects if it doesn't settle within `wakeMs`.
+   */
+  async wake(): Promise<void> {
+    const started = Date.now();
+    const took = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
+    this.opts.log('wake: start');
+    this.reconnectNow();
+    this.reconcileSoon();
+    try {
+      await this.settled(this.opts.wakeMs);
+      this.opts.log(`wake: done in ${took()}`);
+    } catch (e) {
+      this.opts.log(`wake: failed after ${took()}: ${e instanceof Error ? e.message : String(e)}`);
+      throw e;
+    } finally {
+      if (this.hidden) {
+        this.opts.log('wake: still in the background, closing the socket');
+        this.socket?.close();
+      }
     }
   }
 
@@ -411,10 +461,12 @@ export class Sync {
   private async connect(): Promise<void> {
     if (this.stopped || this.socket !== null || this.state.value === 'signed-out') return;
     this.state.set('connecting');
+    const started = Date.now();
     let socket: Socket;
     try {
       socket = await this.account.platform.transport.openSocket('/v1/sync');
-    } catch {
+    } catch (e) {
+      this.opts.log(`sync: socket failed (${e instanceof Error ? e.message : String(e)}), signing in again`);
       // Perhaps the session expired: any request signs in again (Account.request), then retry.
       // A revoked session is not replaced: stop here until the user signs in again.
       let revoked = false;
@@ -425,21 +477,25 @@ export class Sync {
           return false;
         },
       );
+      this.opts.log(`sync: signing in again ${reauthed ? 'worked' : revoked ? 'refused: session revoked' : 'failed'}`);
       if (revoked) return this.state.set('signed-out');
       try {
         if (!reauthed || this.stopped) throw new Error('offline');
         socket = await this.account.platform.transport.openSocket('/v1/sync');
-      } catch {
+      } catch (e) {
+        this.opts.log(`sync: socket failed again: ${e instanceof Error ? e.message : String(e)}`);
         this.state.set('offline');
         return this.reconnectLater();
       }
     }
     if (this.stopped) return socket.close();
+    this.opts.log(`sync: socket open in ${Date.now() - started} ms`);
     this.attempt = 0;
     this.socket = socket;
     socket.onMessage((f) => void this.run(() => this.handle(f as Frame)));
     socket.onClose(() => {
       if (this.socket !== socket) return;
+      this.opts.log('sync: socket closed');
       this.socket = null;
       this.inflight.clear();
       for (const r of this.replicas.values()) r.catchingUp = r.synced = false;
@@ -459,6 +515,7 @@ export class Sync {
   /** Sync §2: 1 s, 2 s, 4 s … capped at 30 s, plus up to 1 s of jitter. */
   private reconnectLater(): void {
     if (this.stopped) return;
+    if (this.hidden) return this.opts.log('sync: in the background, not reconnecting');
     const { firstMs, maxMs, jitterMs } = this.opts.backoff;
     const delay = Math.min(maxMs, firstMs * 2 ** this.attempt++) + Math.random() * jitterMs;
     clearTimeout(this.reconnectTimer);
@@ -480,6 +537,7 @@ export class Sync {
       r.synced = false;
       r.held = { updates: [] };
     }
+    this.opts.log(`sync: subscribing to ${replicas.length} lists`);
     // At most 500 subscriptions per connection (Sync §6); lists are few.
     this.socket.send({ t: 'sub', lists: replicas.map((r) => ({ list: r.list, since: r.since })) });
   }
@@ -535,12 +593,20 @@ export class Sync {
         const r = this.replicas.get(f.list);
         if (r === undefined || f.seq <= r.since) return;
         if (r.catchingUp) r.held.updates.push({ seq: f.seq, msg: f.msg });
-        else await this.live(r, f.seq, f.msg);
+        else {
+          this.opts.log(`sync: live update ${f.seq} for ${f.list}`);
+          await this.live(r, f.seq, f.msg);
+        }
         return;
       }
       case 'synced': {
         const r = this.replicas.get(f.list);
-        if (r?.catchingUp) await this.caughtUp(r, f.head);
+        if (r?.catchingUp) {
+          this.opts.log(
+            `sync: ${f.list} caught up to ${f.head}: ${r.held.updates.length} updates${r.held.snapshot ? ', a snapshot' : ''}`,
+          );
+          await this.caughtUp(r, f.head);
+        }
         return;
       }
       case 'ack':
@@ -548,8 +614,10 @@ export class Sync {
       case 'error':
         return this.failed(f);
       case 'group':
+        this.opts.log(`sync: group ${f.group} changed`);
         return this.reconcileSoon();
       case 'bye':
+        this.opts.log(`sync: bye ${f.reason}`);
         // session-revoked: don't retry; sign in again. remove / leave: the reconnect refetches the lists.
         if (f.reason === 'session-revoked') this.state.set('signed-out');
         return;

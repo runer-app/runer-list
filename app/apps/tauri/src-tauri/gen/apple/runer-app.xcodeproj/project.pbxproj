@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0949C1C4B20B7DE273851729 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF75FB57F0A0F711423E88BA /* Metal.framework */; };
+		A1B2C3D4E5F60718293A4B5C /* BackgroundTasks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */; };
 		1E8B66B0D0F4C994377D9299 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 61EA1D3AEE032D59B18AF4F9 /* Security.framework */; };
 		48AF8B9B1C26DBD005DE8792 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 626F4ABDEFA57F4A38E389B6 /* libapp.a */; };
 		504F6985B8265956AFB61D91 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B0FD74E5BEC5CA56A999582 /* WebKit.framework */; };
@@ -29,6 +30,7 @@
 		392811B114AA18F409EFB6D0 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		3F3C349CD7A61F25F068088D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6143B80C4C578C82376AB12F /* store.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = store.rs; sourceTree = "<group>"; };
+		B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		61EA1D3AEE032D59B18AF4F9 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		626F4ABDEFA57F4A38E389B6 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		62EB711ACD9E89581913AFC9 /* runer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = runer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -58,6 +60,7 @@
 				0949C1C4B20B7DE273851729 /* Metal.framework in Frameworks */,
 				5E74C166E5DC0DEB394A6644 /* MetalKit.framework in Frameworks */,
 				C100BC556E99DF0F8EC2A258 /* QuartzCore.framework in Frameworks */,
+				A1B2C3D4E5F60718293A4B5C /* BackgroundTasks.framework in Frameworks */,
 				1E8B66B0D0F4C994377D9299 /* Security.framework in Frameworks */,
 				EE2FA7C4A6417C425307EFAD /* UIKit.framework in Frameworks */,
 				504F6985B8265956AFB61D91 /* WebKit.framework in Frameworks */,
@@ -101,6 +104,7 @@
 				CF75FB57F0A0F711423E88BA /* Metal.framework */,
 				CB3A2B4FE0C182D8FAC37FED /* MetalKit.framework */,
 				392811B114AA18F409EFB6D0 /* QuartzCore.framework */,
+				B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */,
 				61EA1D3AEE032D59B18AF4F9 /* Security.framework */,
 				DF3379CACC7CF17D57D4F214 /* UIKit.framework */,
 				7B0FD74E5BEC5CA56A999582 /* WebKit.framework */,

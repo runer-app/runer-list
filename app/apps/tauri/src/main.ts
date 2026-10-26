@@ -4,7 +4,7 @@
  */
 
 import { ClientCore, type ClientCoreOptions } from '@runer/client-core';
-import { createTauriPlatform, storedServers } from '@runer/platform-tauri';
+import { createTauriPlatform, storedServers, tauriIpc } from '@runer/platform-tauri';
 import { App, t, type Shell } from '@runer/ui';
 import '@runer/ui/theme.css';
 import { mount } from 'svelte';
@@ -14,9 +14,17 @@ import tauriConf from '../src-tauri/tauri.conf.json';
 /** Must equal the server's PUBLIC_URL. Set VITE_RUNER_SERVER at build time to change it. */
 const DEFAULT_SERVER: string = import.meta.env['VITE_RUNER_SERVER'] ?? 'http://localhost:8080';
 
+// `tauri dev`, and debug builds (`make ios-phone`): the sync log goes to the console and the debug log (Settings).
+const debug = import.meta.env.DEV || import.meta.env['TAURI_ENV_DEBUG'] === 'true';
+
+function log(m: string): void {
+  console.warn(m);
+  void tauriIpc.invoke('debug_log_append', { line: `web: ${m}` }).catch(() => undefined);
+}
+
 const opts: ClientCoreOptions = {
   reminderText: { generic: t('reminder.generic'), inbox: t('nav.inbox') },
-  ...(import.meta.env.DEV ? { sync: { log: (m: string) => console.warn(m) } } : {}),
+  ...(debug ? { sync: { log } } : {}),
 };
 
 // Links don't depend on the server: any platform instance reads them.
@@ -35,7 +43,17 @@ const shell: Shell = {
   signUp: (server, name) => ClientCore.signUp(createTauriPlatform(server), server, name, opts),
   signIn: (server, words) => ClientCore.signIn(createTauriPlatform(server), server, words, opts),
   links: { initial: () => links.initial(), onLink: (cb) => links.onLink(cb) },
+  ...(debug
+    ? {
+        debugLog: {
+          read: () => tauriIpc.invoke<string>('debug_log_read'),
+          clear: () => tauriIpc.invoke<void>('debug_log_clear'),
+        },
+      }
+    : {}),
 };
+
+if (debug) log(`page loaded (${document.visibilityState})`);
 
 setUpChrome();
 mount(App, { target: document.getElementById('app')!, props: { shell } });

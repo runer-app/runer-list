@@ -17,4 +17,11 @@ export interface Shell {
   signIn(server: string, words: string[]): Promise<ClientCore | null>;
   /** Invite links the app was opened with, or that arrive while it runs. */
   links?: { initial(): Promise<string | null>; onLink(cb: (link: string) => void): () => void };
+  /** Debug builds: the device's log, lines of `<unix ms> <text>`, shown under Settings. */
+  debugLog?: DebugLog;
+}
+
+export interface DebugLog {
+  read(): Promise<string>;
+  clear(): Promise<void>;
 }

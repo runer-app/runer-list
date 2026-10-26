@@ -157,6 +157,8 @@ export class ClientCore {
   private closed = false;
   /** What the OS was last given, so an edit that changes no reminder doesn't reach it. */
   private scheduled = '';
+  /** The last hand-over to the OS, for a wake to wait on. */
+  private reminding: Promise<void> = Promise.resolve();
 
   private constructor(
     private readonly account: Account,
@@ -229,6 +231,7 @@ export class ClientCore {
     await this.sync.track(this.account.inbox);
     await this.loadStates();
     this.scheduleMidnight();
+    this.unhook.push(this.account.platform.lifecycle.onWake(() => this.wake()));
   }
 
   // --- account ---------------------------------------------------------
@@ -571,8 +574,19 @@ export class ClientCore {
       const key = JSON.stringify(reminders);
       if (key === this.scheduled) return;
       this.scheduled = key;
-      notifications.replaceAll(reminders).catch(() => (this.scheduled = ''));
+      this.opts.sync?.log?.(`reminders: ${reminders.length} to the OS`);
+      this.reminding = notifications.replaceAll(reminders).catch(() => void (this.scheduled = ''));
     });
+  }
+
+  /** Background refresh: catch up, then wait until the reminders that brought are with the OS. */
+  private async wake(): Promise<void> {
+    try {
+      await this.sync.wake();
+    } finally {
+      await this.reminding;
+      this.opts.sync?.log?.('wake: reminders with the OS');
+    }
   }
 
   /** Today changes at local midnight even when nothing else does. */
