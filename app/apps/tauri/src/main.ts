@@ -43,6 +43,12 @@ const shell: Shell = {
   signUp: (server, name) => ClientCore.signUp(createTauriPlatform(server), server, name, opts),
   signIn: (server, words) => ClientCore.signIn(createTauriPlatform(server), server, words, opts),
   links: { initial: () => links.initial(), onLink: (cb) => links.onLink(cb) },
+  // The event `src-tauri/src/update.rs` emits once an update is downloaded (and, off Windows, installed).
+  // ponytail: an update ready before the page listens is missed until the next start; the check and download take far longer than the page.
+  update: {
+    onReady: (cb) => void tauriIpc.listen('runer://update-ready', cb),
+    restart: () => tauriIpc.invoke<void>('update_restart'),
+  },
   ...(debug
     ? {
         debugLog: {

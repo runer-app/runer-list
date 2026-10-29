@@ -111,6 +111,6 @@ Because the address is ours, the repo can move later: only the redirect changes.
 
 1. `make bump-app` at the root (`PART=minor` or `PART=major` for bigger steps), then push the commit and the tag it prints. The tag is only the trigger: the release is named after the version in the file.
 2. The `app-release` workflow builds macOS, Windows and Linux and makes a **draft** release with the installers. To try a build without a tag: the repository's **Actions** tab → **app-release** → **Run workflow**.
-3. Try the installers. Then publish the draft on GitHub: from that moment installed copies update to it at their next start.
+3. Try the installers. Then publish the draft on GitHub: from that moment installed copies download it at their next start and offer "Restart to update"; one that isn't restarted runs it from the start after (macOS, Linux) or downloads it again (Windows).
 
 What testers meet on first install, since nothing is signed by Apple or Microsoft: on macOS "Open Anyway" under System Settings → Privacy & Security; on Windows "More info" → "Run anyway".

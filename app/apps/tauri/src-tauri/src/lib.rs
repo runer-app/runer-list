@@ -10,6 +10,7 @@ mod device;
 mod net;
 mod notify;
 mod store;
+mod update;
 mod vault;
 mod wake;
 mod wire;
@@ -28,34 +29,6 @@ fn links_initial(app: tauri::AppHandle) -> Option<String> {
         return Some(link);
     }
     app.deep_link().get_current().ok().flatten()?.first().map(|u| u.to_string())
-}
-
-/// Signed updates, in builds that were given an update
-/// feed and its key: the release workflow adds `plugins.updater` to the
-/// config, so a build from a laptop never updates itself. Checked once at
-/// start, from Rust: the webview gets no updater command.
-#[cfg(desktop)]
-fn update(app: &tauri::AppHandle) -> tauri::Result<()> {
-    use tauri_plugin_updater::UpdaterExt;
-    if !app.config().plugins.0.contains_key("updater") {
-        return Ok(());
-    }
-    app.plugin(tauri_plugin_updater::Builder::new().build())?;
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        // Installs without asking. On macOS and Linux the new version runs from the next start; on Windows the
-        // installer closes the app and opens it again.
-        let done = async {
-            match app.updater()?.check().await? {
-                Some(update) => update.download_and_install(|_, _| {}, || {}).await,
-                None => Ok(()),
-            }
-        };
-        if let Err(e) = done.await {
-            eprintln!("update: {e}");
-        }
-    });
-    Ok(())
 }
 
 /// Dev only: `RUNER_PROFILE=anna` gives this copy of the app its
@@ -107,7 +80,7 @@ pub fn run() {
             #[cfg(desktop)]
             app.manage(notify::Reminders::default());
             #[cfg(desktop)]
-            update(app.handle())?;
+            update::start(app.handle())?;
             #[cfg(target_os = "ios")]
             wake::register(app.handle());
             let handle = app.handle().clone();
@@ -180,6 +153,7 @@ pub fn run() {
             debuglog::debug_log_read,
             debuglog::debug_log_clear,
             links_initial,
+            update::update_restart,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the app");

@@ -22,6 +22,7 @@
   let screen = $state<Screen>({ name: 'loading' });
   /** An invite link that arrived while signed out: Join opens after sign-in, and refuses a link for another server. */
   let pendingLink: string | null = null;
+  let updateReady = $state(false);
 
   async function start() {
     screen = { name: 'loading' };
@@ -35,6 +36,7 @@
   }
 
   onMount(() => {
+    shell.update?.onReady(() => (updateReady = true));
     void (async () => {
       const first = await shell.links?.initial().catch(() => null);
       if (first) pendingLink = first;
@@ -86,6 +88,7 @@
       pendingLink={screen.link}
       links={shell.links ? (cb) => shell.links!.onLink(cb) : undefined}
       debugLog={shell.debugLog}
+      update={updateReady ? shell.update : undefined}
       signedOut={() => {
         pendingLink = null;
         screen = { name: 'welcome' };

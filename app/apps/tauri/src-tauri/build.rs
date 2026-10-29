@@ -50,6 +50,7 @@ const COMMANDS: &[&str] = &[
     "debug_log_read",
     "debug_log_clear",
     "links_initial",
+    "update_restart",
 ];
 
 fn main() {

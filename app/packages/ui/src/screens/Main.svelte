@@ -1,7 +1,7 @@
 <script lang="ts">
   import { parseInviteLink, type ClientCore, type ListId } from '@runer/client-core';
   import { onMount } from 'svelte';
-  import type { DebugLog } from '../shell.js';
+  import type { AppUpdate, DebugLog } from '../shell.js';
   import { fromStore } from 'svelte/store';
   import { clock, deviceHour12 } from '../clock.svelte.js';
   import { t } from '../messages.js';
@@ -11,6 +11,7 @@
   import Ring from '../components/Ring.svelte';
   import Notices from '../components/Notices.svelte';
   import WarningBanner from '../components/WarningBanner.svelte';
+  import UpdateBanner from '../components/UpdateBanner.svelte';
   import Today from './Today.svelte';
   import ListView from './ListView.svelte';
   import Lists from './Lists.svelte';
@@ -27,6 +28,7 @@
     pendingLink = null,
     links,
     debugLog,
+    update,
   }: {
     core: ClientCore;
     /** The account is gone from this device (sign-out); back to Welcome. */
@@ -37,6 +39,8 @@
     links?: ((cb: (link: string) => void) => () => void) | undefined;
     /** Debug builds: the device's log, under Settings. */
     debugLog?: DebugLog | undefined;
+    /** A downloaded update, ready for a restart. */
+    update?: AppUpdate | undefined;
   } = $props();
 
   let view = $state<View>({ name: 'today' });
@@ -188,6 +192,9 @@
   <main>
     {#if warnings.length > 0 && view.name !== 'warnings'}
       <WarningBanner count={warnings.length} open={() => go({ name: 'warnings' })} />
+    {/if}
+    {#if update}
+      <UpdateBanner {update} />
     {/if}
     <Notices {core} />
 

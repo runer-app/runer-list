@@ -294,7 +294,7 @@ sequenceDiagram
 | `vault` commands | `runer-vault` on the keychain and its own SQLite file. Bytes cross IPC as base64url. Without a keychain every call fails with `Storage` and the UI says why |
 | `notify` commands | Desktop: the plugin shows notifications at once, so Rust keeps the schedule and fires each reminder while the app runs |
 | `tauri-plugin-deep-link` | `runer://join`, forwarded as the `runer://link` event; `links_initial` |
-| `tauri-plugin-updater` | Desktop; registered only when the release workflow adds `plugins.updater`, so a local build never updates itself |
+| `tauri-plugin-updater` | Desktop; registered only when the release workflow adds `plugins.updater`, so a local build never updates itself. Checked at start from Rust, which verifies the download's signature; macOS and Linux install it at once, Windows keeps it. The `runer://update-ready` event shows "Restart to update", and `update_restart` (refused until then) installs it on Windows and restarts. No other updater command reaches the webview |
 | `tauri-plugin-single-instance` | Desktop: a second launch hands over to the running app |
 
 **Lockdown.** The one capability (`capabilities/default.json`) grants the app's own commands and event listening; no plugin command, filesystem, shell or HTTP reaches the webview. CSP is `'self'` only, `connect-src` IPC only.

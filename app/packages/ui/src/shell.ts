@@ -19,6 +19,15 @@ export interface Shell {
   links?: { initial(): Promise<string | null>; onLink(cb: (link: string) => void): () => void };
   /** Debug builds: the device's log, lines of `<unix ms> <text>`, shown under Settings. */
   debugLog?: DebugLog;
+  /** Desktop builds with an update feed: an update was downloaded, and restarting runs it. */
+  update?: AppUpdate;
+}
+
+export interface AppUpdate {
+  /** Called once, when an update is ready. */
+  onReady(cb: () => void): void;
+  /** Restarts into the update; rejects if it couldn't be installed. */
+  restart(): Promise<void>;
 }
 
 export interface DebugLog {

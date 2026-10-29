@@ -235,6 +235,10 @@ const en = {
   'notice.lost-access': 'You no longer have access to {list}',
   'notice.dismiss': 'Dismiss',
 
+  'update.ready': 'A new version is ready.',
+  'update.restart': 'Restart to update',
+  'update.failed': 'The update couldn’t be installed. It will be tried again on the next start.',
+
   'warning.banner.one': 'A security warning needs your attention.',
   'warning.banner': '{n} security warnings need your attention.',
   'warning.details': 'Details',

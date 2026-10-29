@@ -1,6 +1,6 @@
 import { ClientCore, type ClientCoreOptions, type Platform, type Transport } from '@runer/client-core';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MemoryServer } from '../../client-core/test/platform-node/memory-server.js';
 import { createMemoryPlatform } from '../../client-core/test/platform-node/memory.js';
 import { NodeVault } from '../../client-core/test/platform-node/vault.js';
@@ -37,6 +37,21 @@ function shellOn(platform: Platform): Shell {
 const offline: Transport = { request: () => Promise.reject(new Error('offline')), openSocket: () => Promise.reject(new Error('offline')) };
 
 describe('the app', () => {
+  test('a downloaded update offers "Restart to update"; an install that fails says so', async () => {
+    const p = createMemoryPlatform({ transport: new MemoryServer().transport() });
+    await (await ClientCore.signUp(p, SERVER, '', OPTS)).core.stop();
+    let ready = () => {};
+    const restart = vi.fn(() => Promise.reject(new Error('installer')));
+    render(App, { shell: { ...shellOn(p), update: { onReady: (cb) => void (ready = cb), restart } } });
+    await screen.findByRole('navigation');
+    expect(screen.queryByRole('button', { name: 'Restart to update' })).toBeNull();
+
+    ready();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Restart to update' }));
+    expect(restart).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/couldn’t be installed/)).toBeTruthy();
+  });
+
   test('Welcome → create account → 12 words → confirm 3 → Today → capture → restart → still there', async () => {
     const server = new MemoryServer();
     const p = createMemoryPlatform({ transport: server.transport() });
