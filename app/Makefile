@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone build-dev build-prod macos-icon design test
+.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone ios-log build-dev build-prod macos-icon design test
 
 # Each must equal that server's PUBLIC_URL.
 DEV_API   ?= https://api-dev.runer.app
@@ -12,6 +12,9 @@ DEV_CONFIG = '{"identifier":"app.runer.dev","productName":"runer dev","bundle":{
 
 # iOS gets its own dev server port, so it runs beside `make dev*` (5173).
 IOS_CONFIG = '{"build":{"devUrl":"http://localhost:5174","beforeDevCommand":"npm run dev -- --port 5174"}}'
+
+# The paired iPhone's UDID, over USB or Wi-Fi.
+PHONE = $$(xcrun devicectl list devices | sed -nE 's/.* ([0-9A-F-]+) \(UDID\) +(connected|available).*physical.*/\1/p' | head -1)
 
 help: ## list targets (default)
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -39,8 +42,14 @@ ios-prod: ## iOS app in the simulator, against the prod API; ARGS=--open for Xco
 
 ios-phone: ## build and install on the connected iPhone, against the dev API (API=prod for the prod API)
 	VITE_RUNER_SERVER=$(if $(filter prod,$(API)),$(PROD_API),$(DEV_API)) npm run tauri -w @runer/app -- ios build --debug
-	xcrun devicectl device install app apps/tauri/src-tauri/gen/apple/build/arm64/runer.ipa --device \
-		"$$(xcrun devicectl list devices | sed -nE 's/.* ([0-9A-F-]+) \(UDID\) +(connected|available).*physical.*/\1/p' | head -1)"
+	xcrun devicectl device install app apps/tauri/src-tauri/gen/apple/build/arm64/runer.ipa --device "$(PHONE)"
+
+# Copying the file doesn't launch or attach to the app, so background refresh behaves as without it.
+ios-log: ## print the debug log of the ios-phone build, copied from the phone
+	@d=$$(mktemp -d) && trap 'rm -r $$d' EXIT && \
+		xcrun devicectl device copy from --device "$(PHONE)" --domain-type appDataContainer --domain-identifier app.runer \
+			--source "Library/Application Support/app.runer/debug.log" --destination $$d/log > /dev/null && \
+		perl -MPOSIX -pe 's/^(\d+)\d{3} /strftime("%F %T ", localtime $$1)/e' $$d/log
 
 build-dev: ## installers for this OS, against the dev API
 	VITE_RUNER_SERVER=$(DEV_API) npm run app:build -- --config $(DEV_CONFIG)
