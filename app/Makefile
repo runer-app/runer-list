@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone ios-log build-dev build-prod macos-icon design test
+.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone ios-log build-dev build-prod macos-icon design screenshots test
 
 # Each must equal that server's PUBLIC_URL.
 DEV_API   ?= https://api-dev.runer.app
@@ -65,6 +65,10 @@ macos-icon: ## rebuild the macOS 26 icon (Assets.car) from apps/tauri/src-tauri/
 
 design: ## the real UI on sample data at http://localhost:5199
 	npm run design -w @runer/ui
+
+screenshots: ## the marketing screenshots, from the design preview, into img/marketing/ (installs Playwright's chromium if missing)
+	npx playwright install chromium
+	npm run screenshots -w @runer/ui
 
 test: ## everything CI runs: fmt, clippy, lint, types, unit tests, and the e2e suite against the real server (needs Docker and Go)
 	cargo fmt --check

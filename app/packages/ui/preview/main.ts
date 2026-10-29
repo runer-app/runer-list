@@ -43,26 +43,62 @@ function seed(id: string, name: string, people: PublicIdentity[], fill: (d: List
   members.set(id, people);
 }
 
-seed('inbox', '', [me], (d) => {
-  d.addTask('Call the plumber', { due: today });
-  d.addTask('Gift idea for Mum');
-  d.addNote('Book recommendation from Jonas: *The Overstory*');
-});
-seed('trip', 'Weekend trip', [me, anna], (d) => {
-  d.addNote('A small plan, so we can look forward to the trip without losing the details in the chat.');
-  d.addNote('# Before we go');
-  d.addTask('Book a room', { due: today, assignee: ME, body: 'Somewhere close to the water' });
-  d.addTask('Find a hiking route', { due: addDays(today, 2), assignee: ANNA });
-  d.setPerson(ANNA, 'Anna');
-  d.addNote('> The ferry leaves at **09:30**. Be there in good time.');
-  d.addNote('## When we’re there');
-  d.addTask('Buy dinner');
-  d.addNote('- swimsuit\n- walking shoes\n- `power bank`');
-});
-seed('ideas', 'My ideas', [me], (d) => {
-  d.addTask('Draft the article', { due: today });
-  d.addNote('Write about **private-by-default** tools.');
-});
+// `?seed=marketing` swaps in the data the marketing screenshots are taken on (`npm run screenshots`).
+if (new URLSearchParams(location.search).get('seed') === 'marketing') {
+  seed('inbox', '', [me], (d) => {
+    d.addTask('Call the dentist', { due: today });
+    d.addTask('Renew the passport', { due: addDays(today, 3) });
+    d.addNote('Book recommendation from Jonas: *The Overstory*');
+  });
+  seed('trip', 'Lisbon in May', [me, anna], (d) => {
+    d.setPerson(ANNA, 'Anna');
+    d.addNote('Four days, no rush. Everything we need to settle before we fly lives here.');
+    d.addNote('## Before we go');
+    d.addTask('Book the flights', { due: today, assignee: ME, body: 'Mornings, so we get the whole first day' });
+    d.addTask('Reserve the apartment in Alfama', { due: addDays(today, 1), assignee: ANNA });
+    d.addTask('Check the tram 28 timetable', { due: addDays(today, 4), assignee: ANNA });
+    d.addNote('> Pastéis de Belém opens at **08:00**. Go early, the queue grows fast.');
+    d.addNote('## Packing');
+    d.addNote('- walking shoes\n- sunscreen\n- `power bank`');
+    d.addTask('Print the boarding passes');
+  });
+  seed('home', 'Home', [me, anna], (d) => {
+    d.setPerson(ANNA, 'Anna');
+    d.addTask('Fix the bike light', { due: today, assignee: ME });
+    d.addTask('Buy groceries for the weekend', { due: today, assignee: ME, body: 'Oat milk, pasta, basil' });
+    d.addTask('Book the boiler service', { due: addDays(today, 2) });
+  });
+  seed('work', 'Side project', [me], (d) => {
+    d.addTask('Write the launch post', { due: today });
+    d.addTask('Reply to the beta testers', { due: today });
+    d.addTask('Review the onboarding copy', { due: addDays(today, 1) });
+  });
+  seed('books', 'Reading', [me], (d) => {
+    d.addTask('Finish The Overstory');
+    d.addNote('Next up: *Braiding Sweetgrass*');
+  });
+} else {
+  seed('inbox', '', [me], (d) => {
+    d.addTask('Call the plumber', { due: today });
+    d.addTask('Gift idea for Mum');
+    d.addNote('Book recommendation from Jonas: *The Overstory*');
+  });
+  seed('trip', 'Weekend trip', [me, anna], (d) => {
+    d.addNote('A small plan, so we can look forward to the trip without losing the details in the chat.');
+    d.addNote('# Before we go');
+    d.addTask('Book a room', { due: today, assignee: ME, body: 'Somewhere close to the water' });
+    d.addTask('Find a hiking route', { due: addDays(today, 2), assignee: ANNA });
+    d.setPerson(ANNA, 'Anna');
+    d.addNote('> The ferry leaves at **09:30**. Be there in good time.');
+    d.addNote('## When we’re there');
+    d.addTask('Buy dinner');
+    d.addNote('- swimsuit\n- walking shoes\n- `power bank`');
+  });
+  seed('ideas', 'My ideas', [me], (d) => {
+    d.addTask('Draft the article', { due: today });
+    d.addNote('Write about **private-by-default** tools.');
+  });
+}
 
 const lists = new Writable<ListSummary[]>([]);
 const todayRefs = new Writable<ReturnType<typeof todayView>>([]);

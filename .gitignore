@@ -4,3 +4,6 @@
 .env.*
 *.p12
 *.key
+
+# Marketing screenshots, regenerated with `npm run screenshots -w @runer/ui`
+app/img/marketing/

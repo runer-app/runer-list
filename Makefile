@@ -1,4 +1,4 @@
-.PHONY: help install test test-app test-server check up down dev dev-local versions bump-app bump-server
+.PHONY: help install test test-app test-server check up down dev dev-local screenshots versions bump-app bump-server
 
 help: ## list targets (default); app/ and server/ have their own Makefiles with more
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -28,6 +28,9 @@ dev: ## the desktop app against the dev API
 
 dev-local: up ## the desktop app against the local server stack
 	$(MAKE) -C app dev-local
+
+screenshots: ## the marketing screenshots, from the app's design preview, into app/img/marketing/
+	$(MAKE) -C app screenshots
 
 APP_CONF := app/apps/tauri/src-tauri/tauri.conf.json
 APP_CARGO := app/apps/tauri/src-tauri/Cargo.toml

@@ -35,6 +35,7 @@ make ios-dev       # the iOS app in the simulator, against the dev API (ios-prod
 make ios-phone     # build and install on the connected iPhone (API=prod for the prod API)
 make build-dev     # installers for this OS, against the dev API, as the separate app "runer dev" (build-prod: the prod API, as the release app); a build never uses the local API
 make design        # the real UI in a browser on sample data (http://localhost:5199), for look-and-feel work; no server needed
+make screenshots   # the marketing screenshots from that preview (dark theme, 1440x900 desktop and 390x844 mobile) into img/marketing/, which is not checked in
 ```
 
 The server field on Welcome must equal the server's PUBLIC_URL; the API URLs are at the top of the `Makefile`.

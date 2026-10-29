@@ -72,7 +72,7 @@
 <div class="bar">
   <p class="kicker">
     {#if shared}
-      <Icon name="people" />{t('list.sharedKicker')}<span class="sep">·</span>{membersSummary(members, core.me, names)}
+      <Icon name="people" />{t('list.sharedKicker')}<span class="sep">·</span><span class="who">{membersSummary(members, core.me, names)}</span>
     {:else}
       <Icon name="lock" />{t('list.privateKicker')}
     {/if}
@@ -207,6 +207,11 @@
   }
   .sep {
     color: var(--text-faint);
+  }
+  .who {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tools {
     display: flex;
