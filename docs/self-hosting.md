@@ -52,7 +52,7 @@ All configuration comes from environment variables.
 
 - Build: `docker build .` in `server/`. It's a static binary on `distroless/static:nonroot`, with no shell and base images pinned by digest.
 - Health check: `GET /healthz` (it pings the database).
-- Released images: `ghcr.io/runer-app/runer-api:X.Y.Z`, `:X.Y` and `:latest` (see [Releasing](releasing.md)). linux/amd64 only.
+- Released images: `ghcr.io/runer-app/runer-api:X.Y.Z`, `:X.Y` and `:latest` (see [Releasing](releasing.md)). Multi-arch: linux/amd64 and linux/arm64.
 
 ## Security headers
 

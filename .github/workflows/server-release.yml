@@ -47,12 +47,10 @@ jobs:
           tags: |
             type=match,pattern=server-v(\d+\.\d+\.\d+),group=1
             type=match,pattern=server-v(\d+\.\d+)\.\d+,group=1
-      # Kept simple: linux/amd64 only; add linux/arm64 (and cross-compile via
-      # BUILDPLATFORM/TARGETARCH in the Dockerfile) if the host is ARM.
       - uses: docker/build-push-action@v6.19.2
         with:
           context: server
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
