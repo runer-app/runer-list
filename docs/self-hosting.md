@@ -48,6 +48,8 @@ All configuration comes from environment variables.
 
 **About `TRUSTED_PROXIES`:** per-IP rate limits use the client IP. If the proxy isn't trusted, every user appears to come from the proxy's address and they all share one rate-limit bucket. If you trust too much, clients can spoof their IP.
 
+**Check it after deploying.** The server doesn't log client IPs, so test the limit: from one address, send more than `CHALLENGES_PER_IP_PER_MINUTE` requests to `POST /v1/auth/challenge` until they get `429`, then send one from a different address. It should still be answered normally. If it also gets `429`, every client shares one bucket: check `TRUSTED_PROXIES`, then that the proxy itself sees real client IPs (behind Docker Swarm's ingress network it needs host-mode ports or the PROXY protocol).
+
 ## Docker image
 
 - Build: `docker build .` in `server/`. It's a static binary on `distroless/static:nonroot`, with no shell and base images pinned by digest.
@@ -60,7 +62,7 @@ Every response gets `nosniff`, `X-Frame-Options: DENY`, `CSP: default-src 'none'
 
 Request logs record the method, the **route pattern** (never the raw URL, because invite ids are credentials), status and latency.
 
-> ⚠️ The logs also include `remote_ip`, the client IP as the server sees it, so you can check that per-IP limits see real client IPs behind your reverse proxy.
+The logs never include client IPs. Rate limits hold them in memory only.
 
 ## Data retention
 

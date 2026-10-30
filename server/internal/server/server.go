@@ -79,19 +79,13 @@ func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
 		// Run httpErrorHandler here so the logged status is the one sent,
 		// not 500 for every domain error.
 		HandleError: true,
-		// Logs c.RealIP() so an operator can check, behind a reverse proxy,
-		// that per-IP limits see real public client IPs, not the proxy's
-		// 10.x/172.x addresses (which would mean every user shares one
-		// bucket). Client IPs are personal data: see docs/self-hosting.md.
-		LogRemoteIP: true,
 		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
 			level := slog.LevelInfo
 			if v.Error != nil {
 				level = slog.LevelError
 			}
 			slog.Log(c.Request().Context(), level, "request",
-				"method", v.Method, "route", v.RoutePath, "status", v.Status, "latency", v.Latency, "error", v.Error,
-				"remote_ip", v.RemoteIP)
+				"method", v.Method, "route", v.RoutePath, "status", v.Status, "latency", v.Latency, "error", v.Error)
 			return nil
 		},
 	}))
