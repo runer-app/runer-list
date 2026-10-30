@@ -30,6 +30,7 @@
     links,
     debugLog,
     update,
+    version,
   }: {
     core: ClientCore;
     /** The account is gone from this device (sign-out); back to Welcome. */
@@ -42,6 +43,8 @@
     debugLog?: DebugLog | undefined;
     /** A downloaded update, ready for a restart. */
     update?: AppUpdate | undefined;
+    /** The app's version, under Settings. */
+    version?: string | undefined;
   } = $props();
 
   let view = $state<View>({ name: 'today' });
@@ -224,7 +227,7 @@
         />
       {/key}
     {:else if view.name === 'settings'}
-      <Settings {core} {signedOut} {debugLog} help={() => go({ name: 'help' })} />
+      <Settings {core} {signedOut} {debugLog} {version} help={() => go({ name: 'help' })} />
     {:else if view.name === 'help'}
       <Help back={() => go({ name: 'settings' })} />
     {:else}

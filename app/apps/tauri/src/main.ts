@@ -9,7 +9,7 @@ import { App, startAppearance, t, type Shell } from '@runer/ui';
 import '@runer/ui/theme.css';
 import { mount } from 'svelte';
 import { setUpChrome } from './chrome.js';
-import tauriConf from '../src-tauri/tauri.conf.json';
+import { getVersion } from '@tauri-apps/api/app';
 
 /** Must equal the server's PUBLIC_URL. Set VITE_RUNER_SERVER at build time to change it. */
 const DEFAULT_SERVER: string = import.meta.env['VITE_RUNER_SERVER'] ?? 'http://localhost:8080';
@@ -30,9 +30,12 @@ const opts: ClientCoreOptions = {
 // Links don't depend on the server: any platform instance reads them.
 const links = createTauriPlatform(DEFAULT_SERVER).links;
 
+// The version in `src-tauri/tauri.conf.json`, asked of the running app.
+const version = await getVersion();
+
 const shell: Shell = {
   defaultServer: DEFAULT_SERVER,
-  version: tauriConf.version,
+  version,
   // One account per device; several servers at once need a platform per account.
   async resume() {
     const [server] = await storedServers();

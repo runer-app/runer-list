@@ -1,6 +1,5 @@
 {
   "name": "@runer/app",
-  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,6 +12,7 @@
     "@runer/client-core": "*",
     "@runer/platform-tauri": "*",
     "@runer/ui": "*",
+    "@tauri-apps/api": "^2.8.0",
     "svelte": "^5.39.0"
   },
   "devDependencies": {

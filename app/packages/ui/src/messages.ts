@@ -302,6 +302,7 @@ const en = {
   'settings.clock12': '12-hour (9:30 PM)',
   'settings.advanced': 'Advanced',
   'settings.serverLabel': 'Sync server',
+  'settings.versionLabel': 'App version',
   'settings.signOutHere': 'Sign out of this device',
   'settings.signOut': 'Sign out',
   'settings.signOutWarning': 'Your lists are removed from this device. You need your account key to sign in again.',

@@ -7,7 +7,7 @@ import type { ClientCore } from '@runer/client-core';
 export interface Shell {
   /** The server the Welcome screen suggests. */
   defaultServer: string;
-  /** The app's version, shown on Welcome. */
+  /** The app's version, shown on Welcome and in Settings. */
   version?: string;
   /** The account kept on this device, or `null` for Welcome. */
   resume(): Promise<ClientCore | null>;

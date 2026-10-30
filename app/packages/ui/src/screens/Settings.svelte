@@ -20,7 +20,8 @@
     signedOut,
     help,
     debugLog,
-  }: { core: ClientCore; signedOut: () => void; help: () => void; debugLog?: DebugLog | undefined } = $props();
+    version,
+  }: { core: ClientCore; signedOut: () => void; help: () => void; debugLog?: DebugLog | undefined; version?: string | undefined } = $props();
 
   const settings = $derived(fromStore(core.settings));
   const clockChoice = $derived(settings.current.clock ?? (deviceHour12() ? '12h' : '24h'));
@@ -245,6 +246,12 @@
       <span>{t('settings.serverLabel')}</span>
       <span class="mono muted">{server}</span>
     </div>
+    {#if version}
+      <div class="line">
+        <span>{t('settings.versionLabel')}</span>
+        <span class="mono muted">{version}</span>
+      </div>
+    {/if}
     <div class="line end">
       <span>{t('settings.signOutHere')}</span>
       <Confirm

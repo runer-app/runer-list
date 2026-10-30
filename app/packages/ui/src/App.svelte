@@ -89,6 +89,7 @@
       links={shell.links ? (cb) => shell.links!.onLink(cb) : undefined}
       debugLog={shell.debugLog}
       update={updateReady ? shell.update : undefined}
+      version={shell.version}
       signedOut={() => {
         pendingLink = null;
         screen = { name: 'welcome' };

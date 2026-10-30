@@ -875,6 +875,13 @@ describe('sharing', () => {
 });
 
 describe('settings', () => {
+  test('the app version is shown', async () => {
+    server = new MemoryServer();
+    render(Main, { core: await person(), signedOut: vi.fn(), version: '1.2.3' });
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByText('1.2.3')).toBeTruthy();
+  });
+
   test('the time format: chosen in Settings, and every time follows it', async () => {
     server = new MemoryServer();
     const core = await person();

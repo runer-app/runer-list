@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window: the app's own commands, the core event and channel plumbing, and dragging the window by its title-bar area. No plugin commands, no filesystem, no shell.",
+  "description": "The main window: the app's own commands, the core event and channel plumbing, and dragging the window by its title-bar area, and asking for the app's version. No plugin commands, no filesystem, no shell.",
   "windows": [
     "main"
   ],
@@ -9,6 +9,7 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:window:allow-start-dragging",
+    "core:app:allow-version",
     "allow-vault-accounts",
     "allow-vault-set-inbox",
     "allow-vault-sign-in",
