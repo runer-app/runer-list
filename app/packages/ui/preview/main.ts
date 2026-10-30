@@ -188,7 +188,6 @@ const core = {
   },
   knownContacts: async () => [anna],
   safetyCode: async () => ['12345', '67890', '13579', '24680', '11223', '44556'],
-  sessions: { list: async () => [{ id: 's1', userAgent: 'Preview', createdAt: new Date().toISOString(), lastSeenAt: new Date().toISOString() }], revoke: inert },
   invites: { open: async () => Promise.reject(new Error('preview')) },
   showAccountKey: async () => 'abandon ability able about above absent absorb abstract absurd abuse access accident'.split(' '),
   changeAccountKey: async () => ({ accountKeyWords: [] }),

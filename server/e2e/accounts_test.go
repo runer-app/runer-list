@@ -243,21 +243,16 @@ func TestRekeyRevokesOtherSessionsIdentityUnchanged(t *testing.T) {
 	// A second device session for the same account/identity.
 	otherDevice := sameIdentityNewInstance(t, baseURL, alice.Identity)
 	require.NoError(t, otherDevice.Login(ctx))
-	otherSessions, err := otherDevice.ListSessions(ctx)
-	require.NoError(t, err)
-	require.Len(t, otherSessions, 2) // alice's own session + this one
-	require.False(t, otherSessions[0].Current && otherSessions[1].Current)
-	require.True(t, otherSessions[0].Current || otherSessions[1].Current) // exactly one: the asking device's
 
 	require.NoError(t, alice.Rekey(ctx, []byte("bundle-v2")))
 	require.Equal(t, 2, alice.BundleGen)
 	require.NotEqual(t, []byte(oldAuthPub), []byte(alice.Identity.AuthPub))
 
-	// The other device's session was revoked by the rekey.
-	_, err = otherDevice.ListSessions(ctx)
+	// The other device's session ended with the rekey.
+	_, err := otherDevice.GetAccount(ctx)
 	apiErr, ok := errors.AsType[*testclient.APIError](err)
 	require.True(t, ok, "want an APIError, got %v", err)
-	require.Equal(t, "session_revoked", apiErr.Code) // not the "unauthenticated" of an expired session
+	require.Equal(t, "unauthenticated", apiErr.Code)
 
 	// The old auth key can no longer complete a login.
 	staleIdentity := &testclient.Identity{AuthPub: oldAuthPub, AuthPriv: oldAuthPriv}

@@ -165,9 +165,9 @@ func (a *Accounts) Rekey(ctx context.Context, id, keepSessionID string, newAuthP
 	if err != nil {
 		return Account{}, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at = now()
-		WHERE account_id = $1 AND id != $2 AND revoked_at IS NULL`, id, keepSessionID); err != nil {
-		return Account{}, fmt.Errorf("revoke other sessions: %w", err)
+	if _, err := tx.Exec(ctx, `DELETE FROM sessions
+		WHERE account_id = $1 AND id != $2`, id, keepSessionID); err != nil {
+		return Account{}, fmt.Errorf("delete other sessions: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Account{}, fmt.Errorf("commit rekey: %w", err)
@@ -259,8 +259,8 @@ func (a *Accounts) ScheduleDeletion(ctx context.Context, id string) ([]DeletedLi
 			shared = append(shared, l)
 		}
 	}
-	if _, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE account_id = $1 AND revoked_at IS NULL`, id); err != nil {
-		return nil, fmt.Errorf("revoke sessions: %w", err)
+	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE account_id = $1`, id); err != nil {
+		return nil, fmt.Errorf("delete sessions: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit schedule account deletion: %w", err)

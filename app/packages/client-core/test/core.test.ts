@@ -119,20 +119,76 @@ describe('ClientCore', () => {
     await expect(core.list(core.inbox).createInvite()).rejects.toThrow(/Inbox is never shared/);
   });
 
-  test('a device revoked from another one stops: it does not sign itself back in', async () => {
+  test('a device signed out by a key change stops: it does not sign itself back in', async () => {
     server = new MemoryServer();
     const { core: a, words } = await signedUp();
     const b = (await ClientCore.signIn(device(), SERVER, words, OPTS))!;
     running.push(b);
     await until('b online', () => value(b.connection) === 'online');
 
-    const theirs = (await a.sessions.list()).find((s) => !s.current)!;
-    await a.sessions.revoke(theirs.id);
+    await a.changeAccountKey();
     server.drop(); // the real server closes the revoked socket
 
     await until('b signed out', () => value(b.connection) === 'signed-out');
-    expect(await a.sessions.list()).toHaveLength(1);
     await until('a back online', () => value(a.connection) === 'online');
+  });
+
+  test('a key change reaches a device that restarts, too', async () => {
+    server = new MemoryServer();
+    const p = device();
+    const { core: b, words } = await signedUp(p);
+    await until('b online', () => value(b.connection) === 'online');
+    const a = (await ClientCore.signIn(device(), SERVER, words, OPTS))!;
+    running.push(a);
+    await b.stop();
+    running.splice(running.indexOf(b), 1);
+
+    await a.changeAccountKey();
+
+    const [again] = await ClientCore.resume(restart(p), OPTS);
+    running.push(again!);
+    await until('signed out after the restart', () => value(again!.connection) === 'signed-out');
+  });
+
+  test('deleting the account from one device signs out the others', async () => {
+    server = new MemoryServer();
+    const { core: a, words } = await signedUp();
+    const b = (await ClientCore.signIn(device(), SERVER, words, OPTS))!;
+    running.push(b);
+    await until('b online', () => value(b.connection) === 'online');
+
+    await a.deleteAccount();
+    running.splice(running.indexOf(a), 1);
+    server.drop();
+
+    await until('b signed out', () => value(b.connection) === 'signed-out');
+  });
+
+  test('an expired session signs in again by itself, also with the socket open', async () => {
+    server = new MemoryServer();
+    const { core } = await signedUp();
+    await until('online', () => value(core.connection) === 'online');
+    server.expireSessions();
+    await until('back online', () => value(core.connection) === 'online');
+  });
+
+  test('a stale challenge is not a sign-out: one refused login is tried again', async () => {
+    server = new MemoryServer();
+    const { core } = await signedUp();
+    await until('online', () => value(core.connection) === 'online');
+    server.refuseNextLogin();
+    server.expireSessions();
+    await until('back online', () => value(core.connection) === 'online');
+  });
+
+  test('a failed connection is not a sign-out', async () => {
+    server = new MemoryServer();
+    const { core } = await signedUp();
+    await until('online', () => value(core.connection) === 'online');
+    server.offline = true;
+    server.drop();
+    await until('offline', () => value(core.connection) === 'offline');
+    expect(value(core.connection)).not.toBe('signed-out');
   });
 
   test('sign-out forgets the account on this device', async () => {

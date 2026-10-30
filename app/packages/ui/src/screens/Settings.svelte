@@ -1,20 +1,17 @@
 <script lang="ts">
-  import type { ClientCore, Session } from '@runer/client-core';
+  import type { ClientCore } from '@runer/client-core';
   import { onMount } from 'svelte';
   import { fromStore } from 'svelte/store';
   import { appearance, setMode, setTheme, THEMES } from '../appearance.svelte.js';
   import { deviceHour12 } from '../clock.svelte.js';
-  import { agoLabel } from '../dates.js';
-  import { describeDevice } from '../devices.js';
   import { t } from '../messages.js';
   import Confirm from '../components/Confirm.svelte';
   import KeyWords from '../components/KeyWords.svelte';
   import type { DebugLog } from '../shell.js';
-  import Icon from '../components/Icon.svelte';
 
   /**
    * Settings, one section per row: what it is on the
-   * left, the controls on the right. The account key, devices (sessions),
+   * left, the controls on the right. The account key,
    * reminders and their privacy, the look, the time format, and the server and
    * sign-out.
    */
@@ -25,13 +22,8 @@
     debugLog,
   }: { core: ClientCore; signedOut: () => void; help: () => void; debugLog?: DebugLog | undefined } = $props();
 
-  const WEEK = 7 * 24 * 60 * 60 * 1000;
-  const ACTIVE = 5 * 60 * 1000;
-
   const settings = $derived(fromStore(core.settings));
   const clockChoice = $derived(settings.current.clock ?? (deviceHour12() ? '12h' : '24h'));
-  let sessions = $state<Session[] | null>(null);
-  let sessionsError = $state(false);
   let words = $state<{ list: string[]; fresh: boolean } | null>(null);
   let permission = $state<'granted' | 'denied' | 'prompt' | null>(null);
   let error = $state('');
@@ -41,10 +33,6 @@
     name = accountName.current;
   });
 
-  const seen = (s: Session) => Date.parse(s.lastSeenAt);
-  /** This device first, then the most recently seen. Others not seen for a week fold into one line. */
-  const recent = $derived((sessions ?? []).filter((s) => s.current || Date.now() - seen(s) < WEEK).sort((a, b) => Number(b.current) - Number(a.current) || seen(b) - seen(a)));
-  const older = $derived((sessions ?? []).filter((s) => !s.current && Date.now() - seen(s) >= WEEK));
   const server = $derived.by(() => {
     try {
       return new URL(core.server).host;
@@ -53,17 +41,7 @@
     }
   });
 
-  async function loadSessions() {
-    sessionsError = false;
-    try {
-      sessions = await core.sessions.list();
-    } catch {
-      sessionsError = true;
-    }
-  }
-
   onMount(() => {
-    void loadSessions();
     void core.notificationPermission().then((p) => (permission = p), () => (permission = null));
   });
 
@@ -107,11 +85,6 @@
     save(() => core.setName(name));
   }
 
-  const revoke = (ids: string[]) =>
-    guard(async () => {
-      for (const id of ids) await core.sessions.revoke(id);
-      await loadSessions();
-    });
 </script>
 
 <h1>{t('nav.settings')}</h1>
@@ -157,53 +130,9 @@
           guard(async () => {
             const { accountKeyWords } = await core.changeAccountKey();
             words = { list: accountKeyWords, fresh: true };
-            void loadSessions();
           })}
       />
     </div>
-  </div>
-</section>
-
-<section>
-  {@render about(t('settings.sessions'), t('settings.sessionsLead'))}
-  <div>
-    {#if sessionsError}
-      <p class="muted">{t('settings.sessionsOffline')}</p>
-      <button class="small" onclick={() => void loadSessions()}>{t('error.retry')}</button>
-    {:else if sessions === null}
-      <p class="muted" aria-busy="true">{t('app.loading')}</p>
-    {:else}
-      <ul>
-        {#each recent as s (s.id)}
-          {@const device = describeDevice(s.userAgent)}
-          <li class="device">
-            <span class="badge" aria-hidden="true"><Icon name={device?.kind ?? 'browser'} /></span>
-            <span class="what">
-              <span class="name">
-                {device?.name ?? t('settings.unknownDevice')}
-                {#if s.current}<span class="here">{t('settings.thisDevice')}</span>{/if}
-              </span>
-              <span class="muted small-text">{s.current || Date.now() - seen(s) < ACTIVE ? t('settings.activeNow') : t('settings.lastSeen', { when: agoLabel(seen(s)) })}</span>
-            </span>
-            {#if !s.current}
-              <Confirm look="text" label={t('settings.revoke')} warning={t('settings.revokeWarning')} confirmLabel={t('settings.revokeConfirm')} run={() => revoke([s.id])} />
-            {/if}
-          </li>
-        {/each}
-        {#if older.length > 0}
-          <li class="older">
-            <span class="muted small-text">{older.length === 1 ? t('settings.olderOne') : t('settings.older', { n: older.length })}</span>
-            <Confirm
-              look="outline"
-              label={t('settings.revokeOlder', { n: older.length })}
-              warning={t('settings.revokeOlderWarning')}
-              confirmLabel={t('settings.revokeConfirm')}
-              run={() => revoke(older.map((s) => s.id))}
-            />
-          </li>
-        {/if}
-      </ul>
-    {/if}
   </div>
 </section>
 
@@ -457,29 +386,6 @@
     flex: 1;
     letter-spacing: 0.04em;
   }
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .device {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 14px;
-    min-height: 56px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--divider);
-  }
-  .badge {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--text-muted);
-  }
   .what {
     flex: 1;
     min-width: 0;
@@ -492,26 +398,6 @@
     align-items: center;
     gap: 8px;
     font-weight: 500;
-  }
-  .here {
-    display: inline-flex;
-    align-items: center;
-    height: 20px;
-    padding: 0 7px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ok) 22%, transparent);
-    color: var(--ok);
-    font-size: 11px;
-    font-weight: 500;
-  }
-  .older {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    min-height: 48px;
-    padding: 8px 0;
   }
 
   .setting {

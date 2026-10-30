@@ -72,7 +72,7 @@ The **Identity key pair** (Ed25519 signing + X25519 agreement) is generated rand
 | `identity_sign_pub`, `identity_agree_pub` | Others look up keys, but always verify them via a log or invite (§6). Unique, so one identity can't be registered twice. |
 | `identity_bundle`, `bundle_gen` | Ciphertext for new devices: `nonce(12) ‖ AES-256-GCM(wrap, 0x01 ‖ sign_seed(32) ‖ agree_private(32), AD = auth_pub ‖ uint64be(bundle_gen))`. The leading `0x01` is the bundle format version. `bundle_gen` increments on every rekey; clients warn if the server serves a lower one. |
 | `settings_sealed` (nullable), `settings_gen` | The account's settings, the same on every device. Opaque to the server: `nonce(12) ‖ AES-256-GCM(HKDF(identity_agree_private, "runer/v1/account-settings"), UTF-8 JSON, AD = "runer/v1/account-settings" ‖ 0x00 ‖ identity_sign_pub)`. The JSON is a client concern: an object with a format version `v`, and unknown fields from a newer client are kept, never dropped. The optional account name lives in this JSON, so the server never sees it; the name collaborators see is the one the client copies into each shared list's encrypted document (and `owner_name` and `enc_display_name` when inviting and joining, §6), any of which may be empty. Empty until first set, replaced with `PUT /account/settings`. `settings_gen` increments on every write, and a write must name the current one: the server can't merge what it can't read, so a device that lost the race refetches, reapplies its change and retries. |
-| `created_at`, `last_seen_at` | Activity, shown in the session list. |
+| `created_at`, `last_seen_at` | Activity. |
 
 The Account Key has 128 bits of entropy, so a stolen database offers no offline brute-force path, and no password hashing is needed. Signup requires a small proof-of-work, with a loose per-IP flood cap (many people share one IP).
 
@@ -84,7 +84,7 @@ The Account Key has 128 bits of entropy, so a stolen database offers no offline 
 4. The server issues a session cookie (`HttpOnly`, `Secure`, `SameSite=Strict`) and records a session row.
 5. The client fetches and decrypts the Identity Bundle.
 
-Sessions expire after 30 days idle and 180 days absolute; the client silently re-authenticates from the stored Account Key. The token is 256 random bits; the server stores its SHA-256. The client makes all HTTP and WebSocket calls from Tauri's Rust side, which holds the cookie. The server checks `Origin` on every mutation and on the WebSocket upgrade.
+Sessions expire after 30 days idle and 180 days absolute; the client silently re-authenticates from the stored Account Key. A session that ends is deleted; a client that can no longer log in (the key changed, the account is gone) stops and asks the user. The token is 256 random bits; the server stores its SHA-256. The client makes all HTTP and WebSocket calls from Tauri's Rust side, which holds the cookie. The server checks `Origin` on every mutation and on the WebSocket upgrade.
 
 ## 3.5 What the device keeps
 
@@ -376,15 +376,14 @@ A list the account is only a member of is different. The server can't take an ac
 
 | Situation | What the user does | Result |
 |---|---|---|
-| New device | Type the Account Key | Full access. Sessions are listed and revocable. |
+| New device | Type the Account Key | Full access. |
 | Lost the paper key, still logged in | Settings → Show account key | Nothing lost |
-| Lost a probably-locked device | Revoke its session | Done |
-| Device stolen unlocked, or key leaked | Change account key (§9.2) + revoke sessions | Thief can't reach the server |
+| Lost a device, or it was stolen, or the key leaked | Change account key (§9.2) | Its session ends and it can't log in again. Other devices sign in with the new key. |
 | Lost the Account Key **and** every device | New account; list owners re-invite it | Shared lists restored; personal lists lost |
 
 ## 9.2 Change account key
 
-On a logged-in device: generate a new Account Key, re-encrypt the Identity Bundle under the new wrap key, `POST /account/rekey` signed with the old auth key. The server swaps atomically and revokes all other sessions. The identity is unchanged.
+On a logged-in device: generate a new Account Key, re-encrypt the Identity Bundle under the new wrap key, `POST /account/rekey` signed with the old auth key. The server swaps atomically and deletes all other sessions. The identity is unchanged.
 
 ## 9.3 No identity reset
 

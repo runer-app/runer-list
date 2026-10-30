@@ -937,12 +937,9 @@ describe('settings', () => {
     await waitFor(() => expect(clocks().findIndex((r) => r.checked)).toBe(chosen));
   });
 
-  test('reminder privacy, account key, devices, sign-out', async () => {
+  test('reminder privacy, account key, no device list, sign-out', async () => {
     server = new MemoryServer();
     const core = await person();
-    // A second device on the same account.
-    const other = (await ClientCore.signIn(createMemoryPlatform({ transport: server.transport() }), SERVER, await core.showAccountKey(), OPTS))!;
-    cores.push(other);
     const { signedOut } = await signedIn(core);
     await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
@@ -971,14 +968,7 @@ describe('settings', () => {
     expect(shown).toHaveLength(12);
     await fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
 
-    // This device is marked and can't be signed out from the list; the other one can.
-    expect(await screen.findByText('This device')).toBeTruthy();
-    const rows = () => screen.getAllByRole('listitem').filter((li) => li.classList.contains('device'));
-    await waitFor(() => expect(rows()).toHaveLength(2));
-    const otherRow = rows().find((li) => li.textContent?.includes('This device') !== true)!;
-    await fireEvent.click(within(otherRow).getByRole('button', { name: 'Sign out' }));
-    await fireEvent.click(within(within(otherRow).getByRole('alertdialog', { name: 'Sign out' })).getByRole('button', { name: 'Sign out' }));
-    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(screen.queryByRole('heading', { name: 'Devices' })).toBeNull();
 
     await fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     await fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Sign out' })).getByRole('button', { name: 'Sign out' }));
@@ -1007,12 +997,17 @@ describe('settings', () => {
     const core = await person();
     const other = (await ClientCore.signIn(createMemoryPlatform({ transport: server.transport() }), SERVER, await core.showAccountKey(), OPTS))!;
     cores.push(other);
-    await signedIn(other);
+    const { signedOut } = await signedIn(other);
     await waitFor(() => expect(value(other.connection)).toBe('online'));
 
-    await core.sessions.revoke((await core.sessions.list()).find((s) => !s.current)!.id);
-    server.drop(); // the real server closes the revoked socket
-    expect(await screen.findByText('Signed out on the server. Sign in again to sync.', {}, { timeout: 3000 })).toBeTruthy();
-    expect(await core.sessions.list()).toHaveLength(1);
+    await core.changeAccountKey();
+    server.drop(); // the real server closes the socket
+    expect(await screen.findByRole('heading', { name: 'You’re signed out' }, { timeout: 3000 })).toBeTruthy();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(signedOut).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(signedOut).toHaveBeenCalled());
+    cores.splice(cores.indexOf(other), 1);
   });
 });

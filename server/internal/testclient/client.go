@@ -364,18 +364,3 @@ func (c *Client) Rekey(ctx context.Context, newBundle []byte) error {
 func (c *Client) DeleteAccount(ctx context.Context) error {
 	return c.do(ctx, http.MethodDelete, "/v1/account", nil, nil)
 }
-
-type SessionView struct {
-	ID      string `json:"id"`
-	Current bool   `json:"current"`
-}
-
-func (c *Client) ListSessions(ctx context.Context) ([]SessionView, error) {
-	var out []SessionView
-	err := c.do(ctx, http.MethodGet, "/v1/sessions", nil, &out)
-	return out, err
-}
-
-func (c *Client) RevokeSession(ctx context.Context, id string) error {
-	return c.do(ctx, http.MethodDelete, "/v1/sessions/"+id, nil, nil)
-}

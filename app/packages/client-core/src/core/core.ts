@@ -9,7 +9,7 @@
  * invite named) and passes the same URL here, for the login message.
  */
 
-import { Account, type Notice, type Session } from '../account/account.js';
+import { Account, type Notice } from '../account/account.js';
 import { toBase64url } from '../base64url.js';
 import type { AddOptions, AddTaskOptions } from '../list/doc.js';
 import type { ListSnapshot } from '../list/item.js';
@@ -81,11 +81,6 @@ export function memberNames(people: Record<string, string> = {}, state: ListStat
   return out;
 }
 
-export interface SessionsApi {
-  list(): Promise<Session[]>;
-  revoke(id: string): Promise<void>;
-}
-
 /** Link invites, from the joiner's side (E2EE §6.1). */
 export interface InviteApi {
   /** Reads an invite link for this account's server: what its package says, for the Join screen, and `join()`. */
@@ -141,7 +136,6 @@ export interface ListHandle {
 }
 
 export class ClientCore {
-  readonly sessions: SessionsApi;
   readonly invites: InviteApi;
   private readonly summaries = new Writable<ListSummary[]>([]);
   private readonly todayRefs = new Writable<TaskRef[]>([]);
@@ -166,7 +160,6 @@ export class ClientCore {
     private readonly opts: ClientCoreOptions,
   ) {
     this.now = opts.now ?? (() => new Date());
-    this.sessions = { list: () => account.sessions(), revoke: (id) => account.revokeSession(id) };
     this.invites = { open: (link) => this.openInvite(link) };
   }
 

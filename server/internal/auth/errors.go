@@ -18,11 +18,6 @@ var (
 	// unknown or expired. The client signs in again with its key.
 	ErrUnauthenticated = errors.New("unauthenticated")
 
-	// ErrSessionRevoked is returned for a session someone ended (logout,
-	// revocation, rekey elsewhere). Unlike ErrUnauthenticated, the client
-	// must not sign back in on its own: it stops and asks the user.
-	ErrSessionRevoked = errors.New("session revoked")
-
 	// ErrRateLimited is returned when a per-IP budget is exhausted.
 	ErrRateLimited = errors.New("rate limited")
 )

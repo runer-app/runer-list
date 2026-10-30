@@ -1,4 +1,4 @@
-import { Account, ApiError, fromBase64url, type Session } from '@runer/client-core';
+import { Account, ApiError, fromBase64url } from '@runer/client-core';
 import { describe, expect, test } from 'vitest';
 import { device, restart, server } from './device.js';
 
@@ -19,7 +19,6 @@ async function rejection(p: Promise<unknown>): Promise<ApiError> {
   return e as ApiError;
 }
 
-const oldest = (sessions: Session[]) => sessions.reduce((x, y) => (x.createdAt <= y.createdAt ? x : y));
 
 /** The identity the server has on file for the account. */
 async function serverIdentity(a: Account): Promise<Uint8Array> {
@@ -35,7 +34,6 @@ describe('accounts (E2EE §3, §9)', () => {
     const b = await signIn(words);
     expect(b.identity).toEqual(a.identity);
     expect(await b.showWords()).toEqual(words);
-    expect(await a.sessions()).toHaveLength(2);
   });
 
   test('the name: optional at sign-up, kept sealed in the settings and never in plain text, there on a second device, changed and cleared', async () => {
@@ -100,24 +98,13 @@ describe('accounts (E2EE §3, §9)', () => {
     expect((await rejection(Account.signIn(device(), server.url, unknown))).status).toBe(401);
   });
 
-  test('a revoked session is not replaced: the device stops until the user signs in again', async () => {
+  test('after a key change elsewhere the login is refused: the device stops until the user signs in again', async () => {
     const { account: a, words } = await signUp();
     const b = await signIn(words);
-    await b.revokeSession(oldest(await b.sessions()).id); // a's
+    await b.changeAccountKey();
 
-    const e = await rejection(a.sessions());
-    expect([e.status, e.code]).toEqual([401, 'session_revoked']);
-    expect(await b.sessions()).toHaveLength(1);
-  });
-
-  test('sessions are listed and revoked', async () => {
-    const { account: a, words } = await signUp();
-    await signIn(words);
-    const sessions = await a.sessions();
-    expect(sessions).toHaveLength(2);
-    const other = sessions.find((s) => s.id !== oldest(sessions).id)!;
-    await a.revokeSession(other.id);
-    expect((await a.sessions()).map((s) => s.id)).not.toContain(other.id);
+    const e = await rejection(a.request('GET', '/v1/account'));
+    expect([e.status, e.code]).toEqual([401, 'invalid_credentials']);
   });
 
   test('change account key: same identity, the old words and the other sessions stop working', async () => {
@@ -130,7 +117,7 @@ describe('accounts (E2EE §3, §9)', () => {
     expect(await serverIdentity(a)).toEqual(a.identity.signPub);
 
     // b's session was revoked, and its key no longer signs in.
-    expect((await rejection(b.sessions())).status).toBe(401);
+    expect((await rejection(b.request('GET', '/v1/account'))).status).toBe(401);
     expect((await rejection(Account.signIn(device(), server.url, oldWords.join(' ')))).status).toBe(401);
 
     const c = await signIn(words);

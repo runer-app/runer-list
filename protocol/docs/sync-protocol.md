@@ -55,7 +55,7 @@ Every frame is `{ "t": "<type>", … }`. `cid` is a client-chosen id that correl
 | `ack` | `cid, seq` | The client's update/snapshot was persisted. |
 | `error` | `cid?, code, detail?` | §5. With `cid`, it applies to that frame only. |
 | `group` | `group, head_seq` | A list was created, its membership log grew, or it was deleted. Sent live to members and at connect for every list. The client fetches the log over HTTP and re-verifies. |
-| `bye` | `reason` | The server is closing. `session-revoked` (logout, revocation, rekey elsewhere, account deleted, expiry): don't retry. `remove` / `leave`: reconnect and refetch lists. |
+| `bye` | `reason` | The server is closing. `session-revoked` (logout, rekey elsewhere, account deleted, expiry): log in again; a refused login means the device is signed out. `remove` / `leave`: reconnect and refetch lists. |
 
 ---
 

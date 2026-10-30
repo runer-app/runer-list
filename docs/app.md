@@ -74,7 +74,7 @@ app/
 
 | Module | Responsibility | Reference |
 |---|---|---|
-| `account/` | Sign-up, sign-in, silent re-auth, change of account key, sessions, settings | E2EE §3, §9 |
+| `account/` | Sign-up, sign-in, silent re-auth, change of account key, settings | E2EE §3, §9 |
 | `invite/` | Parsing invite links and the join flow | E2EE §6 |
 | `sync/` | WebSocket, outbox, catch-up, Yjs provider; `logs.ts` fetches membership logs for the vault | Sync |
 | `list/` | The list document (§3.1) | E2EE §5.1 |
@@ -120,7 +120,6 @@ class ClientCore {
   signOut(): Promise<void>;
   changeAccountKey(): Promise<{ accountKeyWords: string[] }>;
   showAccountKey(): Promise<string[]>;
-  sessions: SessionsApi;
 
   lists: Readable<ListSummary[]>;
   inbox: ListId;
@@ -243,7 +242,7 @@ interface Notifier {
 - **All HTTP and WebSocket traffic goes through Rust**, which holds the session cookie. No CORS, no webview cookies.
 - **Origin.** The Rust transport sends `Origin: tauri://localhost` on everything.
 - **Login** signs the URL the client connected to, never one the server supplies (E2EE §3.4).
-- **Re-auth is silent**: the vault signs a new login when a session expires. A session someone ended (`401 session_revoked`) is not replaced: sync stops as `signed-out` and the user signs in with the 12 words.
+- **Re-auth is silent**: the vault signs a new login when a session is lost or expired. If the server refuses it twice (`401 invalid_credentials`; once can be a stale challenge), the key changed or the account is gone: sync stops as `signed-out`, and the app shows a screen that clears this device and goes to sign-in with the 12 words. A network failure never does this.
 
 ### 5.1 Reconnect and lifecycle
 
@@ -353,7 +352,7 @@ Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, And
 | Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
-| Settings | Sessions, show/change account key, notifications, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
+| Settings | Show/change account key, notifications, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
 

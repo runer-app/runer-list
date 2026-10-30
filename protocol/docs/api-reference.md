@@ -27,8 +27,6 @@ Everything is under `/v1` except `/healthz` and `/join`. The protocol behind the
 | `POST` | `/v1/auth/challenge` | | `{auth_pub}` → `{nonce, pow_bits}` |
 | `POST` | `/v1/auth/login` | | `{auth_pub, nonce, sig, [identity_sign_pub, identity_agree_pub, identity_bundle, identity_sig, pow_nonce, inbox_entry, inbox_sig]}` → `{account_id, bundle_gen, session_id, inbox_id}` |
 | `POST` | `/v1/auth/logout` | 🔒 | → `{revoked}` |
-| `GET` | `/v1/sessions` | 🔒 | → `[{id, user_agent, created_at, last_seen_at, current}]` (`current`: the asking session) |
-| `DELETE` | `/v1/sessions/{id}` | 🔒 | → `{revoked}` |
 
 **Sign-up Inbox.** A sign-up also sends `inbox_entry` and `inbox_sig` (base64url): the signed `create` of the account's Inbox, checked as `POST /v1/groups` checks one, with `author` = `identity_sign_pub` and `author_agree` = `identity_agree_pub`. The account and its Inbox are created together; missing or invalid → `400 bad_request` and no account. `inbox_id` is in every login response (`null` only for accounts older than the Inbox).
 
@@ -87,12 +85,11 @@ Two kinds of invite ([E2EE §6](./e2ee-protocol.md)). A **link invite** is consu
 | Status | `code` | Typical cause |
 |---|---|---|
 | 400 | `bad_request` | Malformed body, invalid log entry, expiry too far out |
-| 401 | `invalid_credentials` | Login failed (for any reason; deliberately vague) |
-| 401 | `unauthenticated` | No session, or it expired: sign in again with the key |
-| 401 | `session_revoked` | The session was ended (logout, revoked from another device, account key changed). Don't sign back in silently: stop and ask the user |
+| 401 | `invalid_credentials` | Login failed (for any reason; deliberately vague). A stale challenge gives it too, so try once more with a fresh one; refused again, the key changed or the account is gone: stop and ask the user |
+| 401 | `unauthenticated` | No session, or it ended: sign in again with the key |
 | 403 | `origin_mismatch` | Missing or wrong `Origin` |
 | 403 | `forbidden` | Not a member or not the owner; deleting or sharing an Inbox. Also returned for ids that don't exist. |
-| 404 | `not_found` | Unknown session, invite and similar |
+| 404 | `not_found` | Unknown invite and similar |
 | 409 | `account_has_lists` | `DELETE /v1/account` while the account is a member of a list it doesn't own: leave those lists first |
 | 409 | `conflict` | Log head moved (refetch and retry), stale `bundle_gen` or `settings_gen`, already exists |
 | 410 | `invite_not_usable` | Invite expired, revoked, consumed, or voided by a new epoch |

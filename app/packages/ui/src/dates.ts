@@ -72,21 +72,7 @@ export function fromLocalInput(v: string): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-
-/** "5 minutes ago", "yesterday", "3 weeks ago": how long since `ms`. */
-export function agoLabel(ms: number, now: number = Date.now()): string {
-  const s = Math.max(0, (now - ms) / 1000);
-  const steps: [number, Intl.RelativeTimeFormatUnit][] = [[60, 'second'], [60, 'minute'], [24, 'hour'], [7, 'day'], [4.35, 'week'], [12, 'month']];
-  let v = s;
-  for (const [size, unit] of steps) {
-    if (v < size) return relative.format(-Math.round(v), unit);
-    v /= size;
-  }
-  return relative.format(-Math.round(v), 'year');
-}
-
-/** "3 Oct, 14:05", for sessions and invite expiry. */
+/** "3 Oct, 14:05", for invite expiry. */
 export function instantLabel(ms: number): string {
   const d = new Date(ms);
   return `${dayMonth.format(d)}, ${time.format(d)}`;

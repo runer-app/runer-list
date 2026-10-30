@@ -10,7 +10,7 @@
  */
 
 import * as Y from 'yjs';
-import { ApiError, type Account } from '../account/account.js';
+import { loginRefused, type Account } from '../account/account.js';
 import { ListDoc } from '../list/doc.js';
 import type { Socket } from '../platform/index.js';
 import { Writable, type Readable } from '../readable.js';
@@ -468,17 +468,17 @@ export class Sync {
     } catch (e) {
       this.opts.log(`sync: socket failed (${e instanceof Error ? e.message : String(e)}), signing in again`);
       // Perhaps the session expired: any request signs in again (Account.request), then retry.
-      // A revoked session is not replaced: stop here until the user signs in again.
-      let revoked = false;
+      // A refused login means the key changed or the account is gone: stop until the user signs in again.
+      let refused = false;
       const reauthed = await this.account.request('GET', '/v1/account').then(
         () => true,
         (e: unknown) => {
-          revoked = e instanceof ApiError && e.code === 'session_revoked';
+          refused = loginRefused(e);
           return false;
         },
       );
-      this.opts.log(`sync: signing in again ${reauthed ? 'worked' : revoked ? 'refused: session revoked' : 'failed'}`);
-      if (revoked) return this.state.set('signed-out');
+      this.opts.log(`sync: signing in again ${reauthed ? 'worked' : refused ? 'refused' : 'failed'}`);
+      if (refused) return this.state.set('signed-out');
       try {
         if (!reauthed || this.stopped) throw new Error('offline');
         socket = await this.account.platform.transport.openSocket('/v1/sync');
@@ -618,8 +618,7 @@ export class Sync {
         return this.reconcileSoon();
       case 'bye':
         this.opts.log(`sync: bye ${f.reason}`);
-        // session-revoked: don't retry; sign in again. remove / leave: the reconnect refetches the lists.
-        if (f.reason === 'session-revoked') this.state.set('signed-out');
+        // session-revoked: the reconnect logs in again, which a key change refuses. remove / leave: it refetches the lists.
         return;
     }
   }

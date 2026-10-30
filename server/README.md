@@ -49,7 +49,7 @@ One Go binary and one PostgreSQL database. Rate limits and login challenges live
 | Package (`internal/`) | What it does |
 |---|---|
 | `server` | Wires middleware, routes and error handling; `cmd/server` only starts it |
-| `auth` | Challenge, login, logout, sessions |
+| `auth` | Challenge, login, logout |
 | `account` | The account, its settings, the key bundle, rekey, delete |
 | `grouplog` | The membership log: parsing, the validity rules (E2EE §4.2, the same verdicts as the app's vault), compare-and-swap append |
 | `invite` | The invite flows (E2EE §6); stores opaque bytes, never the invite secret |

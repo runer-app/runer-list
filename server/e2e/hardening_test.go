@@ -19,6 +19,7 @@ import (
 	"runer-api/internal/auth"
 	"runer-api/internal/retention"
 	"runer-api/internal/server"
+	"runer-api/internal/store"
 	"runer-api/internal/testclient"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -162,7 +163,7 @@ func twoSessions(t *testing.T, ctx context.Context, baseURL string) (*testclient
 
 // ---- Session end closes open sockets ----
 
-func TestRevokedSessionSocketClosed(t *testing.T) {
+func TestLogoutClosesOnlyThatSessionsSocket(t *testing.T) {
 	baseURL, _ := newTestServer(t, auth.DefaultChallengeTTL)
 	ctx := context.Background()
 	alice, alice2 := twoSessions(t, ctx, baseURL)
@@ -171,9 +172,7 @@ func TestRevokedSessionSocketClosed(t *testing.T) {
 	conn1 := dialSynced(t, ctx, alice, ws.ID)
 	conn2 := dialSynced(t, ctx, alice2, ws.ID)
 
-	sessions, err := alice.ListSessions(ctx)
-	require.NoError(t, err)
-	require.NoError(t, alice.RevokeSession(ctx, sessions[0].ID)) // newest: alice2's
+	require.NoError(t, alice2.Logout(ctx))
 
 	requireBye(t, ctx, conn2, "session-revoked")
 	requireStillOpen(t, ctx, conn1, ws.ID)
@@ -230,7 +229,7 @@ func TestSessionCheckedOnEveryFrame(t *testing.T) {
 
 	// Direct SQL stands in for the missed notification; there's no API that
 	// ends a session without also notifying.
-	_, err := pool.Exec(ctx, `UPDATE sessions SET revoked_at = now()`)
+	_, err := pool.Exec(ctx, `DELETE FROM sessions`)
 	require.NoError(t, err)
 
 	require.NoError(t, conn.SendUpdate(ctx, "c1", alice.UpdateHeader(ws.ID, ws.Epoch, ""), "x"))
@@ -423,7 +422,7 @@ func TestAccountDeletionClearsBundle(t *testing.T) {
 	require.Zero(t, bundleLen)
 }
 
-func TestOldSessionsPurged(t *testing.T) {
+func TestEndedSessionsAreGone(t *testing.T) {
 	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	ctx := context.Background()
 	alice := newClient(t, baseURL)
@@ -432,18 +431,21 @@ func TestOldSessionsPurged(t *testing.T) {
 	live := sameIdentityNewInstance(t, baseURL, alice.Identity)
 	require.NoError(t, live.Login(ctx))
 
-	// Within 90 days of revocation the revoked session is kept.
-	soon := retention.NewPurger(pool, fakeClock{now: time.Now().Add(retention.DefaultWindow)}, retention.DefaultWindow)
-	report, err := soon.PurgeOnce(ctx)
-	require.NoError(t, err)
-	require.Zero(t, report.Sessions)
+	var rows int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM sessions`).Scan(&rows))
+	require.Equal(t, 1, rows, "logout deletes the session; only the live one is left")
 
-	later := retention.NewPurger(pool, fakeClock{now: time.Now().Add(retention.SessionWindow + time.Hour)}, retention.DefaultWindow)
-	report, err = later.PurgeOnce(ctx)
+	now := retention.NewPurger(pool, fakeClock{now: time.Now()}, retention.DefaultWindow)
+	report, err := now.PurgeOnce(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, report.Sessions, "only the revoked session goes; the live one stays")
-	_, err = live.ListSessions(ctx)
+	require.Zero(t, report.Sessions, "a live session stays")
+	_, err = live.GetAccount(ctx)
 	require.NoError(t, err)
+
+	idle := retention.NewPurger(pool, fakeClock{now: time.Now().Add(store.SessionIdleTimeout + time.Hour)}, retention.DefaultWindow)
+	report, err = idle.PurgeOnce(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Sessions, "an expired session goes")
 }
 
 // ---- Invite approval is atomic and single-use ----

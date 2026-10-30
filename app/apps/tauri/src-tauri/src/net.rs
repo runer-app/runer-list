@@ -36,11 +36,7 @@ pub struct Net {
 
 impl Net {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            // The OS lets Settings name this device in another device's session list.
-            .user_agent(format!("runer-app/{} ({})", env!("CARGO_PKG_VERSION"), std::env::consts::OS))
-            .build()
-            .expect("HTTP client");
+        let client = reqwest::Client::builder().build().expect("HTTP client");
         Self { client, jar: Jar::default(), sockets: Arc::default(), next: AtomicU32::new(1) }
     }
 }

@@ -78,7 +78,7 @@ func (h *Handler) CloseSessionConnections(accountID, sessionID string) {
 }
 
 // CloseOtherSessionConnections force-closes every connection of accountID
-// not opened with keepSessionID (rekey revokes all other sessions).
+// not opened with keepSessionID (a rekey ends all other sessions).
 func (h *Handler) CloseOtherSessionConnections(accountID, keepSessionID string) {
 	h.hub.closeConnections(accountID, byeSessionRevoked, func(c *Conn) bool { return c.sessionID != keepSessionID })
 }
@@ -150,7 +150,7 @@ func (h *Handler) serveWS(c *echo.Context) error {
 }
 
 // sessionLive re-checks, in the database, that the connection's session is
-// unexpired and unrevoked and its account not deleted. A lookup error
+// there and unexpired and its account not deleted. A lookup error
 // counts as dead: fail closed, the client reconnects.
 func (h *Handler) sessionLive(ctx context.Context, conn *Conn) bool {
 	sess, err := h.sessions.GetByID(ctx, conn.sessionID)

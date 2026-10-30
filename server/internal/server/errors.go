@@ -49,8 +49,6 @@ func classify(err error) (status int, code, msg string) {
 		return http.StatusUnauthorized, "invalid_credentials", ""
 	case errors.Is(err, auth.ErrUnauthenticated):
 		return http.StatusUnauthorized, "unauthenticated", ""
-	case errors.Is(err, auth.ErrSessionRevoked):
-		return http.StatusUnauthorized, "session_revoked", ""
 	case errors.Is(err, auth.ErrOriginMismatch):
 		return http.StatusForbidden, "origin_mismatch", ""
 	case errors.Is(err, auth.ErrRateLimited):

@@ -195,7 +195,7 @@ func TestDeleteAccountRevokesSessionAndBlocksLogin(t *testing.T) {
 
 	require.NoError(t, alice.DeleteAccount(ctx))
 
-	_, err := alice.ListSessions(ctx)
+	_, err := alice.GetAccount(ctx)
 	require.Error(t, err, "session must be revoked immediately")
 
 	fresh := sameIdentityNewInstance(t, baseURL, alice.Identity)
@@ -247,7 +247,7 @@ func TestDeleteAccountRefusedWhileMember(t *testing.T) {
 	createList(t, ctx, bob)
 
 	requireAPIError(t, bob.DeleteAccount(ctx), "account_has_lists")
-	_, err := bob.ListSessions(ctx)
+	_, err := bob.GetAccount(ctx)
 	require.NoError(t, err, "a refused deletion must leave the session alone")
 	require.Len(t, sharedLists(t, ctx, bob), 2, "a refused deletion must leave the account's own lists alone")
 

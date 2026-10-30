@@ -18,6 +18,7 @@
   import ItemDetail from './ItemDetail.svelte';
   import Help from './Help.svelte';
   import Settings from './Settings.svelte';
+  import SignedOut from './SignedOut.svelte';
   import Join from './Join.svelte';
   import Warnings from './Warnings.svelte';
   import Search from './Search.svelte';
@@ -59,7 +60,7 @@
   const warnings = $derived(stores.warnings.current);
   const connection = $derived(stores.connection.current);
   const status = $derived(
-    connection === 'offline' ? t('app.offline') : connection === 'connecting' ? t('app.connecting') : connection === 'signed-out' ? t('app.signedOut') : '',
+    connection === 'offline' ? t('app.offline') : connection === 'connecting' ? t('app.connecting') : '',
   );
   const inbox = $derived(all.find((l) => l.inbox));
 
@@ -122,7 +123,14 @@
   });
 </script>
 
-{#if view.name === 'join'}
+{#if connection === 'signed-out'}
+  <SignedOut
+    signIn={async () => {
+      await core.signOut();
+      signedOut();
+    }}
+  />
+{:else if view.name === 'join'}
   <!-- A page of its own, like sign-in: nothing else to do until the invite is answered. -->
   {#key view.link}
     <Join {core} link={view.link} joined={openList} cancel={() => go({ name: 'today' })} />

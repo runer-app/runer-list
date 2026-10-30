@@ -52,11 +52,6 @@ interface Invite {
 /** Who a transport is signed in as. */
 interface Session {
   account?: MemoryAccount | undefined;
-  /** Set at login; `GET /v1/sessions` lists it. */
-  id?: string;
-  created?: string;
-  /** Ended from another device: answers `session_revoked` until the next login. */
-  revoked?: boolean;
 }
 
 interface EntryFields {
@@ -132,8 +127,9 @@ export class MemoryServer {
   readonly sockets = new Set<MemorySocket>();
   /** By `auth_pub`. */
   private readonly accounts = new Map<string, MemoryAccount>();
-  /** Signed-in sessions, for `/v1/sessions`. */
+  /** Signed-in sessions, which a rekey or an account deletion ends. */
   private readonly sessions = new Set<Session>();
+  private refuseLogin = false;
   /** By invite id. */
   readonly invites = new Map<string, Invite>();
   private seq = 0;
@@ -165,6 +161,18 @@ export class MemoryServer {
     for (const s of [...this.sockets]) s.close();
   }
 
+  /** What a restart does to the challenges: the next login is refused however good it is. */
+  refuseNextLogin(): void {
+    this.refuseLogin = true;
+  }
+
+  /** Every session expires; the socket closes, and the keys still work. */
+  expireSessions(): void {
+    for (const s of this.sessions) s.account = undefined;
+    this.sessions.clear();
+    this.drop();
+  }
+
   private request(session: Session, method: string, path: string, body: Record<string, string> = {}): HttpResponse {
     const ok = (data: unknown, status = 200): HttpResponse => ({ status, headers: {}, body: { data } });
     const fail = (status: number, code: string): HttpResponse => ({ status, headers: {}, body: { error: { code, message: code } } });
@@ -173,6 +181,10 @@ export class MemoryServer {
     const from = Number(new URLSearchParams(query).get('from') ?? 0);
     if (route === 'POST /v1/auth/challenge') return ok({ nonce: b64(randomBytes(32)), pow_bits: 0 });
     if (route === 'POST /v1/auth/login') {
+      if (this.refuseLogin) {
+        this.refuseLogin = false;
+        return fail(401, 'invalid_credentials');
+      }
       if (body.inbox_entry !== undefined) {
         const inbox = this.create(body.inbox_entry, body.inbox_sig!);
         const account = { authPub: body.auth_pub!, signPub: body.identity_sign_pub!, bundle: { identity_bundle: body.identity_bundle!, bundle_gen: 1 }, inbox, settingsSealed: null, settingsGen: 0 };
@@ -180,9 +192,6 @@ export class MemoryServer {
       }
       session.account = this.accounts.get(body.auth_pub!);
       if (session.account === undefined) return fail(401, 'invalid_credentials');
-      session.revoked = false;
-      session.id = b64(randomBytes(16));
-      session.created = new Date().toISOString();
       this.sessions.add(session);
       return ok({ bundle_gen: session.account.bundle.bundle_gen, inbox_id: session.account.inbox });
     }
@@ -193,22 +202,8 @@ export class MemoryServer {
       return inv === undefined || inv.used ? fail(410, 'invite_not_usable') : ok({ package: inv.package });
     }
     const me = session.account;
-    if (session.revoked) return fail(401, 'session_revoked');
     if (me === undefined) return fail(401, 'unauthenticated');
     if (route === 'POST /v1/auth/logout') return ok({});
-    if (route === 'GET /v1/sessions') {
-      const mine = [...this.sessions].filter((s) => s.account === me);
-      return ok(mine.map((s) => ({ id: s.id, user_agent: 'test', created_at: s.created, last_seen_at: s.created, current: s === session })));
-    }
-    const revoke = /^\/v1\/sessions\/([^/]+)$/.exec(p);
-    if (method === 'DELETE' && revoke !== null) {
-      const s = [...this.sessions].find((x) => x.account === me && x.id === decodeURIComponent(revoke[1]!));
-      if (s === undefined) return fail(404, 'not_found');
-      this.sessions.delete(s);
-      s.account = undefined;
-      s.revoked = true;
-      return ok({});
-    }
     if (route === 'GET /v1/account') {
       return ok({ identity_sign_pub: me.signPub, inbox_id: me.inbox, settings_sealed: me.settingsSealed, settings_gen: me.settingsGen });
     }
@@ -231,7 +226,6 @@ export class MemoryServer {
         if (s.account !== me || s === session) continue;
         this.sessions.delete(s);
         s.account = undefined;
-        s.revoked = true;
       }
       return ok({ bundle_gen: me.bundle.bundle_gen });
     }
@@ -249,7 +243,6 @@ export class MemoryServer {
         if (s.account !== me) continue;
         this.sessions.delete(s);
         s.account = undefined;
-        s.revoked = true;
       }
       return ok({ scheduled: true });
     }

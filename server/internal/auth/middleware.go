@@ -14,7 +14,7 @@ import (
 // revocation, rekey and account deletion also cut off open WebSockets
 // promptly. Implemented by the sync handler.
 // Closed sockets get `bye` with reason "session-revoked" (Sync §3), on
-// which the client does not retry.
+// which the client logs in again; a refused login signs it out.
 type ConnCloser interface {
 	CloseAccountSessions(ctx context.Context, accountID string)
 	CloseSessionConnections(accountID, sessionID string)
@@ -65,9 +65,6 @@ func RequireSession(sessions *store.Sessions, accounts *store.Accounts) echo.Mid
 			sess, err := sessions.GetByTokenHash(ctx, hash)
 			if err != nil {
 				return ErrUnauthenticated
-			}
-			if sess.RevokedAt != nil {
-				return ErrSessionRevoked
 			}
 			if sess.Expired(time.Now()) {
 				return ErrUnauthenticated

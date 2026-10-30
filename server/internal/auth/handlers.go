@@ -1,4 +1,4 @@
-// Package auth implements challenge/login/logout and session listing.
+// Package auth implements challenge/login/logout.
 // Account bundle/rekey live in internal/account.
 package auth
 
@@ -73,13 +73,11 @@ func NewHandler(accounts *store.Accounts, sessions *store.Sessions, serverURL st
 	}
 }
 
-// RegisterRoutes mounts /auth/* under g and /sessions under session-protected g.
+// RegisterRoutes mounts /auth/* under g.
 func (h *Handler) RegisterRoutes(g *echo.Group, requireSession echo.MiddlewareFunc) {
 	g.POST("/auth/challenge", h.challenge)
 	g.POST("/auth/login", h.login)
 	g.POST("/auth/logout", h.logout, requireSession)
-	g.GET("/sessions", h.listSessions, requireSession)
-	g.DELETE("/sessions/:id", h.revokeSession, requireSession)
 }
 
 type challengeRequest struct {
@@ -169,7 +167,7 @@ func (h *Handler) login(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	sess, err := h.sessions.Create(ctx, acc.ID, authPub, hash, c.Request().UserAgent())
+	sess, err := h.sessions.Create(ctx, acc.ID, authPub, hash)
 	if errors.Is(err, store.ErrNotFound) {
 		return ErrInvalidCredentials // rekeyed or deleted since the lookup above
 	}
@@ -253,46 +251,10 @@ func (h *Handler) logout(c *echo.Context) error {
 	if !ok {
 		return ErrUnauthenticated
 	}
-	if err := h.sessions.Revoke(c.Request().Context(), sess.ID, sess.AccountID); err != nil && !errors.Is(err, store.ErrNotFound) {
+	if err := h.sessions.Delete(c.Request().Context(), sess.ID, sess.AccountID); err != nil && !errors.Is(err, store.ErrNotFound) {
 		return err
 	}
 	h.conns.CloseSessionConnections(sess.AccountID, sess.ID)
 	clearSessionCookie(c.Response())
-	return httpx.JSONData(c, http.StatusOK, map[string]any{"revoked": true})
-}
-
-type sessionView struct {
-	ID         string    `json:"id"`
-	UserAgent  *string   `json:"user_agent"`
-	CreatedAt  time.Time `json:"created_at"`
-	LastSeenAt time.Time `json:"last_seen_at"`
-	// The session making this request, so a client can mark "this device".
-	Current bool `json:"current"`
-}
-
-func (h *Handler) listSessions(c *echo.Context) error {
-	acc, _ := AccountFromContext(c)
-	self, _ := SessionFromContext(c)
-	sessions, err := h.sessions.ListByAccount(c.Request().Context(), acc.ID)
-	if err != nil {
-		return err
-	}
-	views := make([]sessionView, len(sessions))
-	for i, s := range sessions {
-		views[i] = sessionView{ID: s.ID, UserAgent: s.UserAgent, CreatedAt: s.CreatedAt, LastSeenAt: s.LastSeenAt, Current: s.ID == self.ID}
-	}
-	return httpx.JSONData(c, http.StatusOK, views)
-}
-
-func (h *Handler) revokeSession(c *echo.Context) error {
-	acc, _ := AccountFromContext(c)
-	id := c.Param("id")
-	if err := h.sessions.Revoke(c.Request().Context(), id, acc.ID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "not found")
-		}
-		return err
-	}
-	h.conns.CloseSessionConnections(acc.ID, id)
 	return httpx.JSONData(c, http.StatusOK, map[string]any{"revoked": true})
 }

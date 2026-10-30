@@ -28,10 +28,6 @@ func (RealClock) Now() time.Time { return time.Now() }
 // purges it.
 const DefaultWindow = 30 * 24 * time.Hour
 
-// SessionWindow is how long an expired or revoked session is kept, for the
-// user's session history (Self-hosting: Data retention).
-const SessionWindow = 90 * 24 * time.Hour
-
 type Purger struct {
 	pool   *pgxpool.Pool
 	clock  Clock
@@ -183,13 +179,12 @@ func (p *Purger) purgeAccounts(ctx context.Context, cutoff time.Time) (int, erro
 	return count, nil
 }
 
-// purgeSessions deletes sessions that ended (revoked, past their absolute
-// expiry, or idle-expired) more than SessionWindow ago.
+// purgeSessions deletes sessions that expired, past their absolute ceiling or
+// idle. Other ended sessions are deleted as they end.
 func (p *Purger) purgeSessions(ctx context.Context) (int, error) {
-	cutoff := p.clock.Now().Add(-SessionWindow)
-	tag, err := p.pool.Exec(ctx, `DELETE FROM sessions
-		WHERE revoked_at < $1 OR expires_at < $1 OR last_seen_at < $2`,
-		cutoff, cutoff.Add(-store.SessionIdleTimeout))
+	now := p.clock.Now()
+	tag, err := p.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < $1 OR last_seen_at < $2`,
+		now, now.Add(-store.SessionIdleTimeout))
 	if err != nil {
 		return 0, err
 	}

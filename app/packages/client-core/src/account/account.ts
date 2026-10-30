@@ -1,6 +1,6 @@
 /**
  * One signed-in account on one server (E2EE §3, §9): sign-up, sign-in,
- * silent re-auth, change of account key and sessions. The
+ * silent re-auth, change of account key. The
  * vault holds every key and signs; this only talks to the server.
  */
 
@@ -21,15 +21,6 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
-}
-
-export interface Session {
-  id: string;
-  userAgent: string | null;
-  createdAt: string;
-  lastSeenAt: string;
-  /** The session this device is signed in with. */
-  current: boolean;
 }
 
 interface LoginResult {
@@ -218,13 +209,13 @@ export class Account {
   /**
    * A request with this account's session. On a 401 for a lost or expired
    * session it signs in again with the key in the vault and retries once.
-   * A revoked session (`session_revoked`) is not replaced: someone ended it,
-   * so the request fails and the user signs in again with the words.
+   * A refused login fails the request (`loginRefused`): the key changed or
+   * the account is gone, and the user signs in again with the words.
    */
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const send = () => this.platform.transport.request(method, path, body);
     let res = await send();
-    if (res.status === 401 && (res.body as { error?: { code?: string } } | undefined)?.error?.code !== 'session_revoked') {
+    if (res.status === 401) {
       await this.reauth();
       res = await send();
     }
@@ -380,15 +371,6 @@ export class Account {
     return words;
   }
 
-  async sessions(): Promise<Session[]> {
-    const list = await this.request<{ id: string; user_agent: string | null; created_at: string; last_seen_at: string; current?: boolean }[]>('GET', '/v1/sessions');
-    return list.map((s) => ({ id: s.id, userAgent: s.user_agent, createdAt: s.created_at, lastSeenAt: s.last_seen_at, current: s.current === true }));
-  }
-
-  async revokeSession(id: string): Promise<void> {
-    await this.request('DELETE', `/v1/sessions/${encodeURIComponent(id)}`);
-  }
-
   /** Deletes the account on the server with the lists it owns, and ends its every session (E2EE §8.4). Refused (`account_has_lists`) while it is a member of someone else's list. */
   async delete(): Promise<void> {
     await this.request('DELETE', '/v1/account');
@@ -409,9 +391,18 @@ export class Account {
     return fromBase64url(nonce);
   }
 
-  /** One login at a time, however many requests hit a 401 together. */
+  /**
+   * One login at a time, however many requests hit a 401 together. A refusal
+   * is tried once more: a stale challenge is refused the same way, and a
+   * server restart loses them, but only a refused key is refused twice.
+   */
   private reauth(): Promise<void> {
-    this.relogin ??= loginWith(this.platform, this.handle, this.authPub)
+    const login = () => loginWith(this.platform, this.handle, this.authPub);
+    this.relogin ??= login()
+      .catch((e: unknown) => {
+        if (loginRefused(e)) return login();
+        throw e;
+      })
       .then(() => undefined)
       .finally(() => (this.relogin = null));
     return this.relogin;
@@ -421,6 +412,11 @@ export class Account {
 /** A signed log entry as request fields: `<prefix>_entry` and `<prefix>_sig`. */
 function entryFields(prefix: string, e: SignedEntry): Record<string, string> {
   return { [`${prefix}_entry`]: toBase64url(e.raw), [`${prefix}_sig`]: toBase64url(e.sig) };
+}
+
+/** The server refused the login: the only failure that means this device is signed out. */
+export function loginRefused(e: unknown): boolean {
+  return e instanceof ApiError && e.code === 'invalid_credentials';
 }
 
 async function loginWith(platform: Platform, account: AccountHandle, authPub: Uint8Array): Promise<LoginResult> {

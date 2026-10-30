@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type IconName = 'sun' | 'inbox' | 'list' | 'lists' | 'people' | 'lock' | 'settings' | 'back' | 'add-person' | 'chevron' | 'warning' | 'close' | 'plus' | 'copy' | 'check' | 'calendar' | 'clock' | 'person' | 'trash' | 'search' | 'bell' | 'laptop' | 'phone' | 'browser' | 'key' | 'server' | 'help';
+  export type IconName = 'sun' | 'inbox' | 'list' | 'lists' | 'people' | 'lock' | 'settings' | 'back' | 'add-person' | 'chevron' | 'warning' | 'close' | 'plus' | 'copy' | 'check' | 'calendar' | 'clock' | 'person' | 'trash' | 'search' | 'bell' | 'key' | 'server' | 'help';
 </script>
 
 <script lang="ts">
@@ -46,15 +46,6 @@
   {:else if name === 'bell'}
     <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
     <path d="M10.5 21a1.8 1.8 0 0 0 3 0" />
-  {:else if name === 'laptop'}
-    <rect x="4" y="5" width="16" height="11" rx="1.5" />
-    <path d="M2 19h20" />
-  {:else if name === 'phone'}
-    <rect x="7" y="3" width="10" height="18" rx="2" />
-    <path d="M11 18h2" />
-  {:else if name === 'browser'}
-    <rect x="3" y="4" width="18" height="16" rx="2" />
-    <path d="M3 9h18" />
   {:else if name === 'key'}
     <circle cx="8" cy="15" r="4" />
     <path d="M11 12l9-9M16 7l3 3" />

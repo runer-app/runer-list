@@ -72,7 +72,7 @@ A purge job runs at startup and then every 24 hours:
 |---|---|
 | Deleted lists (with log, memberships, invites, updates and snapshots) | 30 days after deletion |
 | Deleted accounts | 30 days, **if** the account is no longer in any group and authored no updates or invites. Otherwise the row stays, hidden, so other members can still verify who wrote what. |
-| Ended sessions | 90 days after they ended |
+| Sessions | At once on logout, account key change or account deletion; expired ones at the next purge |
 
 Each run logs one `retention purge complete` line with counts.
 
