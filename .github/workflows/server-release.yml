@@ -47,7 +47,7 @@ jobs:
           tags: |
             type=match,pattern=server-v(\d+\.\d+\.\d+),group=1
             type=match,pattern=server-v(\d+\.\d+)\.\d+,group=1
-      - uses: docker/build-push-action@v6.19.2
+      - uses: docker/build-push-action@v7.4.0
         with:
           context: server
           platforms: linux/amd64,linux/arm64
