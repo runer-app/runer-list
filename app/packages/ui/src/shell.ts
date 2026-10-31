@@ -17,7 +17,7 @@ export interface Shell {
   signIn(server: string, words: string[]): Promise<ClientCore | null>;
   /** Invite links the app was opened with, or that arrive while it runs. */
   links?: { initial(): Promise<string | null>; onLink(cb: (link: string) => void): () => void };
-  /** Debug builds: the device's log, lines of `<unix ms> <text>`, shown under Settings. */
+  /** The device's log, lines of `<unix ms> <text>`, shown under Settings → Diagnostics. */
   debugLog?: DebugLog;
   /** Desktop builds with an update feed: an update was downloaded, and restarting runs it. */
   update?: AppUpdate;

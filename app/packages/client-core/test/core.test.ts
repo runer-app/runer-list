@@ -216,6 +216,68 @@ describe('ClientCore', () => {
     void b;
   });
 
+  describe('the log', () => {
+    const logged = () => {
+      const lines: string[] = [];
+      return { lines, opts: { ...OPTS, sync: { ...OPTS.sync, log: (m: string) => void lines.push(m) } } };
+    };
+
+    test('follows a reminder to the OS in counts and durations, and says when handing it over failed', async () => {
+      server = new MemoryServer();
+      const p = device();
+      const { lines, opts } = logged();
+      const { core } = await ClientCore.signUp(p, SERVER, '', opts);
+      running.push(core);
+      await until('the permission', () => lines.includes('reminders: permission granted'));
+      core.list(core.inbox).addTask('water the plants', { remindAt: NOW.getTime() + 120_000 });
+      await until('handed over', () => lines.includes('reminders: plan accepted'));
+      expect(lines).toContain('reminders: 1 upcoming, next in 120 s');
+
+      p.notifications.replaceAll = () => Promise.reject(Object.assign(new Error('water the plants'), { code: 'notify' }));
+      core.list(core.inbox).addTask('feed the cat', { remindAt: NOW.getTime() + 60_000 });
+      await until('the failure', () => lines.includes('reminders: plan not accepted: notify'));
+      expect(lines.join('\n')).not.toMatch(/water|cat|Indbakke/);
+    });
+
+    test('a change of permission is logged once; the same answer again is not', async () => {
+      server = new MemoryServer();
+      const p = device();
+      p.notifications = new RecordingNotifier(64, 'prompt');
+      const { lines, opts } = logged();
+      const { core } = await ClientCore.signUp(p, SERVER, '', opts);
+      running.push(core);
+      await until('the permission', () => lines.includes('reminders: permission prompt'));
+      await core.notificationPermission();
+      await core.requestNotificationPermission();
+      await core.notificationPermission();
+      expect(lines.filter((l) => l.startsWith('reminders: permission'))).toEqual(['reminders: permission prompt', 'reminders: permission granted']);
+    });
+
+    test('is emptied on sign-out, which is then all it says', async () => {
+      server = new MemoryServer();
+      const { lines, opts } = logged();
+      const clearLog = () => Promise.resolve(void lines.splice(0));
+      const { core } = await ClientCore.signUp(device(), SERVER, '', { ...opts, clearLog });
+      await core.signOut();
+      expect(lines).toEqual(['app: signed out']);
+    });
+
+    test('an update coming in is no line of its own', async () => {
+      server = new MemoryServer();
+      const { lines, opts } = logged();
+      const { core, accountKeyWords } = await ClientCore.signUp(device(), SERVER, '', opts);
+      running.push(core);
+      const other = (await ClientCore.signIn(device(), SERVER, accountKeyWords, OPTS))!;
+      running.push(other);
+      await until('online', () => value(core.connection) === 'online' && value(other.connection) === 'online');
+      await until('caught up', () => lines.some((l) => l.includes('caught up')));
+      const before = lines.length;
+      other.list(other.inbox).addTask('from the other device');
+      await until('it arrives', () => value(core.list(core.inbox).content).items.length === 1);
+      expect(lines.slice(before).filter((l) => l.includes('update'))).toEqual([]);
+    });
+  });
+
   describe('reminders', () => {
     const at = NOW.getTime() + 3_600_000;
 

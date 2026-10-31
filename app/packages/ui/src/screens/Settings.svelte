@@ -46,7 +46,7 @@
     void core.notificationPermission().then((p) => (permission = p), () => (permission = null));
   });
 
-  // Debug builds: the device's log, newest first, in local time.
+  // The device's log, newest first, in local time. Read when Diagnostics is expanded.
   let log = $state('');
   async function readLog() {
     const raw = (await debugLog?.read().catch(() => '')) ?? '';
@@ -61,7 +61,6 @@
       })
       .join('\n');
   }
-  onMount(() => void readLog());
 
   async function guard(fn: () => Promise<void>, message = t('settings.failed')) {
     error = '';
@@ -226,16 +225,18 @@
 </section>
 
 {#if debugLog}
-  <section>
-    {@render about(t('settings.debugLog'), t('settings.debugLogLead'))}
-    <div class="stack">
-      <div class="line">
-        <button class="small" onclick={() => void readLog()}>{t('settings.debugLogRefresh')}</button>
-        <button class="small" onclick={() => void navigator.clipboard.writeText(log).catch(() => undefined)}>{t('settings.debugLogCopy')}</button>
-        <button class="small" onclick={() => void debugLog.clear().then(readLog)}>{t('settings.debugLogClear')}</button>
+  <section class="diagnostics">
+    <details ontoggle={(e) => e.currentTarget.open && void readLog()}>
+      <summary><h2>{t('settings.diagnostics')}</h2></summary>
+      <div class="stack">
+        <p class="muted">{t('settings.diagnosticsLead')}</p>
+        <div class="buttons">
+          <button class="small" onclick={() => void navigator.clipboard.writeText(log).catch(() => undefined)}>{t('settings.diagnosticsCopy')}</button>
+          <button class="small" onclick={() => void debugLog.clear().then(readLog)}>{t('settings.diagnosticsClear')}</button>
+        </div>
+        <pre class="log">{log === '' ? t('settings.diagnosticsEmpty') : log}</pre>
       </div>
-      <pre class="log">{log === '' ? t('settings.debugLogEmpty') : log}</pre>
-    </div>
+    </details>
   </section>
 {/if}
 
@@ -335,6 +336,23 @@
     flex-direction: column;
     gap: 14px;
     min-width: 0;
+  }
+  details {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  summary {
+    cursor: pointer;
+  }
+  summary h2 {
+    display: inline;
+  }
+  details[open] summary {
+    margin-bottom: 14px;
+  }
+  .buttons {
+    display: flex;
+    gap: 8px;
   }
   .log {
     max-height: 420px;

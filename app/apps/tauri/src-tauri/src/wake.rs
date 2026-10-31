@@ -86,7 +86,7 @@ mod ios {
         };
         match result {
             Ok(()) => crate::debuglog::log("refresh: next one requested"),
-            Err(e) => crate::debuglog::log(&format!("refresh: request refused: {}", e.localizedDescription())),
+            Err(e) => crate::debuglog::log(&format!("refresh: request refused: {}", e.code())),
         }
     }
 
@@ -108,7 +108,7 @@ mod ios {
         PENDING.store(true, Ordering::SeqCst);
         crate::debuglog::log(&match app.emit(super::WAKE_EVENT, ()) {
             Ok(()) => format!("refresh: run {n} handed to the webview"),
-            Err(e) => format!("refresh: run {n} not handed to the webview: {e}"),
+            Err(_) => format!("refresh: run {n} not handed to the webview"),
         });
     }
 

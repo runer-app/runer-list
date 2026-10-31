@@ -3,7 +3,7 @@
  * The only place that knows both.
  */
 
-import { ClientCore, type ClientCoreOptions } from '@runer/client-core';
+import { ClientCore, logReason, type ClientCoreOptions } from '@runer/client-core';
 import { createTauriPlatform, storedServers, tauriIpc } from '@runer/platform-tauri';
 import { App, startAppearance, t, type Shell } from '@runer/ui';
 import '@runer/ui/theme.css';
@@ -14,17 +14,25 @@ import { getVersion } from '@tauri-apps/api/app';
 /** Must equal the server's PUBLIC_URL. Set VITE_RUNER_SERVER at build time to change it. */
 const DEFAULT_SERVER: string = import.meta.env['VITE_RUNER_SERVER'] ?? 'http://localhost:8080';
 
-// `tauri dev`, and debug builds (`make ios-phone`): the sync log goes to the console and the debug log (Settings).
+// `tauri dev`, and debug builds (`make ios-phone`): the log also goes to the console.
 const debug = import.meta.env.DEV || import.meta.env['TAURI_ENV_DEBUG'] === 'true';
 
+/** To the device's log (Settings → Diagnostics). */
 function log(m: string): void {
-  console.warn(m);
+  if (debug) console.warn(m);
   void tauriIpc.invoke('debug_log_append', { line: `web: ${m}` }).catch(() => undefined);
 }
 
+const clearLog = () => tauriIpc.invoke<void>('debug_log_clear');
+
+// Before anything that can fail, the `await`s below included. Where and what kind, not the message (`logReason`).
+window.addEventListener('error', (e) => log(`js: uncaught ${logReason(e.error)} at ${e.filename.split('/').pop()}:${e.lineno}:${e.colno}`));
+window.addEventListener('unhandledrejection', (e) => log(`js: unhandled rejection ${logReason(e.reason)}`));
+
 const opts: ClientCoreOptions = {
   reminderText: { generic: t('reminder.generic'), inbox: t('nav.inbox') },
-  ...(debug ? { sync: { log } } : {}),
+  sync: { log },
+  clearLog,
 };
 
 // Links don't depend on the server: any platform instance reads them.
@@ -52,17 +60,10 @@ const shell: Shell = {
     onReady: (cb) => void tauriIpc.listen('runer://update-ready', cb),
     restart: () => tauriIpc.invoke<void>('update_restart'),
   },
-  ...(debug
-    ? {
-        debugLog: {
-          read: () => tauriIpc.invoke<string>('debug_log_read'),
-          clear: () => tauriIpc.invoke<void>('debug_log_clear'),
-        },
-      }
-    : {}),
+  debugLog: { read: () => tauriIpc.invoke<string>('debug_log_read'), clear: clearLog },
 };
 
-if (debug) log(`page loaded (${document.visibilityState})`);
+log(`page loaded (${document.visibilityState})`);
 
 setUpChrome();
 startAppearance();

@@ -15,6 +15,7 @@ import { ListDoc } from '../list/doc.js';
 import type { Socket } from '../platform/index.js';
 import { Writable, type Readable } from '../readable.js';
 import { toBase64url } from '../base64url.js';
+import { logReason } from '../log-reason.js';
 import { joinInvite, type OpenedInvite } from '../invite/join.js';
 import type { ListId, ListState, OpenedContent } from '../platform/vault.js';
 import { announceList, catchUp, deleteList, newList, refreshLists } from './logs.js';
@@ -34,7 +35,7 @@ export interface SyncOptions {
   headRefreshMs?: number;
   /** How long a background wake may take to catch up (`wake`). */
   wakeMs?: number;
-  /** Where to report content the vault rejected and frames that can't be used. */
+  /** Where to report what the engine does. Goes to a file on the device: events, counts and `logReason`s, never content. */
   log?: (message: string) => void;
 }
 
@@ -164,7 +165,7 @@ export class Sync {
     const { lifecycle, info } = this.account.platform;
     const mobile = info.kind === 'ios' || info.kind === 'android';
     this.unhook.push(
-      this.state.subscribe((s) => this.opts.log(`sync: ${s}`)),
+      this.state.subscribe((s) => this.retryLog(`sync: ${s}`)),
       lifecycle.onOnline(() => this.reconnectNow()),
       lifecycle.onForeground(() => {
         this.opts.log('sync: foreground');
@@ -174,14 +175,14 @@ export class Sync {
       }),
     );
     // Mobile: close the socket in the background and keep it closed until the foreground or a wake.
-    if (mobile)
-      this.unhook.push(
-        lifecycle.onBackground(() => {
-          this.opts.log('sync: background, closing the socket');
-          this.hidden = true;
-          this.socket?.close();
-        }),
-      );
+    this.unhook.push(
+      lifecycle.onBackground(() => {
+        this.opts.log(mobile ? 'sync: background, closing the socket' : 'sync: background');
+        if (!mobile) return;
+        this.hidden = true;
+        this.socket?.close();
+      }),
+    );
     this.refreshTimer = setInterval(() => this.reconcileSoon(), this.opts.headRefreshMs);
     void this.connect();
   }
@@ -304,7 +305,7 @@ export class Sync {
       await this.settled(this.opts.wakeMs);
       this.opts.log(`wake: done in ${took()}`);
     } catch (e) {
-      this.opts.log(`wake: failed after ${took()}: ${e instanceof Error ? e.message : String(e)}`);
+      this.opts.log(`wake: failed after ${took()}: ${logReason(e)}`);
       throw e;
     } finally {
       if (this.hidden) {
@@ -318,7 +319,7 @@ export class Sync {
 
   /** Runs `fn` after everything queued before it. A failure is logged and doesn't stop the queue. */
   private run(fn: () => Promise<void>): Promise<void> {
-    const next = this.queue.then(fn).catch((e: unknown) => this.opts.log(`sync: ${e instanceof Error ? e.message : String(e)}`));
+    const next = this.queue.then(fn).catch((e: unknown) => this.opts.log(`sync: ${logReason(e)}`));
     this.queue = next;
     return next;
   }
@@ -382,7 +383,7 @@ export class Sync {
       try {
         await announceList(this.account, genesis);
       } catch (e) {
-        this.opts.log(`sync: creating ${list} on the server failed: ${e instanceof Error ? e.message : String(e)}`);
+        this.opts.log(`sync: creating ${list} on the server failed: ${logReason(e)}`);
         continue;
       }
       await this.store.announced(list);
@@ -413,7 +414,7 @@ export class Sync {
   private async reconcile(): Promise<void> {
     await this.announce();
     const { listed, states } = await refreshLists(this.account, (list, e) =>
-      this.opts.log(`sync: refreshing ${list} failed: ${e instanceof Error ? e.message : String(e)}`),
+      this.opts.log(`sync: refreshing ${list} failed: ${logReason(e)}`),
     );
     for (const list of [...this.replicas.keys()]) {
       if (listed.has(list) || this.unannounced.has(list)) continue;
@@ -451,7 +452,7 @@ export class Sync {
     for (const s of states) {
       if (!rotationDue(s, me, now)) continue;
       await rotateIfDue(this.account, s.id, now).catch((e: unknown) =>
-        this.opts.log(`sync: rotating ${s.id} failed: ${e instanceof Error ? e.message : String(e)}`),
+        this.opts.log(`sync: rotating ${s.id} failed: ${logReason(e)}`),
       );
     }
   }
@@ -466,7 +467,7 @@ export class Sync {
     try {
       socket = await this.account.platform.transport.openSocket('/v1/sync');
     } catch (e) {
-      this.opts.log(`sync: socket failed (${e instanceof Error ? e.message : String(e)}), signing in again`);
+      this.retryLog(`sync: socket failed (${logReason(e)}), signing in again`);
       // Perhaps the session expired: any request signs in again (Account.request), then retry.
       // A refused login means the key changed or the account is gone: stop until the user signs in again.
       let refused = false;
@@ -477,25 +478,26 @@ export class Sync {
           return false;
         },
       );
-      this.opts.log(`sync: signing in again ${reauthed ? 'worked' : refused ? 'refused' : 'failed'}`);
+      this.retryLog(`sync: signing in again ${reauthed ? 'worked' : refused ? 'refused' : 'failed'}`);
       if (refused) return this.state.set('signed-out');
       try {
         if (!reauthed || this.stopped) throw new Error('offline');
         socket = await this.account.platform.transport.openSocket('/v1/sync');
       } catch (e) {
-        this.opts.log(`sync: socket failed again: ${e instanceof Error ? e.message : String(e)}`);
+        this.retryLog(`sync: socket failed again: ${logReason(e)}`);
         this.state.set('offline');
         return this.reconnectLater();
       }
     }
     if (this.stopped) return socket.close();
-    this.opts.log(`sync: socket open in ${Date.now() - started} ms`);
+    const opened = Date.now();
+    this.opts.log(`sync: socket open in ${opened - started} ms`);
     this.attempt = 0;
     this.socket = socket;
     socket.onMessage((f) => void this.run(() => this.handle(f as Frame)));
     socket.onClose(() => {
       if (this.socket !== socket) return;
-      this.opts.log('sync: socket closed');
+      this.opts.log(`sync: socket closed after ${Math.round((Date.now() - opened) / 1000)} s`);
       this.socket = null;
       this.inflight.clear();
       for (const r of this.replicas.values()) r.catchingUp = r.synced = false;
@@ -518,8 +520,14 @@ export class Sync {
     if (this.hidden) return this.opts.log('sync: in the background, not reconnecting');
     const { firstMs, maxMs, jitterMs } = this.opts.backoff;
     const delay = Math.min(maxMs, firstMs * 2 ** this.attempt++) + Math.random() * jitterMs;
+    this.retryLog(`sync: reconnecting in ${Math.round(delay)} ms`);
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => void this.connect(), delay);
+  }
+
+  /** For what repeats each try: a server away for a day is tried every 30 s, which would push everything else out of the log. */
+  private retryLog(message: string): void {
+    if (this.attempt < 2) this.opts.log(message);
   }
 
   private reconnectNow(): void {
@@ -593,10 +601,7 @@ export class Sync {
         const r = this.replicas.get(f.list);
         if (r === undefined || f.seq <= r.since) return;
         if (r.catchingUp) r.held.updates.push({ seq: f.seq, msg: f.msg });
-        else {
-          this.opts.log(`sync: live update ${f.seq} for ${f.list}`);
-          await this.live(r, f.seq, f.msg);
-        }
+        else await this.live(r, f.seq, f.msg);
         return;
       }
       case 'synced': {
@@ -716,7 +721,7 @@ export class Sync {
     const item = f.cid === undefined ? undefined : this.inflight.get(f.cid);
     if (item === undefined) {
       // Not about one of our writes: a subscription was refused or its catch-up failed.
-      this.opts.log(`sync: ${f.code} ${f.detail ?? ''}`);
+      this.opts.log(`sync: ${f.code}`);
       if (f.code === 'forbidden' || f.code === 'bad-request') this.reconcileSoon();
       return;
     }

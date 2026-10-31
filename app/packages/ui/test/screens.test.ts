@@ -983,6 +983,38 @@ describe('settings', () => {
     cores.splice(cores.indexOf(core), 1);
   });
 
+  test('diagnostics: collapsed each time, the log read only on expanding, Copy and Clear and no more', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    let text = '1791460800000 sync: online\n1791460801000 reminders: planned 1\n';
+    const read = vi.fn(() => Promise.resolve(text));
+    const clear = vi.fn(() => Promise.resolve(void (text = '')));
+    render(Main, { core, signedOut: vi.fn(), debugLog: { read, clear } });
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('heading', { name: 'Diagnostics' });
+    const details = () => screen.getByRole('heading', { name: 'Diagnostics' }).closest('details')!;
+    expect(details().open).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+
+    details().open = true;
+    await fireEvent(details(), new Event('toggle'));
+    await waitFor(() => expect(details().querySelector('pre')!.textContent).toMatch(/planned 1[\s\S]*|online/));
+    const shown = details().querySelector('pre')!.textContent;
+    expect(shown.indexOf('planned')).toBeLessThan(shown.indexOf('online'));
+    expect(within(details()).getByText(/stays on this device/)).toBeTruthy();
+    expect(within(details()).queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(within(details()).getByRole('button', { name: 'Copy' })).toBeTruthy();
+
+    await fireEvent.click(within(details()).getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(details().querySelector('pre')!.textContent).toBe('Nothing logged yet.'));
+    expect(clear).toHaveBeenCalled();
+
+    await fireEvent.click(nav().getByRole('button', { name: 'Today' }));
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('heading', { name: 'Diagnostics' });
+    expect(details().open).toBe(false);
+  });
+
   test('delete account: asked first, with what happens to the lists, then back to Welcome', async () => {
     server = new MemoryServer();
     const core = await person();

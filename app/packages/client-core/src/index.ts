@@ -3,6 +3,7 @@ export * from './base64url.js';
 export * from './core/index.js';
 export * from './invite/index.js';
 export * from './list/index.js';
+export * from './log-reason.js';
 export * from './platform/index.js';
 export * from './readable.js';
 export * from './reminders/index.js';

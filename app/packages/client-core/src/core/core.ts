@@ -13,6 +13,7 @@ import { Account, type Notice } from '../account/account.js';
 import { toBase64url } from '../base64url.js';
 import type { AddOptions, AddTaskOptions } from '../list/doc.js';
 import type { ListSnapshot } from '../list/item.js';
+import { logReason } from '../log-reason.js';
 import { moveItem } from '../list/move.js';
 import type { Platform } from '../platform/index.js';
 import { InviteError, openInvite, type OpenedInvite } from '../invite/join.js';
@@ -32,6 +33,8 @@ export interface ClientCoreOptions {
   now?: () => Date;
   /** The UI's words for notifications: the generic title (privacy setting) and the Inbox's name as a body. */
   reminderText?: { generic: string; inbox: string };
+  /** Empties the device's log, the last step of a sign-out. */
+  clearLog?: () => Promise<void>;
 }
 
 /** The account's preferences as the UI sees them, wherever each is kept. */
@@ -151,6 +154,8 @@ export class ClientCore {
   private closed = false;
   /** What the OS was last given, so an edit that changes no reminder doesn't reach it. */
   private scheduled = '';
+  /** The notification permission last logged. */
+  private permission: string | undefined;
   /** The last hand-over to the OS, for a wake to wait on. */
   private reminding: Promise<void> = Promise.resolve();
 
@@ -166,13 +171,16 @@ export class ClientCore {
   /** Creates an account on `server`; `name` is optional (empty for none). Show `accountKeyWords` once (Welcome → create account). */
   static async signUp(platform: Platform, server: string, name = '', opts: ClientCoreOptions = {}): Promise<{ core: ClientCore; accountKeyWords: string[] }> {
     const { account, words } = await Account.signUp(platform, server, name);
+    opts.sync?.log?.('app: signed up');
     return { core: await ClientCore.start(account, opts), accountKeyWords: words };
   }
 
   /** Signs in on a new device. `null` for a typo in the words, caught before any request. */
   static async signIn(platform: Platform, server: string, words: string[], opts: ClientCoreOptions = {}): Promise<ClientCore | null> {
     const account = await Account.signIn(platform, server, words.join(' '));
-    return account === null ? null : ClientCore.start(account, opts);
+    if (account === null) return null;
+    opts.sync?.log?.('app: signed in');
+    return ClientCore.start(account, opts);
   }
 
   /** Startup: the accounts kept on this device, rendered from the cache and syncing. Empty means Welcome. */
@@ -225,6 +233,9 @@ export class ClientCore {
     await this.loadStates();
     this.scheduleMidnight();
     this.unhook.push(this.account.platform.lifecycle.onWake(() => this.wake()));
+    // The OS's settings can change while the app is away.
+    this.unhook.push(this.account.platform.lifecycle.onForeground(() => this.checkPermission()));
+    this.checkPermission();
   }
 
   // --- account ---------------------------------------------------------
@@ -276,9 +287,14 @@ export class ClientCore {
   /** Stops syncing and forgets the account and its content on this device. */
   async signOut(): Promise<void> {
     this.close();
-    await this.sync.signOut();
-    await this.account.platform.storage.delete(SETTINGS_TABLE, this.account.handle);
-    await this.account.platform.notifications.replaceAll([]);
+    try {
+      await this.sync.signOut();
+      await this.account.platform.storage.delete(SETTINGS_TABLE, this.account.handle);
+      await this.account.platform.notifications.replaceAll([]);
+    } finally {
+      await this.opts.clearLog?.();
+      this.log('app: signed out');
+    }
   }
 
   /**
@@ -325,11 +341,22 @@ export class ClientCore {
   }
 
   notificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
-    return this.account.platform.notifications.permission();
+    return this.account.platform.notifications.permission().then(this.notePermission);
   }
 
   requestNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
-    return this.account.platform.notifications.requestPermission();
+    return this.account.platform.notifications.requestPermission().then(this.notePermission);
+  }
+
+  /** Logged when it changes. On desktop the notification plugin always says `granted`, whatever the OS has. */
+  private readonly notePermission = (state: 'granted' | 'denied' | 'prompt') => {
+    if (state !== this.permission) this.log(`reminders: permission ${state}${this.account.platform.info.kind === 'desktop' ? ' (unverified on desktop)' : ''}`);
+    this.permission = state;
+    return state;
+  };
+
+  private checkPermission(): void {
+    this.notificationPermission().catch((e: unknown) => this.log(`reminders: reading the permission failed: ${logReason(e)}`));
   }
 
   /** E2EE §9.2. Every other session is signed out. Show the new words once. */
@@ -485,6 +512,10 @@ export class ClientCore {
 
   // --- internals -------------------------------------------------------
 
+  private log(message: string): void {
+    this.opts.sync?.log?.(message);
+  }
+
   private isOwner(state: ListState): boolean {
     return toBase64url(state.owner.signPub) === this.me;
   }
@@ -567,8 +598,16 @@ export class ClientCore {
       const key = JSON.stringify(reminders);
       if (key === this.scheduled) return;
       this.scheduled = key;
-      this.opts.sync?.log?.(`reminders: ${reminders.length} to the OS`);
-      this.reminding = notifications.replaceAll(reminders).catch(() => void (this.scheduled = ''));
+      // Counts and durations only: `reminders` holds titles and list names.
+      const next = reminders[0] === undefined ? '' : `, next in ${Math.round((reminders[0].at.getTime() - this.now().getTime()) / 1000)} s`;
+      this.log(`reminders: ${reminders.length} upcoming${next}`);
+      this.reminding = notifications.replaceAll(reminders).then(
+        () => this.log('reminders: plan accepted'),
+        (e: unknown) => {
+          this.scheduled = '';
+          this.log(`reminders: plan not accepted: ${logReason(e)}`);
+        },
+      );
     });
   }
 
@@ -578,7 +617,7 @@ export class ClientCore {
       await this.sync.wake();
     } finally {
       await this.reminding;
-      this.opts.sync?.log?.('wake: reminders with the OS');
+      this.log('wake: reminders with the OS');
     }
   }
 

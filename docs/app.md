@@ -11,7 +11,7 @@ The protocol is not repeated here. Its rules are in [E2EE](../protocol/docs/e2ee
 - **Fast capture.** Adding or completing a task never waits on the network or on crypto.
 - **One codebase** for macOS, Windows, Linux, iOS and Android (Tauri 2). Every platform capability sits behind an adapter (§4).
 - **Keys stay in Rust.** The vault holds every key and verified log (§8); `client-core` does everything else that isn't UI. Both run unchanged in Node for tests.
-- **Plaintext never touches disk** (E2EE §3.5), except reminder text in the OS notification store (§7.2).
+- **Plaintext never touches disk** (E2EE §3.5), except reminder text in the OS notification store (§7.2). The device's log (§9) is plaintext too and holds no content.
 - **Offline-first.** Edits queue in the outbox (Sync §4).
 
 Not built: attachments, comments, recurring tasks, sub-tasks, calendar integration, team workspaces, granular access, per-device keys, ownership transfer, server push. Accepted trade-offs: the owner can't leave a list, deleting a list removes it for everyone, and lists are never archived.
@@ -406,8 +406,11 @@ So a compromised webview can act as the user while the compromise lasts, but it 
 | Updates and snapshots (`<handle>/<list>/u/<seq>`, `/s/<covers_seq>`), cursor (`since`), outbox (`<cid>`) | `LocalStore`, server ciphertext unchanged |
 | Yjs documents, search index, Today, My tasks | Memory only |
 | Scheduled reminders | OS notification store, plaintext (§7.2) |
+| The log (`debug.log`, at most 256 KB; `debug.ids`, the ids behind its labels) | App data directory, plaintext; holds no content |
 
-The vault store is a SQLite file written from Rust (memory in Node); TypeScript can't read or roll it back. Sign-out (`Sync.signOut`) deletes the account from the vault, all its `LocalStore` rows and its scheduled notifications.
+The vault store is a SQLite file written from Rust (memory in Node); TypeScript can't read or roll it back. Sign-out (`Sync.signOut`) deletes the account from the vault, all its `LocalStore` rows and its scheduled notifications, and empties the log.
+
+The log says what the app did, so a problem on someone's device can be read there: start, version and OS kind, foreground and background, sign-in and sign-out, the sync's connection and catch-up, updates, every step of a reminder, uncaught errors and panics. It stays on the device; nothing sends it, and Settings → Diagnostics shows it with Copy and Clear. It holds events, counts and durations. Content, list names, keys, invite ids and the 12 words never reach it; `debuglog.rs` replaces anything shaped like an id with a label that means something only within this log (`list-1`), errors are reduced to a code or fixed text (`logReason`), and reminder lines hold no title, list or absolute time.
 
 ---
 
@@ -427,8 +430,6 @@ A browser app would load its code from a server on every visit, so whoever contr
 | Smoke | Sign up → add a task → restart → still there; reminders on a real phone | By hand |
 
 The in-memory server checks little of what the real one does; the e2e suite is what holds the app to the server. There is no WebDriver test: Tauri's driver runs only on Linux.
-
-Debug builds keep a debug log (`src-tauri/src/debuglog.rs`): timestamped lines from Rust and the webview (start, foreground and background, the background refresh, the sync's connection and catch-up), naming events and ids, never content. Settings → Debug log shows it. Release builds write nothing.
 
 ---
 

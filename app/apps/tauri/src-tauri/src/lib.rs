@@ -67,10 +67,17 @@ pub fn run() {
             }
             std::fs::create_dir_all(&dir)?;
             debuglog::init(&dir);
-            debuglog::log("app: started");
+            debuglog::catch_panics();
+            debuglog::log(&format!("app: started, {} on {}", app.package_info().version, std::env::consts::OS));
             let keychain = device::OsKeychain::new(&app.config().identifier);
             let vault = device::SqliteVaultStore::open(&dir.join("vault.sqlite"))
-                .and_then(|s| runer_vault::Vault::open(Box::new(keychain), Box::new(s)).map_err(|e| e.to_string()));
+                .inspect_err(|_| debuglog::log("vault: opening the store failed"))
+                .and_then(|s| {
+                    runer_vault::Vault::open(Box::new(keychain), Box::new(s)).map_err(|e| {
+                        debuglog::log(&format!("vault: opening failed: {}", e.code()));
+                        e.to_string()
+                    })
+                });
             if let Err(e) = &vault {
                 eprintln!("vault: {e}");
             }
@@ -83,6 +90,8 @@ pub fn run() {
             update::start(app.handle())?;
             #[cfg(target_os = "ios")]
             wake::register(app.handle());
+            #[cfg(target_os = "ios")]
+            notify::log_delivered();
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
@@ -100,7 +109,11 @@ pub fn run() {
                     #[cfg(target_os = "ios")]
                     wake::schedule();
                 }
-                tauri::WindowEvent::Resumed => debuglog::log("app: to foreground"),
+                tauri::WindowEvent::Resumed => {
+                    debuglog::log("app: to foreground");
+                    #[cfg(target_os = "ios")]
+                    notify::log_delivered();
+                }
                 _ => {}
             }
         })

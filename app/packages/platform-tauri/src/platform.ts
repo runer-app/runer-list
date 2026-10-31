@@ -3,6 +3,7 @@
  * server: the transport names the server on every call.
  */
 
+import { logReason } from '@runer/client-core';
 import type { Lifecycle, LinkSource, Notifier, Platform, PlatformInfo, Reminder } from '@runer/client-core';
 import { tauriIpc, type Ipc } from './ipc.js';
 import { TauriLocalStore } from './store.js';
@@ -49,7 +50,7 @@ class WindowLifecycle implements Lifecycle {
       void this.ipc
         .listen(WAKE_EVENT, () => this.claim('event received'))
         .then(() => this.claim('listening'))
-        .catch((e: unknown) => this.log(`wake: listening failed: ${e instanceof Error ? e.message : String(e)}`));
+        .catch((e: unknown) => this.log(`wake: listening failed: ${logReason(e)}`));
     }
     return () => void this.wakes.delete(cb);
   }
@@ -61,7 +62,7 @@ class WindowLifecycle implements Lifecycle {
         this.log(`wake: ${why}, ${pending ? 'one pending' : 'none pending'}`);
         return pending ? this.wake() : undefined;
       },
-      (e: unknown) => this.log(`wake: asking failed: ${e instanceof Error ? e.message : String(e)}`),
+      (e: unknown) => this.log(`wake: asking failed: ${logReason(e)}`),
     );
   }
 
@@ -72,7 +73,7 @@ class WindowLifecycle implements Lifecycle {
     await this.ipc.invoke('wake_done').catch(() => undefined);
   }
 
-  /** To the debug log, which only debug builds write. */
+  /** To the device's log. */
   private log(m: string): void {
     void this.ipc.invoke('debug_log_append', { line: `web: ${m}` }).catch(() => undefined);
   }
