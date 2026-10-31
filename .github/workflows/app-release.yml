@@ -1,7 +1,8 @@
-# Installers for macOS, Windows and Linux, as a draft release on GitHub:
-# on an `app-v*` tag, or by hand to try a build. Publishing the
-# draft is what releases it: installed copies then find it through the update
-# feed.
+# Installers for macOS, Windows and Linux, as a release on GitHub. All builds
+# upload to a draft, so nothing is public until every platform is there. On an
+# `app-v*` tag the publish job then publishes it, with the tag's message as its
+# notes, and installed copies find it through the update feed. Run by hand, the
+# workflow stops at the draft, to try a build.
 #
 # Settings of the repository:
 #   variable RUNER_SERVER         the server the app suggests; must equal its PUBLIC_URL
@@ -112,3 +113,29 @@ jobs:
           releaseDraft: true
           uploadUpdaterJson: true
           args: ${{ matrix.args }}
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/app-v')
+    runs-on: ubuntu-latest
+    # No checkout: this job has write access and needs nothing from the repo.
+    defaults:
+      run:
+        working-directory: .
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      KEEP: 3
+    steps:
+      - name: Publish with the tag's message as notes
+        run: |
+          sha=$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq .object.sha)
+          gh api "repos/$GH_REPO/git/tags/$sha" --jq .message |
+            gh release edit "$TAG" --draft=false --notes-file -
+      - name: Delete all but the newest releases, with their tags
+        run: |
+          gh release list --exclude-drafts --limit 100 --json tagName,publishedAt \
+            --jq "map(select(.tagName | startswith(\"app-v\"))) | sort_by(.publishedAt) | reverse | .[$KEEP:] | .[].tagName" |
+            while read -r tag; do gh release delete "$tag" --yes --cleanup-tag; done

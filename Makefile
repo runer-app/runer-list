@@ -54,23 +54,32 @@ versions: ## each side's current version and what bump-app / bump-server would m
 	@printf "app     %-9s " "$(APP_VERSION)"; echo "$(APP_VERSION)" | $(call next,)
 	@cur=$$($(SERVER_VERSION)); printf "server  %-9s " "$$cur"; echo "$$cur" | $(call next,)
 
-bump-app: ## bump the app's version (PART=patch, minor or major; patch by default), commit it and tag it; push yourself
+bump-app: ## bump the app's version (PART=patch, minor or major; patch by default): write the release notes, make test, then commit, tag and push
 	$(on_synced_main)
 	@new=$$(echo "$(APP_VERSION)" | $(call next,$(or $(PART),patch))); \
 	test -n "$$new" || { echo "can't bump $(APP_VERSION) by PART=$(PART): want patch, minor or major"; exit 1; }; \
 	! git rev-parse -q --verify refs/tags/app-v$$new >/dev/null || { echo "app-v$$new already exists"; exit 1; }; \
+	notes=$$(mktemp); trap 'rm -f "$$notes"' EXIT; \
+	last=$$(git tag -l 'app-v*' --sort=-v:refname | head -1); \
+	git log --no-merges --format='- %s' $${last:+$$last..}HEAD > "$$notes"; \
+	$$(git var GIT_EDITOR) "$$notes" || { echo "editor failed, nothing done"; exit 1; }; \
+	grep -q '[^[:space:]]' "$$notes" || { echo "no release notes, nothing done"; exit 1; }; \
+	$(MAKE) test && \
 	sed -i.bak 's/^  "version": "$(APP_VERSION)",$$/  "version": "'$$new'",/' $(APP_CONF) && \
 	sed -i.bak 's/^version = "$(APP_VERSION)"$$/version = "'$$new'"/' $(APP_CARGO) && \
 	rm $(APP_CONF).bak $(APP_CARGO).bak && \
 	(cd app && cargo update --workspace --offline -q) && \
 	git commit -q -m "app v$$new" $(APP_CONF) $(APP_CARGO) app/Cargo.lock && \
-	git tag -a app-v$$new -m "app v$$new" && \
-	echo "app $(APP_VERSION) -> $$new; push with: git push origin main app-v$$new"
+	git tag -a app-v$$new --cleanup=whitespace -F "$$notes" && \
+	git push --atomic origin main app-v$$new && \
+	echo "app $(APP_VERSION) -> $$new, pushed"
 
-bump-server: ## tag HEAD with the server's next version (PART=patch, minor or major; patch by default); push yourself
+bump-server: ## tag HEAD with the server's next version (PART=patch, minor or major; patch by default): make test, then tag and push
 	$(on_synced_main)
 	@t=$$(git tag --points-at HEAD 'server-v*'); test -z "$$t" || { echo "HEAD is already $$t"; exit 1; }
 	@cur=$$($(SERVER_VERSION)); new=$$(echo "$${cur:-0.0.0}" | $(call next,$(or $(PART),patch))); \
 	test -n "$$new" || { echo "can't bump $$cur by PART=$(PART): want patch, minor or major"; exit 1; }; \
+	$(MAKE) test && \
 	git tag -a server-v$$new -m "server v$$new" && \
-	echo "server $$cur -> $$new; push with: git push origin server-v$$new"
+	git push origin server-v$$new && \
+	echo "server $$cur -> $$new, pushed"

@@ -16,6 +16,6 @@ API is tied by running the app's e2e suite against the real server (`app/e2e/aga
 
 ## Releases
 
-Tags are prefixed per side: `app-vX.Y.Z` builds the installers, `server-vX.Y.Z` builds the Docker image. Only the root Makefile makes them: `make bump-app` bumps the app's version, commits and tags it, `make bump-server` tags the server's next version; neither pushes. CI runs
+Tags are prefixed per side: `app-vX.Y.Z` builds the installers, `server-vX.Y.Z` builds the Docker image. Only the root Makefile makes them: `make bump-app` bumps the app's version, commits and tags it, `make bump-server` tags the server's next version; both run `make test` first and push if it passes. CI runs
 only the side whose paths changed; a change under `protocol/` runs both, and a server change also runs the app's CI,
 which ends with its e2e suite against the real server.
