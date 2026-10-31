@@ -9,21 +9,26 @@
 //! local one. Cookies go only back to the origin that set them.
 
 use crate::wire::{Error, Result};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{SinkExt, Stream, StreamExt};
 use reqwest::header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, ORIGIN, SET_COOKIE};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 use tauri::State;
 use tauri::ipc::Channel;
-use tokio::sync::mpsc;
-use tokio_tungstenite::tungstenite::Message;
+use tokio::sync::{Notify, mpsc};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::{self, Message};
 use url::Url;
 
 /// The server's `ORIGIN` setting must equal this (server/README.md).
 const APP_ORIGIN: &str = "tauri://localhost";
+
+/// The server pings every 30 s (sync protocol §2), so a socket quiet for this long is dead
+/// even if nothing closed it: three pings are missing.
+const SILENCE_LIMIT: Duration = Duration::from_secs(90);
 
 type Sockets = Arc<Mutex<HashMap<u32, mpsc::UnboundedSender<Message>>>>;
 
@@ -157,41 +162,67 @@ pub async fn net_socket_open(
         req.headers_mut().insert(COOKIE, c);
     }
     let (socket, _) = tokio_tungstenite::connect_async(req).await.map_err(network)?;
-    let (mut sink, mut stream) = socket.split();
+    let (mut sink, stream) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
     let id = net.next.fetch_add(1, Ordering::Relaxed);
     net.sockets.lock().unwrap_or_else(PoisonError::into_inner).insert(id, tx);
 
+    let write_failed = Arc::new(Notify::new());
+    let tell_reader = write_failed.clone();
     // Writer: ends when `net_socket_close` drops the sender, closing the socket.
     tauri::async_runtime::spawn(async move {
         while let Some(m) = rx.recv().await {
             if sink.send(m).await.is_err() {
-                return;
+                return tell_reader.notify_one();
             }
         }
         let _ = sink.close().await;
     });
     let sockets = net.sockets.clone();
     tauri::async_runtime::spawn(async move {
-        let (code, reason) = loop {
-            match stream.next().await {
-                Some(Ok(Message::Text(t))) => {
-                    if events.send(SocketEvent::Message { text: t.to_string() }).is_err() {
-                        break (1001, "webview gone".to_owned());
-                    }
-                }
-                Some(Ok(Message::Close(f))) => {
-                    break f.map(|f| (u16::from(f.code), f.reason.to_string())).unwrap_or((1005, String::new()));
-                }
-                Some(Ok(_)) => {}
-                Some(Err(e)) => break (1006, e.to_string()),
-                None => break (1006, String::new()),
-            }
-        };
+        let (code, reason) = read_until_closed(stream, SILENCE_LIMIT, &write_failed, |text| {
+            events.send(SocketEvent::Message { text }).is_ok()
+        })
+        .await;
         sockets.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
         let _ = events.send(SocketEvent::Close { code, reason });
     });
     Ok(id)
+}
+
+/// Hands text frames to `on_text` until the socket closes, fails or goes quiet, or the writer
+/// fails; the code and reason are the close the client sees. Every frame counts as life,
+/// pings included. Without the last two, a socket that died without a close would look open
+/// forever: the app would stay online, and only a restart would bring it back.
+async fn read_until_closed<S>(
+    mut stream: S,
+    silence: Duration,
+    write_failed: &Notify,
+    mut on_text: impl FnMut(String) -> bool,
+) -> (u16, String)
+where
+    S: Stream<Item = tungstenite::Result<Message>> + Unpin,
+{
+    loop {
+        let frame = tokio::select! {
+            f = tokio::time::timeout(silence, stream.next()) => f,
+            () = write_failed.notified() => return (1006, "write failed".to_owned()),
+        };
+        match frame {
+            Err(_) => return (1006, "silent".to_owned()),
+            Ok(Some(Ok(Message::Text(t)))) => {
+                if !on_text(t.to_string()) {
+                    return (1001, "webview gone".to_owned());
+                }
+            }
+            Ok(Some(Ok(Message::Close(f)))) => {
+                return f.map(|f| (u16::from(f.code), f.reason.to_string())).unwrap_or((1005, String::new()));
+            }
+            Ok(Some(Ok(_))) => {}
+            Ok(Some(Err(e))) => return (1006, e.to_string()),
+            Ok(None) => return (1006, String::new()),
+        }
+    }
 }
 
 #[tauri::command]
@@ -210,6 +241,38 @@ pub async fn net_socket_close(net: State<'_, Net>, id: u32) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::stream;
+
+    type Frame = tungstenite::Result<Message>;
+
+    fn read<S: Stream<Item = Frame> + Unpin>(frames: S, silence: Duration, write_failed: &Notify) -> (u16, String) {
+        tauri::async_runtime::block_on(read_until_closed(frames, silence, write_failed, |_| true))
+    }
+
+    #[test]
+    fn a_socket_that_goes_quiet_counts_as_closed() {
+        let quiet = stream::pending::<Frame>();
+        assert_eq!(read(quiet, Duration::from_millis(20), &Notify::new()), (1006, "silent".to_owned()));
+    }
+
+    #[test]
+    fn a_failed_write_closes_a_socket_that_still_looks_open() {
+        let failed = Notify::new();
+        failed.notify_one();
+        let quiet = stream::pending::<Frame>();
+        assert_eq!(read(quiet, Duration::from_secs(60), &failed), (1006, "write failed".to_owned()));
+    }
+
+    #[test]
+    fn pings_keep_a_socket_alive_past_the_silence_limit() {
+        // Seven pings 100 ms apart outlast a 500 ms limit only if each one resets it.
+        let frames = Box::pin(stream::unfold(0, |n| async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let frame = if n < 7 { Message::Ping(Vec::new().into()) } else { Message::Close(None) };
+            Some((Ok(frame), n + 1))
+        }));
+        assert_eq!(read(frames, Duration::from_millis(500), &Notify::new()), (1005, String::new()));
+    }
 
     #[test]
     fn the_jar_returns_secure_cookies_to_their_own_origin_only() {

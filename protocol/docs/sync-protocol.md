@@ -25,7 +25,7 @@ Origin: tauri://localhost   (the server's configured ORIGIN)
 ```
 
 - `401` without a valid session, `403` on an `Origin` mismatch.
-- The server pings every 30 s and closes a connection with no pong for 60 s.
+- The server pings every 30 s and closes a connection with no pong for 60 s. A client that receives nothing for 90 s, pings included, treats the connection as dead and reconnects.
 - The session is re-checked on every frame and every ping; a connection whose session ended gets `bye` `session-revoked`.
 - A client that stops reading is disconnected rather than slowing anyone else; it recovers through catch-up.
 - Clients reconnect with exponential backoff (1 s, 2 s, 4 s … capped at 30 s, plus up to 1 s jitter), re-subscribe with their stored `since` per list, and resend their outbox (§4).

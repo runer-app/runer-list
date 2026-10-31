@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ClientCore, type ClientCoreOptions } from '../src/core/core.js';
 import type { Platform, Transport } from '../src/platform/index.js';
 import type { Readable } from '../src/readable.js';
@@ -189,6 +189,62 @@ describe('ClientCore', () => {
     server.drop();
     await until('offline', () => value(core.connection) === 'offline');
     expect(value(core.connection)).not.toBe('signed-out');
+  });
+
+  test('the network going away shows at once, even if the socket never reports it', async () => {
+    server = new MemoryServer();
+    const p = device();
+    const { core } = await signedUp(p);
+    await until('online', () => value(core.connection) === 'online');
+    server.offline = true; // the socket stays open: nothing closes it
+    (p.lifecycle as ManualLifecycle).goOffline();
+    expect(value(core.connection)).toBe('offline');
+  });
+
+  test('a name changed offline is sent on reconnecting, and a connecting device picks it up', async () => {
+    server = new MemoryServer();
+    const { core, words } = await signedUp();
+    await until('online', () => value(core.connection) === 'online');
+    const other = await ClientCore.signIn(device(), SERVER, words, OPTS);
+    running.push(other!);
+    await until('other online', () => value(other!.connection) === 'online');
+
+    server.offline = true;
+    server.drop();
+    await until('offline', () => value(core.connection) === 'offline');
+    await core.setName('Anna');
+    server.offline = false;
+    await until('back online', () => value(core.connection) === 'online' && value(other!.connection) === 'online');
+    await until('other restarted its connection', () => {
+      server.drop();
+      return value(other!.name) === 'Anna';
+    });
+  });
+
+  test('a name that could not be sent goes by itself once the network is back, with the socket open all along', async () => {
+    server = new MemoryServer();
+    const { core, words } = await signedUp();
+    await until('online', () => value(core.connection) === 'online');
+    const p = device();
+    const other = (await ClientCore.signIn(p, SERVER, words, OPTS))!;
+    running.push(other);
+    await until('other online', () => value(other.connection) === 'online');
+
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      server.offline = true; // a blip: neither socket is dropped
+      await core.setName('Anna');
+      await vi.advanceTimersByTimeAsync(0);
+      server.offline = false;
+      await vi.advanceTimersByTimeAsync(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    // No push: the other device takes it when it next comes to the foreground.
+    await until('other has the name', () => {
+      (p.lifecycle as ManualLifecycle).foreground();
+      return value(other.name) === 'Anna';
+    });
   });
 
   test('sign-out forgets the account on this device', async () => {

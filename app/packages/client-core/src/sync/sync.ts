@@ -167,11 +167,20 @@ export class Sync {
     this.unhook.push(
       this.state.subscribe((s) => this.retryLog(`sync: ${s}`)),
       lifecycle.onOnline(() => this.reconnectNow()),
+      lifecycle.onOffline(() => {
+        const socket = this.socket;
+        if (socket === null) return;
+        this.opts.log('sync: network gone');
+        socket.close();
+        // With no network the close may never be reported; retrying is harmless if the event was wrong.
+        this.socketGone();
+      }),
       lifecycle.onForeground(() => {
         this.opts.log('sync: foreground');
         this.hidden = false;
         this.reconnectNow();
         this.reconcileSoon();
+        void this.account.syncSettings().catch(() => undefined);
       }),
     );
     // Mobile: close the socket in the background and keep it closed until the foreground or a wake.
@@ -498,20 +507,26 @@ export class Sync {
     socket.onClose(() => {
       if (this.socket !== socket) return;
       this.opts.log(`sync: socket closed after ${Math.round((Date.now() - opened) / 1000)} s`);
-      this.socket = null;
-      this.inflight.clear();
-      for (const r of this.replicas.values()) r.catchingUp = r.synced = false;
-      if (this.state.value !== 'signed-out') {
-        this.state.set('offline');
-        this.reconnectLater();
-      }
+      this.socketGone();
     });
     this.state.set('online');
+    // Settings have no push and no outbox: a connection is when they catch up, both ways.
+    void this.account.syncSettings().catch(() => undefined);
     void this.run(async () => {
       this.subscribe([...this.replicas.values()].filter((r) => r.loaded));
       for (const item of await this.store.outbox()) this.send(item);
       await this.announce();
     });
+  }
+
+  private socketGone(): void {
+    this.socket = null;
+    this.inflight.clear();
+    for (const r of this.replicas.values()) r.catchingUp = r.synced = false;
+    if (this.state.value !== 'signed-out') {
+      this.state.set('offline');
+      this.reconnectLater();
+    }
   }
 
   /** Sync §2: 1 s, 2 s, 4 s … capped at 30 s, plus up to 1 s of jitter. */

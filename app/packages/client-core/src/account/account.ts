@@ -61,6 +61,7 @@ const SETTINGS_TABLE = 'account-settings';
 const UNSENT_SETTINGS_TABLE = 'account-settings-unsent';
 /** How often a write that lost the race to another device is tried again. */
 const SETTINGS_RETRIES = 3;
+const SETTINGS_RETRY_MS = 30_000;
 
 /** What `notices` holds: news from a log, or a list this account can no longer open, named as this device last saw it. */
 export type Notice = LogEvent | { kind: 'lost-access'; list: ListId; name: string };
@@ -80,6 +81,7 @@ export class Account {
   readonly settings = new Writable<AccountSettings>({ v: SETTINGS_VERSION });
   /** What `changeSettings` changed and the server hasn't taken yet. */
   private unsentSettings: AccountSettingsChange | null = null;
+  private settingsRetry: ReturnType<typeof setTimeout> | undefined;
   /** One exchange with the server at a time, and one write to the local store at a time. */
   private settingsExchange: Promise<void> = Promise.resolve();
   private settingsSaved: Promise<void> = Promise.resolve();
@@ -245,11 +247,20 @@ export class Account {
   /**
    * Changes settings on this device at once, so it works offline, and sends
    * the change in the background. One the server didn't take is sent by the
-   * next `syncSettings` (every start).
+   * next `syncSettings`: a retry here, or the next connection or foreground.
    */
   async changeSettings(change: AccountSettingsChange): Promise<void> {
     await this.keepSettings({ ...this.settings.value, ...change }, { ...this.unsentSettings, ...change });
-    void this.syncSettings().catch(() => undefined);
+    this.sendSettings();
+  }
+
+  /** A connection can outlast a network blip, so this can't wait for the next one. */
+  private sendSettings(): void {
+    clearTimeout(this.settingsRetry);
+    this.syncSettings().catch(() => {
+      if (this.unsentSettings === null || this.signedOut) return;
+      this.settingsRetry = setTimeout(() => this.sendSettings(), SETTINGS_RETRY_MS);
+    });
   }
 
   /**
