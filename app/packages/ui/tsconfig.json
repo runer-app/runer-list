@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "allowImportingTsExtensions": true, "module": "ESNext", "moduleResolution": "Bundler", "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["svelte"] },
+  "compilerOptions": { "noEmit": true, "allowImportingTsExtensions": true, "module": "ESNext", "moduleResolution": "Bundler", "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["svelte", "vite/client"] },
   "include": ["src", "test", "preview", "vite.config.ts"]
 }
