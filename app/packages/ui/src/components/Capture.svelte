@@ -133,7 +133,7 @@
     padding: 0 5px;
     border: 1px solid var(--border);
     border-radius: 5px;
-    color: var(--text-faint);
+    color: var(--text-muted);
     font-family: var(--font-mono);
     font-size: 11px;
   }

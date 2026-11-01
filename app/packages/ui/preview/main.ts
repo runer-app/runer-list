@@ -24,6 +24,7 @@ import { mount } from 'svelte';
 import { App, startAppearance, type Shell } from '../src/index.js';
 import '../src/theme.css';
 
+const params = new URLSearchParams(location.search);
 const key = (n: number) => new Uint8Array(32).fill(n);
 const me: PublicIdentity = { signPub: key(0xa7), agreePub: key(1) };
 const anna: PublicIdentity = { signPub: key(0x3f), agreePub: key(2) };
@@ -88,7 +89,7 @@ if (new URLSearchParams(location.search).get('seed') === 'marketing') {
     d.addNote('# Before we go');
     d.addTask('Book a room', { due: today, assignee: ME, body: 'Somewhere close to the water' });
     d.addTask('Find a hiking route', { due: addDays(today, 2), assignee: ANNA });
-    d.setPerson(ANNA, 'Anna');
+    d.setPerson(ANNA, params.get('member') ?? 'Anna');
     d.addNote('> The ferry leaves at **09:30**. Be there in good time.');
     d.addNote('## When we’re there');
     d.addTask('Buy dinner');
@@ -175,7 +176,8 @@ const core = {
   myTasks: mine,
   connection: new Writable('online'),
   warnings: new Writable([]),
-  notices: new Writable([]),
+  // `?member=<name>` names Anna, for the layout test; she has just joined.
+  notices: new Writable(params.has('member') ? [{ kind: 'joined', list: 'trip', member: anna.signPub }] : []),
   name: new Writable('You'),
   setName: async (n: string) => core.name.set(n.trim()),
   settings: new Writable<{ reminderTitles: boolean; clock?: '12h' | '24h' }>({ reminderTitles: true }),
@@ -188,7 +190,7 @@ const core = {
   },
   knownContacts: async () => [anna],
   safetyCode: async () => ['12345', '67890', '13579', '24680', '11223', '44556'],
-  invites: { open: async () => Promise.reject(new Error('preview')) },
+  invites: { open: async () => ({ name: 'Weekend trip', owner: anna, ownerName: params.get('member') ?? 'Anna', join: async () => 'trip' }) },
   showAccountKey: async () => 'abandon ability able about above absent absorb abstract absurd abuse access accident'.split(' '),
   changeAccountKey: async () => ({ accountKeyWords: [] }),
   signOut: inert,
@@ -206,6 +208,8 @@ const shell: Shell = {
   resume: async () => core as unknown as ClientCore,
   signUp: () => Promise.reject(new Error('preview')),
   signIn: async () => null,
+  // `?join` opens the Join screen.
+  ...(params.has('join') ? { links: { initial: async () => 'https://example.test/join#preview', onLink: () => () => undefined } } : {}),
 };
 
 startAppearance();

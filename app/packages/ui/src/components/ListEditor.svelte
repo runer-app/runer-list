@@ -758,7 +758,7 @@
             onblur={() => leaveTask(item)}
           ></textarea>
         </div>
-        {#if sub.who !== undefined}<span class="meta">{sub.who}</span>{/if}
+        {#if sub.who !== undefined}<span class="meta who" title={sub.who}>{sub.who}</span>{/if}
         {#if sub.late}<span class="meta late">{t('task.overdue')}{sub.when === undefined ? '' : ` · ${sub.when}`}</span>
         {:else if sub.when !== undefined}<span class="meta" class:reminder={sub.reminder}>{#if sub.reminder}<Icon name="bell" />{/if}{sub.when}</span>{/if}
       </div>
@@ -892,6 +892,16 @@
     color: var(--text-muted);
     font-size: 12px;
     white-space: nowrap;
+  }
+  /* A name can be any length; the task's title keeps the row. */
+  .meta.who {
+    flex: 0 1 auto;
+    display: block;
+    min-width: 0;
+    max-width: 30%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: var(--line);
   }
   .meta :global(svg) {
     width: 12px;

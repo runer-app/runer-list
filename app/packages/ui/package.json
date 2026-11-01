@@ -16,7 +16,8 @@
     "test": "vitest run",
     "design": "vite --config preview/vite.config.ts",
     "pretest": "cargo build -p runer-vault-node",
-    "screenshots": "node preview/screenshots.ts"
+    "screenshots": "node preview/screenshots.ts",
+    "test:layout": "node --test --test-force-exit --test-timeout=30000 preview/layout.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

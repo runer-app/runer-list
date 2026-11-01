@@ -19,8 +19,9 @@ PHONE = $$(xcrun devicectl list devices | sed -nE 's/.* ([0-9A-F-]+) \(UDID\) +(
 help: ## list targets (default)
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
 
-install: ## install npm dependencies
+install: ## install npm dependencies and the browsers the layout test runs in
 	npm install
+	npx playwright install chromium webkit
 
 dev: ## desktop app with hot reload, against the dev API
 	VITE_RUNER_SERVER=$(DEV_API) npm run app:dev -- --config $(DEV_CONFIG)
@@ -76,4 +77,5 @@ test: ## everything CI runs: fmt, clippy, lint, types, unit tests, and the e2e s
 	npm run lint
 	npm run typecheck
 	npm test
+	npm run test:layout -w @runer/ui
 	e2e/against-server.sh

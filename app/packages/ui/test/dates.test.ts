@@ -18,6 +18,10 @@ describe('readTyped', () => {
     expect(readTyped('Dentist 12 oct', thursday)).toEqual({ title: 'Dentist', due: '2026-10-12', label: 'Monday' });
   });
 
+  test('a day and month with a slash is day first', () => {
+    expect(readTyped('Dentist 12/10', thursday)).toEqual({ title: 'Dentist', due: '2026-10-12', label: 'Monday' });
+  });
+
   test('a time that has passed is tomorrow’s', () => {
     expect(readTyped('Call mom at 9am', thursday)?.due).toBe('2026-10-09');
   });

@@ -92,6 +92,12 @@ describe('accounts (E2EE §3, §9)', () => {
     expect((await onServer()).settings_gen).toBe(2);
   });
 
+  test('a deleted account can’t sign in with its words', async () => {
+    const { account, words } = await signUp();
+    await account.delete();
+    expect((await rejection(Account.signIn(device(), server.url, words.join(' ')))).status).toBe(401);
+  });
+
   test('a typo is caught before any request; unknown words are refused', async () => {
     expect(await Account.signIn(device(), server.url, 'legal winner thank')).toBeNull();
     const unknown = 'legal winner thank year wave sausage worth useful legal winner thank yellow';

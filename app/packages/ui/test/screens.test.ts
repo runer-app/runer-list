@@ -521,6 +521,37 @@ describe('typed dates', () => {
     expect(field().value).toBe('tomorrow');
   });
 
+  test('a press on the chip keeps the words and the focus in the capture field', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    await signedIn(core);
+    field().focus();
+    await fireEvent.input(field(), { target: { value: 'Report friday' } });
+    await fireEvent.click(screen.getByRole('button', { name: /^Date:/ }));
+    expect(screen.queryByRole('button', { name: /^Date:/ })).toBeNull();
+    expect(field().value).toBe('Report friday');
+    expect(document.activeElement).toBe(field());
+    await fireEvent.submit(field().closest('form')!);
+    expect(inbox(core)).toMatchObject([{ title: 'Report friday', due: localDateString(new Date()) }]);
+  });
+
+  test('a press on the chip keeps the words and the focus in a new task row', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const id = await openList(core, 'Errands');
+    await startTyping();
+    const row = await here();
+    await fireEvent.input(row, { target: { value: 'Dentist 12/10' } });
+    await fireEvent.mouseDown(screen.getByRole('button', { name: /^Date:/ }));
+    expect(screen.queryByRole('button', { name: /^Date:/ })).toBeNull();
+    expect(row.value).toBe('Dentist 12/10');
+    expect(document.activeElement).toBe(row);
+    await fireEvent.keyDown(row, { key: 'Enter' });
+    const [item] = value(core.list(id).content).items;
+    expect(item).toMatchObject({ title: 'Dentist 12/10' });
+    expect(item!.due).toBeUndefined();
+  });
+
   test('a new task in a list takes a typed date too; a list’s name doesn’t', async () => {
     server = new MemoryServer();
     const core = await person();
@@ -551,6 +582,8 @@ describe('typed dates', () => {
     await fireEvent.click(main.getByRole('button', { name: 'Settings' }));
     await fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Open Help' }));
     expect(screen.getByRole('heading', { name: 'Help' })).toBeTruthy();
+    await fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
   });
 });
 
@@ -1029,6 +1062,47 @@ describe('settings', () => {
     await waitFor(() => expect(signedOut).toHaveBeenCalled());
     cores.splice(cores.indexOf(core), 1);
     expect(await ClientCore.resume(createMemoryPlatform({ transport: server.transport() }), OPTS)).toEqual([]);
+  });
+
+  test('delete account with no network: says it didn’t work, and the account is still there', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const words = await core.showAccountKey();
+    const { signedOut } = await signedIn(core);
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+    const dialog = within(screen.getByRole('alertdialog', { name: 'Delete account' }));
+
+    server.offline = true;
+    server.drop();
+    await fireEvent.click(dialog.getByRole('button', { name: 'Delete for good' }));
+    expect(await dialog.findByRole('alert')).toBeTruthy();
+    expect(signedOut).not.toHaveBeenCalled();
+
+    server.offline = false;
+    const again = await ClientCore.signIn(createMemoryPlatform({ transport: server.transport() }), SERVER, words, OPTS);
+    cores.push(again!);
+    expect(again).not.toBeNull();
+  });
+
+  test.each([
+    ['granted', /^Allowed in your system/],
+    ['denied', /^Off in your system settings/],
+    ['prompt', /^Allow notifications to get reminders/],
+  ] as const)('notifications when the system says %s', async (permission, text) => {
+    server = new MemoryServer();
+    await signedIn(await person(new RecordingNotifier(64, permission)));
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Allow' }) !== null).toBe(permission === 'prompt');
+  });
+
+  test('Allow asks the system, and Settings shows the answer', async () => {
+    server = new MemoryServer();
+    await signedIn(await person(new RecordingNotifier(64, 'prompt')));
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Allow' }));
+    expect(await screen.findByText(/^Allowed in your system/)).toBeTruthy();
   });
 
   test('a device signed out from another one says so, and stays that way', async () => {

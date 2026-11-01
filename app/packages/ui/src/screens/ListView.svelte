@@ -206,7 +206,7 @@
     height: 14px;
   }
   .sep {
-    color: var(--text-faint);
+    color: var(--text-muted);
   }
   .who {
     min-width: 0;

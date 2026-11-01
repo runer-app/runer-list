@@ -44,6 +44,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:layout -w @runer/ui
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: server/go.mod

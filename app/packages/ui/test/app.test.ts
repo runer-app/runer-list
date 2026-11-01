@@ -148,4 +148,15 @@ describe('the app', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/valid key/);
     expect(requests).toEqual([]);
   });
+
+  test('words the server doesn’t know, as after a deleted account, are refused with a message', async () => {
+    const server = new MemoryServer();
+    render(App, { shell: shellOn(createMemoryPlatform({ transport: server.transport() })) });
+    await fireEvent.click(await screen.findByRole('button', { name: 'Sign in with my account key' }));
+    const words = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
+    await fireEvent.input(screen.getByRole('textbox', { name: 'Account key' }), { target: { value: words } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/\w/);
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();
+  });
 });

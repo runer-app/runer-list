@@ -150,6 +150,35 @@ describe('ClientCore', () => {
     await until('signed out after the restart', () => value(again!.connection) === 'signed-out');
   });
 
+  test('a name changed offline shows at once, survives a restart, and reaches other devices once back online', async () => {
+    server = new MemoryServer();
+    const p = device();
+    const { core: a, words } = await signedUp(p);
+    await until('online', () => value(a.connection) === 'online');
+
+    server.offline = true;
+    server.drop();
+    await a.setName('Anna');
+    expect(value(a.name)).toBe('Anna');
+    await a.stop();
+    running.splice(running.indexOf(a), 1);
+
+    const [again] = await ClientCore.resume(restart(p), OPTS);
+    running.push(again!);
+    expect(value(again!.name)).toBe('Anna');
+
+    server.offline = false;
+    server.drop();
+    await until('back online', () => value(again!.connection) === 'online');
+    let seen = '';
+    for (let i = 0; i < 100 && seen !== 'Anna'; i++) {
+      const other = (await ClientCore.signIn(device(), SERVER, words, OPTS))!;
+      seen = value(other.name);
+      await other.stop();
+    }
+    expect(seen).toBe('Anna');
+  });
+
   test('deleting the account from one device signs out the others', async () => {
     server = new MemoryServer();
     const { core: a, words } = await signedUp();
