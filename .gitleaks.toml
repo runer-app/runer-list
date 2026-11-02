@@ -1,0 +1,14 @@
+# gitleaks config: the default rules, minus the protocol's test vectors.
+# Those are fixed example keys that must stay public (see protocol/*/README.md).
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Protocol test vectors and their generator; build output that is never committed"
+paths = [
+  '''^protocol/vectors/''',
+  '''^protocol/log-fixtures/''',
+  '''^app/crates/runer-crypto/tests/generate\.rs$''',
+  '''(^|/)node_modules/''',
+  '''^app/target/''',
+]

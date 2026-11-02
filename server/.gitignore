@@ -1,0 +1,12 @@
+# Build output (make build)
+/bin/
+
+# Go test/fuzz artifacts
+*.test
+*.out
+coverage.*
+/internal/grouplog/testdata/fuzz/
+
+# Editor
+.idea/
+.vscode/

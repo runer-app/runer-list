@@ -1,0 +1,24 @@
+{
+  "description": "h = SHA-256(\"runer/v1/safety\" ‖ 0x00 ‖ sign_pub ‖ agree_pub); for i in 0..5: uint40be(h[5i:5i+5]) mod 100000, as 5 digits; groups joined by spaces. E2EE §6.",
+  "label": "runer/v1/safety",
+  "cases": [
+    {
+      "name": "alice",
+      "sign_pub": "5104b525b00d9fca379573429a6181edf5330e8cb219ae53e4f01bc6b5c21e4a",
+      "agree_pub": "7b3862ade2f7de62a0f535ff40d9a259bb1eda1176d82f578232132a7534b76a",
+      "code": "97147 61627 26431 68759 11113 55757"
+    },
+    {
+      "name": "bob",
+      "sign_pub": "f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "agree_pub": "8eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+      "code": "09938 49315 11496 36871 81107 63314"
+    },
+    {
+      "name": "carol",
+      "sign_pub": "b0f61b63e8c05bb3932ac59092e7b654613fcc7d3974b71114f3fb3fb7047370",
+      "agree_pub": "599a60bf0eb4e074d19fc6374110401466cad28b247a5deb94dff38a81fb8e48",
+      "code": "89036 56609 91220 07289 98624 51979"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "create_envelope_owner_valid",
+  "valid": true,
+  "entries": [
+    {
+      "raw": "eyJ2IjoxLCJzZXEiOjAsInR5cGUiOiJjcmVhdGUiLCJhdXRob3IiOiJ1UGxJNDBQYUhCNW1xMG5CcWJtQm1LSGtXbXhYSEZaY1RhVTdSWTFkOEVrIiwiYXV0aG9yX2FncmVlIjoiLVdDbkFXN2EwS3BFRExiVnpkUjRreUlRLURiQVVMUTVBZHlzZVVGaXlNWSIsImVwb2NoIjowLCJlbnZlbG9wZXMiOlt7InJlY2lwaWVudCI6InVQbEk0MFBhSEI1bXEwbkJxYm1CbUtIa1dteFhIRlpjVGFVN1JZMWQ4RWsiLCJocGtlX2NpcGhlcnRleHQiOiJZM1F0YXpBIn1dLCJ0cyI6MTc3MDcyNDgwMDAwMH0=",
+      "sig": "MEZ49XC9NJjSfUeIliZO7Qqm70IjDFyomSEHMJjnTi0iLDYmTQcFv0Y0QNu91DixH8wLmc2/x2hhujMEjq7kBA=="
+    }
+  ]
+}

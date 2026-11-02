@@ -1,0 +1,41 @@
+{
+  "description": "Identity Bundle = nonce(12) ‖ AES-256-GCM(wrap_key, 0x01 ‖ sign_seed ‖ agree_private, AD = auth_pub ‖ uint64be(bundle_gen)). E2EE §3.3.",
+  "cases": [
+    {
+      "name": "alice, bundle_gen 0",
+      "wrap_key": "1743d74dd272ad30bc2ea2713452df1c5fd041c869e989a680b8be005a2d4bcf",
+      "auth_pub": "04a766bb5252bb90663e96cde13276c7c0b050333f539564efdbd37413435aaa",
+      "bundle_gen": 0,
+      "sign_seed": "134e77621089028c8a4e4faa34b4d5a9203f1f24632d1a3dfef83591738690ec",
+      "sign_pub": "5104b525b00d9fca379573429a6181edf5330e8cb219ae53e4f01bc6b5c21e4a",
+      "agree_private": "cd034e29c9efa8dae9b8ff489056da5bd4bcf150ac68e03eac6ab97658565cc7",
+      "agree_pub": "7b3862ade2f7de62a0f535ff40d9a259bb1eda1176d82f578232132a7534b76a",
+      "nonce": "9d6df6f3ba1ceb4d50e09fab",
+      "bundle": "9d6df6f3ba1ceb4d50e09fab84d3dbc6d89e52128f34b0d03d0c6202a88975171483a90bdbf0c44d386dde669f5d2fff66d607fa3d226ea1265a08f3ccc5f3f4294aa96b489a41c19622c61ba4aed4911e715f3ab685cbf49eb2b56e95"
+    },
+    {
+      "name": "alice, bundle_gen 1",
+      "wrap_key": "1743d74dd272ad30bc2ea2713452df1c5fd041c869e989a680b8be005a2d4bcf",
+      "auth_pub": "04a766bb5252bb90663e96cde13276c7c0b050333f539564efdbd37413435aaa",
+      "bundle_gen": 1,
+      "sign_seed": "134e77621089028c8a4e4faa34b4d5a9203f1f24632d1a3dfef83591738690ec",
+      "sign_pub": "5104b525b00d9fca379573429a6181edf5330e8cb219ae53e4f01bc6b5c21e4a",
+      "agree_private": "cd034e29c9efa8dae9b8ff489056da5bd4bcf150ac68e03eac6ab97658565cc7",
+      "agree_pub": "7b3862ade2f7de62a0f535ff40d9a259bb1eda1176d82f578232132a7534b76a",
+      "nonce": "51359c87491565911e3f2897",
+      "bundle": "51359c87491565911e3f2897452c584e2bb8bbbfc64ceab490125883eec0dd0361d8239c8b85e077154afc9ebacf011a55e4445e5a986c3eb7af490559e0e718b4ecbbca2c566fee7d344cbc4c8556309631b949ba33a652b8da18d55d"
+    },
+    {
+      "name": "bob, bundle_gen 7",
+      "wrap_key": "2798a9072632743d838e49df13f35e3ce5506816d49118dd597f056430363daf",
+      "auth_pub": "9d6112f56a6d2c1407dc20d8e0e2b57c84a4a0bc90e7198304d7f06ee814cb05",
+      "bundle_gen": 7,
+      "sign_seed": "2fc05dc81a9c24eb7b6f409d387a7d6417286cac1c9352c34de4b638bee95b14",
+      "sign_pub": "f40c1c7d8cc96fb4d99c00c77292148cc09b7031438dce998c830bf0723487e1",
+      "agree_private": "709f84b6d04b4e429a525f38e8ab9de468277bd6e58bb4d1ff70cee18ac45de4",
+      "agree_pub": "8eaf3dfc13008418eb893587dd0321a20129cec938657f45f011f1dbf2220161",
+      "nonce": "d6fce362d904f29d56676b68",
+      "bundle": "d6fce362d904f29d56676b685a3e122738ff07564d8ea61463e61bf4f57fc0ea59f3e40af986f2eefb9e4f1e181164ccdbadbd53e1c442c586d9de601ab5e602a5ccde4247e8196162555183fdcce4edc81189c91ac2110a4c9428bbe9"
+    }
+  ]
+}

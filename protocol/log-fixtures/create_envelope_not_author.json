@@ -1,0 +1,10 @@
+{
+  "name": "create_envelope_not_author",
+  "valid": false,
+  "entries": [
+    {
+      "raw": "eyJ2IjoxLCJzZXEiOjAsInR5cGUiOiJjcmVhdGUiLCJhdXRob3IiOiJ1UGxJNDBQYUhCNW1xMG5CcWJtQm1LSGtXbXhYSEZaY1RhVTdSWTFkOEVrIiwiYXV0aG9yX2FncmVlIjoiLVdDbkFXN2EwS3BFRExiVnpkUjRreUlRLURiQVVMUTVBZHlzZVVGaXlNWSIsImVwb2NoIjowLCJlbnZlbG9wZXMiOlt7InJlY2lwaWVudCI6InR0WDcwd0RaZEJaNlJqR053X05IZVl4Zkpub050S3dzb0tsN1U2UVE5eUEiLCJocGtlX2NpcGhlcnRleHQiOiJZM1F0YXpBIn1dLCJ0cyI6MTc3MDgxMTIwMDAwMH0=",
+      "sig": "s30Cl2HbS2WeZgxrGQaeTrgVIZgMsfX0u6sGvyIkTHCwA6jfUoHRI6WaBckIBJRxOv1Gmf5A2XMLhD0zvojrBQ=="
+    }
+  ]
+}
