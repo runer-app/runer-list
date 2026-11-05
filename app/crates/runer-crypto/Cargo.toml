@@ -12,7 +12,7 @@ ed25519-dalek = "3.0.0"
 getrandom = "0.4.3"
 hkdf = "0.13.0"
 hmac = "0.13.0"
-hpke = { version = "0.14.1", default-features = false, features = ["alloc", "getrandom", "x25519", "aes", "hkdfsha2"] }
+hpke = { version = "0.15.1", default-features = false, features = ["alloc", "getrandom", "x25519", "aes", "hkdfsha2"] }
 serde_json = "1.0.151"
 sha2 = "0.11.0"
 x25519-dalek = { version = "3.0.0", features = ["static_secrets"] }
