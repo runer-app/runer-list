@@ -360,11 +360,11 @@ describe('lists', () => {
     expect(screen.queryByRole('textbox', { name: 'New list' })).toBeNull();
   });
 
-  test('with no network a new list opens at once and takes a task; the status line says "Offline…", then "Synced · encrypted" again', async () => {
+  test('with no network a new list opens at once and takes a task; the status line says "Offline…", then "Synced" again', async () => {
     server = new MemoryServer();
     const { core } = await signedIn();
     const status = () => screen.getByRole('status').textContent;
-    await waitFor(() => expect(status()).toBe('Synced · encrypted'));
+    await waitFor(() => expect(status()).toBe('Synced'));
 
     server.offline = true;
     server.drop();
@@ -379,7 +379,7 @@ describe('lists', () => {
     expect(shape(core, id)).toEqual([['task', 'buy stamps']]);
 
     server.offline = false;
-    await waitFor(() => expect(status()).toBe('Synced · encrypted'), { timeout: 3000 });
+    await waitFor(() => expect(status()).toBe('Synced'), { timeout: 3000 });
     expect(value(core.warnings)).toEqual([]);
   });
 

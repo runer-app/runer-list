@@ -6,7 +6,7 @@
 import { PRODUCT_NAME } from './product.js';
 
 const en = {
-  'app.synced': 'Synced · encrypted',
+  'app.synced': 'Synced',
   'app.loading': 'Opening…',
   'app.offline': 'Offline: changes are saved here and sync when you’re back',
   'app.connecting': 'Connecting…',
