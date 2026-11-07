@@ -12,7 +12,7 @@ The server stores and relays ciphertext. It never sees list names, content, or t
 - **Removal with key rotation.** Removing a member starts a new key epoch they never receive.
 - **Realtime sync.** One WebSocket per app relays encrypted updates and snapshots in order, with catch-up after being offline.
 
-What a malicious server can and cannot do is set out in [E2EE §1](../protocol/docs/e2ee-protocol.md).
+What a malicious server can and cannot do is set out in [E2EE §1](../docs/protocol/e2ee-protocol.md).
 
 ## Quick start
 
@@ -32,7 +32,7 @@ make check    # format, vet, lint, vulnerability scan and tests: what CI gates o
 
 ## Documentation
 
-- **Protocol:** [E2EE](../protocol/docs/e2ee-protocol.md) (accounts, keys, lists, invites) · [Sync](../protocol/docs/sync-protocol.md) (the WebSocket) · [API Reference](../protocol/docs/api-reference.md) (HTTP endpoints)
+- **Protocol:** [E2EE](../docs/protocol/e2ee-protocol.md) (accounts, keys, lists, invites) · [Sync](../docs/protocol/sync-protocol.md) (the WebSocket) · [API Reference](../docs/protocol/api-reference.md) (HTTP endpoints)
 - **Running it:** [Self-hosting](../docs/self-hosting.md) (deployment, configuration, limits, retention)
 - **Conformance data** (the source of truth; a client must reproduce these files): [`protocol/log-fixtures`](../protocol/log-fixtures) (membership logs) · [`protocol/vectors`](../protocol/vectors) (crypto)
 
@@ -40,7 +40,7 @@ make check    # format, vet, lint, vulnerability scan and tests: what CI gates o
 
 The official client is open source too, in [`app/`](../app). Everything a compatible client needs is in this repository: the protocol documents, the conformance data above, and [`internal/testclient`](internal/testclient), a small Go client the end-to-end tests use to sign up, build log entries, invite and sync.
 
-The client is part of the trusted base ([E2EE §1](../protocol/docs/e2ee-protocol.md)): the server code lets you check what the server does, and the client code what is done with your keys.
+The client is part of the trusted base ([E2EE §1](../docs/protocol/e2ee-protocol.md)): the server code lets you check what the server does, and the client code what is done with your keys.
 
 ## Code layout
 

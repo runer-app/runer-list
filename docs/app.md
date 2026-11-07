@@ -2,7 +2,7 @@
 
 How the client is built: the Rust vault, the headless `client-core`, the Svelte UI and the Tauri shell.
 
-The protocol is not repeated here. Its rules are in [E2EE](../protocol/docs/e2ee-protocol.md) (**E2EE §n**), [Sync](../protocol/docs/sync-protocol.md) (**Sync §n**) and the [API reference](../protocol/docs/api-reference.md); this page covers only the choices the protocol leaves to the client.
+The protocol is not repeated here. Its rules are in [E2EE](protocol/e2ee-protocol.md) (**E2EE §n**), [Sync](protocol/sync-protocol.md) (**Sync §n**) and the [API reference](protocol/api-reference.md); this page covers only the choices the protocol leaves to the client.
 
 ---
 

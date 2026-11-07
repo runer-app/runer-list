@@ -91,7 +91,7 @@ Each run logs one `retention purge complete` line with counts.
 
 ## Backups
 
-Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. A leaked database dump exposes metadata, never content ([E2EE §1](../protocol/docs/e2ee-protocol.md)).
+Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. A leaked database dump exposes metadata, never content ([E2EE §1](protocol/e2ee-protocol.md)).
 
 ## Running from source
 

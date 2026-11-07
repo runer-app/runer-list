@@ -8,7 +8,7 @@ Include what you found, how to reproduce it, and what an attacker gains. You'll 
 
 ## What counts
 
-The guarantees this project makes are in [E2EE §1](protocol/docs/e2ee-protocol.md). Anything that breaks one of them is in scope, for example:
+The guarantees this project makes are in [E2EE §1](docs/protocol/e2ee-protocol.md). Anything that breaks one of them is in scope, for example:
 
 - the server, or someone with its database, reading content or keys;
 - joining a list without the owner's signature or a valid invite;

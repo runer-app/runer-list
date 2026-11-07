@@ -1,7 +1,7 @@
 // Package httpx holds the small set of request/response helpers shared by
 // every handler package: JSON envelope, bind+validate, and base64url key
 // decoding. The envelope is described under Conventions in
-// protocol/docs/api-reference.md.
+// docs/protocol/api-reference.md.
 package httpx
 
 import (

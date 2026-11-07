@@ -32,7 +32,7 @@ Everything is under `/v1` except `/healthz` and `/join`. The protocol behind the
 
 **No personal account info.** A sign-up sends keys and nothing else about the person: the server stores no name and no email ([E2EE §3.3](./e2ee-protocol.md#33-what-the-server-stores-per-account)). Unknown fields in the body are ignored.
 
-**Sign-up proof-of-work.** A first login (sign-up) needs `pow_nonce` such that `SHA-256(auth_pub ‖ nonce ‖ pow_nonce)` (raw bytes) has at least `pow_bits` leading zero bits. Use the `pow_bits` from the challenge: it's the same for every caller on a server (so it reveals nothing about whether an account exists), but operators can change it (`SIGNUP_POW_BITS`, [Self-hosting](../../docs/self-hosting.md#configuration)). Never hardcode it.
+**Sign-up proof-of-work.** A first login (sign-up) needs `pow_nonce` such that `SHA-256(auth_pub ‖ nonce ‖ pow_nonce)` (raw bytes) has at least `pow_bits` leading zero bits. Use the `pow_bits` from the challenge: it's the same for every caller on a server (so it reveals nothing about whether an account exists), but operators can change it (`SIGNUP_POW_BITS`, [Self-hosting](../self-hosting.md#configuration)). Never hardcode it.
 
 ### Account
 
@@ -45,7 +45,7 @@ Everything is under `/v1` except `/healthz` and `/join`. The protocol behind the
 | `POST` | `/v1/account/rekey` | 🔒 | `{nonce, sig, new_auth_pub, new_bundle, bundle_gen}` → `{bundle_gen}` |
 | `DELETE` | `/v1/account` | 🔒 | → `{scheduled}`. Deletes the account and every list it owns, and ends every session. `409 account_has_lists` while the account is a member of a list it doesn't own: see below |
 
-**Deleting an account.** Every list the account owns is deleted with it, at once and for all members: its Inbox and the lists it shares, as `DELETE /v1/groups/{id}` would (invites revoked, members sent a `group` frame). There is no ownership transfer. A list the account is only a member of is different: only a signed `leave` takes a member out of a log ([E2EE §8.4](./e2ee-protocol.md#84-deleting-an-account)), and the server can't sign one. So while the account is a member of a list it doesn't own, the server refuses with `409 account_has_lists` and changes nothing; the client appends a `leave` to each such list, then calls `DELETE /v1/account`. On success every session of the account ends at once (open sockets get `bye` with `session-revoked`), the key can no longer log in, and the identity bundle and sealed settings are cleared. What remains, and for how long, is under [Data retention](../../docs/self-hosting.md#data-retention).
+**Deleting an account.** Every list the account owns is deleted with it, at once and for all members: its Inbox and the lists it shares, as `DELETE /v1/groups/{id}` would (invites revoked, members sent a `group` frame). There is no ownership transfer. A list the account is only a member of is different: only a signed `leave` takes a member out of a log ([E2EE §8.4](./e2ee-protocol.md#84-deleting-an-account)), and the server can't sign one. So while the account is a member of a list it doesn't own, the server refuses with `409 account_has_lists` and changes nothing; the client appends a `leave` to each such list, then calls `DELETE /v1/account`. On success every session of the account ends at once (open sockets get `bye` with `session-revoked`), the key can no longer log in, and the identity bundle and sealed settings are cleared. What remains, and for how long, is under [Data retention](../self-hosting.md#data-retention).
 
 ### Lists
 

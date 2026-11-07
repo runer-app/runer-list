@@ -189,7 +189,7 @@ List key K_e (per list, per epoch)
 
 ## 5.1 The list document
 
-Each list has exactly one encrypted Yjs document: its name and a flat, ordered sequence of tasks and notes. The server stores and relays it without knowing its shape, which is the client's ([app.md §3.1](../../docs/app.md#31-the-list-document)). Due dates, reminders and assignees exist only in this document.
+Each list has exactly one encrypted Yjs document: its name and a flat, ordered sequence of tasks and notes. The server stores and relays it without knowing its shape, which is the client's ([app.md §3.1](../app.md#31-the-list-document)). Due dates, reminders and assignees exist only in this document.
 
 ---
 
@@ -406,7 +406,7 @@ No custom primitives.
 
 **Signature edge cases.** Client and server must accept exactly the same signatures, and Ed25519 libraries differ on unusual inputs. Conformance means the verdicts of Go's `ed25519.Verify`: cofactorless, accepting small-order keys and non-canonical key encodings, rejecting a non-canonical `R` or `S`. `protocol/vectors/ed25519-edge.json` pins 31 such cases, replayed by both test suites; in `ed25519-dalek` this is plain `verify`, not `verify_strict`. Separately, the server refuses to register a non-canonical or small-order `auth_pub` or `identity_sign_pub`, since anyone can make a signature that verifies under a small-order key.
 
-Any code that reproduces the vectors (`protocol/vectors`) byte for byte is conformant. The official client's implementation is described in [app.md §8](../../docs/app.md#8-the-vault-and-the-crypto).
+Any code that reproduces the vectors (`protocol/vectors`) byte for byte is conformant. The official client's implementation is described in [app.md §8](../app.md#8-the-vault-and-the-crypto).
 
 ## 10.1 Byte-level conventions
 
@@ -428,7 +428,7 @@ Covered by the vectors in `protocol/vectors/*.json` (made from fixed seeds, chec
 - Socket close and access denial on removal.
 - The Inbox: created with the account; not deletable; no `add` or `invite` on it.
 - Invites: owner-only, single-use, ≤ 7-day expiry, revocable, rate-limited joins; a link invite's package stops being served once its log invite closes.
-- Rate limits, size limits and proof-of-work ([Self-hosting](../../docs/self-hosting.md#limits-at-a-glance)).
+- Rate limits, size limits and proof-of-work ([Self-hosting](../self-hosting.md#limits-at-a-glance)).
 
 The schema is `internal/store/migrations/` (`0001_schema.sql` plus later changes). Everything stored as `BYTEA` except the signed log is opaque ciphertext.
 
