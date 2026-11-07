@@ -2,17 +2,7 @@
 
 The server for a private list app: tasks and notes in lists you can share, end-to-end encrypted. It is written in Go and stores everything in PostgreSQL.
 
-The server stores and relays ciphertext. It never sees list names, content, or the keys that open them. It holds no personal account info either: no name, no email. An account is its keys and an id. What it does see is metadata: which accounts share which list with whom, and when and how much they write.
-
-## What it does
-
-- **Accounts without passwords.** Login is a signature made with a key derived from a 12-word Account Key. The server holds only public keys and an encrypted key bundle.
-- **Shared lists with verifiable membership.** Each list has a signed, hash-chained membership log. The server checks every entry, but clients verify the log themselves, so the server can't add a member or swap a key.
-- **Invites by link.** The secret is in the URL fragment and never reaches the server.
-- **Removal with key rotation.** Removing a member starts a new key epoch they never receive.
-- **Realtime sync.** One WebSocket per app relays encrypted updates and snapshots in order, with catch-up after being offline.
-
-What a malicious server can and cannot do is set out in [E2EE §1](../docs/protocol/e2ee-protocol.md).
+What it stores and sees is in the [README](../README.md); what a malicious server can and cannot do is in [E2EE §1](../docs/protocol/e2ee-protocol.md).
 
 ## Quick start
 
@@ -32,9 +22,7 @@ make check    # format, vet, lint, vulnerability scan and tests: what CI gates o
 
 ## Documentation
 
-- **Protocol:** [E2EE](../docs/protocol/e2ee-protocol.md) (accounts, keys, lists, invites) · [Sync](../docs/protocol/sync-protocol.md) (the WebSocket) · [API Reference](../docs/protocol/api-reference.md) (HTTP endpoints)
-- **Running it:** [Self-hosting](../docs/self-hosting.md) (deployment, configuration, limits, retention)
-- **Conformance data** (the source of truth; a client must reproduce these files): [`protocol/log-fixtures`](../protocol/log-fixtures) (membership logs) · [`protocol/vectors`](../protocol/vectors) (crypto)
+The documents are listed in the [README](../README.md#documentation).
 
 ## Clients
 

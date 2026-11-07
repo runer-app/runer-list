@@ -7,7 +7,7 @@
   import { t } from '../messages.js';
   import Confirm from '../components/Confirm.svelte';
   import KeyWords from '../components/KeyWords.svelte';
-  import type { DebugLog } from '../shell.js';
+  import type { DebugLog, Shell } from '../shell.js';
 
   /**
    * Settings, one section per row: what it is on the
@@ -20,8 +20,16 @@
     signedOut,
     help,
     debugLog,
+    openSite,
     version,
-  }: { core: ClientCore; signedOut: () => void; help: () => void; debugLog?: DebugLog | undefined; version?: string | undefined } = $props();
+  }: {
+    core: ClientCore;
+    signedOut: () => void;
+    help: () => void;
+    debugLog?: DebugLog | undefined;
+    openSite?: Shell['openSite'];
+    version?: string | undefined;
+  } = $props();
 
   const settings = $derived(fromStore(core.settings));
   const clockChoice = $derived(settings.current.clock ?? (deviceHour12() ? '12h' : '24h'));
@@ -220,7 +228,13 @@
 <section>
   {@render about(t('settings.help'), t('settings.helpLead'))}
   <div>
-    <button class="small" onclick={help}>{t('settings.openHelp')}</button>
+    <div class="buttons">
+      <button class="small" onclick={help}>{t('settings.openHelp')}</button>
+      {#if openSite}
+        <button class="small" onclick={() => void openSite('privacy').catch(() => (error = t('settings.failed')))}>{t('settings.privacy')}</button>
+        <button class="small" onclick={() => void openSite('support').catch(() => (error = t('settings.failed')))}>{t('settings.support')}</button>
+      {/if}
+    </div>
   </div>
 </section>
 

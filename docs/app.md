@@ -50,7 +50,7 @@ flowchart TB
 
 - **Dependency rule:** `ui` → `client-core` → `Platform`. Only the shells import a platform implementation; no `@tauri-apps/*` import outside `platform-tauri` and `apps/tauri` (lint rule).
 - **Yellow holds keys.** TypeScript never sees a key, a raw signing operation or an unverified log. It holds handles and gets back plaintext bodies and verified list state.
-- **What leaves the device** is ciphertext, signed log entries and public keys.
+- **What leaves the device** is ciphertext, signed log entries and public keys. The server also sees the IP address, timing and sizes, and which accounts share a list; what it keeps is on [runer.app/privacy.html](https://runer.app/privacy.html).
 
 ### 2.1 Layout (`app/`)
 
@@ -175,7 +175,7 @@ The server URL is part of the account, so one user can be on several servers. In
 
 ### 3.7 Account name and settings
 
-- **The server holds no personal data.** Sign-up sends keys only.
+- **The server holds no name or email.** Sign-up sends keys only.
 - **Settings** are `{"v": 1, "clock": "12h" | "24h", "name": "…"}`, every field optional, sealed on the server (E2EE §3.3, `AccountSettings` in `src/account/`). Unknown fields are kept. A change applies at once and offline: kept in `LocalStore` tables `account-settings` and `account-settings-unsent` (sealed), sent in the background, retried every 30 s until the server has them, and exchanged at every connection and foreground (`Account.syncSettings`); on `409` it refetches, reapplies and retries. Other devices see it at their next start.
 - **The name is optional** and cleaned the same way everywhere (`cleanName` in `src/list/doc.ts`: trimmed, control characters and line breaks to spaces, direction overrides dropped, 60 characters).
 - **Members read names from the list**, never from the server: each app writes its own name into the list's `people` map (`ClientCore.shareName`) when membership changes and when the name changes. A device that hasn't seen a change only fills an empty slot, and only once the list's content has arrived, so it can't write an old name back; clearing writes an empty entry for the same reason.
@@ -295,6 +295,7 @@ sequenceDiagram
 | `tauri-plugin-deep-link` | `runer://join`, forwarded as the `runer://link` event; `links_initial` |
 | `tauri-plugin-updater` | Desktop; registered only when the release workflow adds `plugins.updater`, so a local build never updates itself. Checked at start from Rust, which verifies the download's signature; macOS and Linux install it at once, Windows keeps it. The `runer://update-ready` event shows "Restart to update", and `update_restart` (refused until then) installs it on Windows and restarts. No other updater command reaches the webview |
 | `tauri-plugin-single-instance` | Desktop: a second launch hands over to the running app |
+| `tauri-plugin-opener` | Used only from Rust: `open_site` opens runer.app's privacy or support page, by name, so the webview can't pass a URL |
 
 **Lockdown.** The one capability (`capabilities/default.json`) grants the app's own commands and event listening; no plugin command, filesystem, shell or HTTP reaches the webview. CSP is `'self'` only, `connect-src` IPC only.
 
@@ -352,7 +353,7 @@ Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, And
 | Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
-| Settings | Show/change account key, notifications, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
+| Settings | Show/change account key, notifications, links to runer.app's privacy and support pages, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
 

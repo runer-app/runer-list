@@ -685,7 +685,7 @@ describe('sharing', () => {
     await fireEvent.click(await screen.findByRole('button', { name: 'Create account' }));
     await fireEvent.input(await screen.findByRole('textbox', { name: 'Your name (optional)' }), { target: { value: 'Robert' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    const words = within(await screen.findByRole('list', { name: 'Your account key' }))
+    const words = within(await screen.findByRole('list', { name: 'Your 12 words' }))
       .getAllByRole('listitem')
       .map((li) => li.querySelector('.word')!.textContent!);
     await fireEvent.click(screen.getByRole('button', { name: 'I’ve written them down' }));
@@ -1004,7 +1004,7 @@ describe('settings', () => {
     await waitFor(() => expect(value(core.settings).reminderTitles).toBe(false));
 
     await fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
-    const shown = within(await screen.findByRole('list', { name: 'Your account key' })).getAllByRole('listitem');
+    const shown = within(await screen.findByRole('list', { name: 'Your 12 words' })).getAllByRole('listitem');
     expect(shown).toHaveLength(12);
     await fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
 
@@ -1046,6 +1046,17 @@ describe('settings', () => {
     await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
     await screen.findByRole('heading', { name: 'Diagnostics' });
     expect(details().open).toBe(false);
+  });
+
+  test('privacy and support: Settings names the page, the shell opens it', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const openSite = vi.fn(() => Promise.resolve());
+    render(Main, { core, signedOut: vi.fn(), openSite });
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Privacy' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Help and support' }));
+    expect(openSite.mock.calls).toEqual([['privacy'], ['support']]);
   });
 
   test('delete account: asked first, with what happens to the lists, then back to Welcome', async () => {

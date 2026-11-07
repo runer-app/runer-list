@@ -339,7 +339,7 @@ sig    = Ed25519(author, header || nonce || ct)
 
 **Why sign as well as encrypt:** AEAD proves "some member wrote this"; the signature proves which one.
 
-**Snapshots** are a cache, not an authority. Any member periodically uploads the encrypted full state, signed, covering `seq ≤ N`. A client always merges a snapshot with what it already holds, and the server keeps the underlying updates for the retention window, so a bad snapshot can't erase content.
+**Snapshots** are a cache, not an authority. Any member periodically uploads the encrypted full state, signed, covering `seq ≤ N`. A client always merges a snapshot with what it already holds, and the server keeps the underlying updates until the list is deleted, so a bad snapshot can't erase content.
 
 ---
 

@@ -60,6 +60,7 @@ const shell: Shell = {
     onReady: (cb) => void tauriIpc.listen('runer://update-ready', cb),
     restart: () => tauriIpc.invoke<void>('update_restart'),
   },
+  openSite: (page) => tauriIpc.invoke<void>('open_site', { page }),
   debugLog: { read: () => tauriIpc.invoke<string>('debug_log_read'), clear: clearLog },
 };
 

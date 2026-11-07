@@ -19,6 +19,8 @@ export interface Shell {
   links?: { initial(): Promise<string | null>; onLink(cb: (link: string) => void): () => void };
   /** The device's log, lines of `<unix ms> <text>`, shown under Settings → Diagnostics. */
   debugLog?: DebugLog;
+  /** Opens runer.app's privacy or support page in the browser, linked from Settings. */
+  openSite?: (page: 'privacy' | 'support') => Promise<void>;
   /** Desktop builds with an update feed: an update was downloaded, and restarting runs it. */
   update?: AppUpdate;
 }

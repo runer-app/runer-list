@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window: the app's own commands, the core event and channel plumbing, and dragging the window by its title-bar area, and asking for the app's version. No plugin commands, no filesystem, no shell.",
+  "description": "The main window: the app's own commands, the core event and channel plumbing, and dragging the window by its title-bar area, asking for the app's version, and opening runer.app's privacy and support pages. No plugin commands, no filesystem, no shell.",
   "windows": [
     "main"
   ],
@@ -58,6 +58,7 @@
     "allow-debug-log-read",
     "allow-debug-log-clear",
     "allow-links-initial",
+    "allow-open-site",
     "allow-update-restart"
   ]
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { parseInviteLink, type ClientCore, type ListId } from '@runer/client-core';
   import { onMount } from 'svelte';
-  import type { AppUpdate, DebugLog } from '../shell.js';
+  import type { AppUpdate, DebugLog, Shell } from '../shell.js';
   import { fromStore } from 'svelte/store';
   import { clock, deviceHour12 } from '../clock.svelte.js';
   import { t } from '../messages.js';
@@ -29,6 +29,7 @@
     pendingLink = null,
     links,
     debugLog,
+    openSite,
     update,
     version,
   }: {
@@ -41,6 +42,8 @@
     links?: ((cb: (link: string) => void) => () => void) | undefined;
     /** Debug builds: the device's log, under Settings. */
     debugLog?: DebugLog | undefined;
+    /** Opens runer.app's privacy or support page, linked from Settings. */
+    openSite?: Shell['openSite'];
     /** A downloaded update, ready for a restart. */
     update?: AppUpdate | undefined;
     /** The app's version, under Settings. */
@@ -227,7 +230,7 @@
         />
       {/key}
     {:else if view.name === 'settings'}
-      <Settings {core} {signedOut} {debugLog} {version} help={() => go({ name: 'help' })} />
+      <Settings {core} {signedOut} {debugLog} {openSite} {version} help={() => go({ name: 'help' })} />
     {:else if view.name === 'help'}
       <Help back={() => go({ name: 'settings' })} />
     {:else}

@@ -1,6 +1,6 @@
 # runer
 
-A private list app: tasks and notes in lists you can share, end-to-end encrypted ([runer.app](https://runer.app)). The server stores and relays ciphertext. It never sees list names, content or the keys that open them, and holds no name or email.
+A private list app: tasks and notes in lists you can share, end-to-end encrypted ([runer.app](https://runer.app)). The server stores and relays ciphertext. It never sees list names, content or the keys that open them, and holds no name or email. It does see metadata: who shares with whom, when and how much. For users, runer.app has the short version: [security](https://runer.app/security.html) and [privacy](https://runer.app/privacy.html).
 
 | Directory | What it is |
 |---|---|

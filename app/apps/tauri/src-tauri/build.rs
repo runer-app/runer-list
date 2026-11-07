@@ -50,6 +50,7 @@ const COMMANDS: &[&str] = &[
     "debug_log_read",
     "debug_log_clear",
     "links_initial",
+    "open_site",
     "update_restart",
 ];
 

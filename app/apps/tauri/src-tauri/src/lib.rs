@@ -3,7 +3,8 @@
 //! document and the views stay in `client-core`.
 //!
 //! The webview gets exactly the commands listed in `build.rs` and the
-//! `default` capability: no plugin commands, no filesystem, no shell.
+//! `default` capability: no plugin commands, no filesystem, no shell. The
+//! one URL the app opens in the browser is fixed here (`open_site`).
 
 mod debuglog;
 mod device;
@@ -20,6 +21,19 @@ use tauri_plugin_deep_link::DeepLinkExt;
 
 /// The event that carries an incoming `runer://` link to the webview.
 const LINK_EVENT: &str = "runer://link";
+
+/// Opens one of runer.app's pages in the system browser. The webview names
+/// the page, never the URL, so it can't open anything else.
+#[tauri::command]
+fn open_site(app: tauri::AppHandle, page: &str) -> wire::Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = match page {
+        "privacy" => "https://runer.app/privacy.html",
+        "support" => "https://runer.app/support.html",
+        _ => return Err(wire::Error::new("open", "unknown page")),
+    };
+    app.opener().open_url(url, None::<&str>).map_err(|e| wire::Error::new("open", e.to_string()))
+}
 
 /// The link the app was opened with, if any.
 #[tauri::command]
@@ -60,6 +74,7 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let mut dir = app.path().app_data_dir()?;
             if let Some(profile) = profile() {
@@ -166,6 +181,7 @@ pub fn run() {
             debuglog::debug_log_read,
             debuglog::debug_log_clear,
             links_initial,
+            open_site,
             update::update_restart,
         ])
         .run(tauri::generate_context!())
