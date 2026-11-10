@@ -57,8 +57,8 @@ describe('the app', () => {
     const p = createMemoryPlatform({ transport: server.transport() });
     render(App, { shell: shellOn(p) });
 
-    // Welcome says what an account takes: 12 words, and no password.
-    expect(await screen.findByText('No password. Just 12 words.')).toBeTruthy();
+    // Welcome says what an account takes: a 12-word key, and no password.
+    expect(await screen.findByText('No password. Just a 12-word key.')).toBeTruthy();
 
     // A name is offered, and nothing else is asked for: the account is created with the field left empty.
     await fireEvent.click(await screen.findByRole('button', { name: 'Create account' }));
@@ -66,7 +66,7 @@ describe('the app', () => {
     expect(((await screen.findByRole('textbox', { name: 'Your name (optional)' })) as HTMLInputElement).value).toBe('');
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
     await fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    const list = await screen.findByRole('list', { name: 'Your 12 words' });
+    const list = await screen.findByRole('list', { name: 'Your account key' });
     const words = within(list)
       .getAllByRole('listitem')
       .map((li) => li.querySelector('.word')!.textContent!);
@@ -142,19 +142,19 @@ describe('the app', () => {
     const t = server.transport();
     const p = createMemoryPlatform({ transport: { ...t, request: (m, path, b) => (requests.push(path), t.request(m, path, b)) } });
     render(App, { shell: shellOn(p) });
-    await fireEvent.click(await screen.findByRole('button', { name: 'Sign in with my 12 words' }));
-    await fireEvent.input(screen.getByRole('textbox', { name: 'Your 12 words' }), { target: { value: Array(12).fill('abandon').join(' ') } });
+    await fireEvent.click(await screen.findByRole('button', { name: 'Sign in with my account key' }));
+    await fireEvent.input(screen.getByRole('textbox', { name: 'Account key' }), { target: { value: Array(12).fill('abandon').join(' ') } });
     await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/valid 12 words/);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/valid key/);
     expect(requests).toEqual([]);
   });
 
   test('words the server doesn’t know, as after a deleted account, are refused with a message', async () => {
     const server = new MemoryServer();
     render(App, { shell: shellOn(createMemoryPlatform({ transport: server.transport() })) });
-    await fireEvent.click(await screen.findByRole('button', { name: 'Sign in with my 12 words' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Sign in with my account key' }));
     const words = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
-    await fireEvent.input(screen.getByRole('textbox', { name: 'Your 12 words' }), { target: { value: words } });
+    await fireEvent.input(screen.getByRole('textbox', { name: 'Account key' }), { target: { value: words } });
     await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/\w/);
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeTruthy();

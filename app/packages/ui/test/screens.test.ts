@@ -685,7 +685,7 @@ describe('sharing', () => {
     await fireEvent.click(await screen.findByRole('button', { name: 'Create account' }));
     await fireEvent.input(await screen.findByRole('textbox', { name: 'Your name (optional)' }), { target: { value: 'Robert' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    const words = within(await screen.findByRole('list', { name: 'Your 12 words' }))
+    const words = within(await screen.findByRole('list', { name: 'Your account key' }))
       .getAllByRole('listitem')
       .map((li) => li.querySelector('.word')!.textContent!);
     await fireEvent.click(screen.getByRole('button', { name: 'I’ve written them down' }));
@@ -1004,7 +1004,7 @@ describe('settings', () => {
     await waitFor(() => expect(value(core.settings).reminderTitles).toBe(false));
 
     await fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
-    const shown = within(await screen.findByRole('list', { name: 'Your 12 words' })).getAllByRole('listitem');
+    const shown = within(await screen.findByRole('list', { name: 'Your account key' })).getAllByRole('listitem');
     expect(shown).toHaveLength(12);
     await fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
 
