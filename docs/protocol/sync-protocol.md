@@ -99,7 +99,7 @@ Live updates arriving during catch-up are held and delivered after it, in order,
 | Subscribed lists per connection | 500 |
 | Connections per account | 10 |
 
-HTTP limits are in [Self-hosting](../../docs/self-hosting.md#limits-at-a-glance).
+HTTP limits are in [Self-hosting](../self-hosting.md#limits-at-a-glance).
 
 ---
 

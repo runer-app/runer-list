@@ -22,9 +22,9 @@ CI runs the same, plus a short fuzz run of the server's log validator.
 
 ## Changing the protocol
 
-The documents in `protocol/docs/` and the data in `protocol/` are the contract both sides are built against.
+The documents in `docs/protocol/` and the data in `protocol/` are the contract both sides are built against.
 
-1. Change the document (`protocol/docs/e2ee-protocol.md` or `protocol/docs/sync-protocol.md`) and the code on both sides in the same pull request.
+1. Change the document (`docs/protocol/e2ee-protocol.md` or `docs/protocol/sync-protocol.md`) and the code on both sides in the same pull request.
 2. Membership log rules: regenerate the fixtures with `GENERATE_FIXTURES=1 go test ./internal/grouplog/` in `server/`. The app's `runer-vault` must reach the same verdict on every file.
 3. Crypto constructions: regenerate `protocol/vectors/` with `VECTORS_WRITE=1 cargo test -p runer-crypto --test generate the_committed` in `app/`. A vector is accepted when the server's independent check passes too: `go test ./internal/cryptovectors/ ./internal/sync/` in `server/`.
 4. Never edit those files by hand. Say in the pull request whether existing apps and servers keep working with the new version.

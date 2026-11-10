@@ -1,12 +1,12 @@
-# runer
+# Runer
 
-A private list app: tasks and notes in lists you can share, end-to-end encrypted ([runer.app](https://runer.app)). The server stores and relays ciphertext. It never sees list names, content or the keys that open them, and holds no name or email.
+A private list app: tasks and notes in lists you can share, end-to-end encrypted ([runer.app](https://runer.app)). The server stores and relays ciphertext. It never sees list names, content or the keys that open them, and holds no name or email. It does see metadata: who shares with whom, when and how much. For users, runer.app has the short version: [security](https://runer.app/support.html#security) and [privacy](https://runer.app/privacy.html).
 
 | Directory | What it is |
 |---|---|
 | [`app/`](app) | The client: one Tauri 2 app for desktop and iOS. TypeScript core, Svelte UI, Rust crates for keys, crypto and membership logs |
 | [`server/`](server) | The server: Go and PostgreSQL, shipped as the Docker image `ghcr.io/runer-app/runer-api` |
-| [`protocol/`](protocol) | The contract between them: the [E2EE](protocol/docs/e2ee-protocol.md) and [Sync](protocol/docs/sync-protocol.md) protocols, the [API reference](protocol/docs/api-reference.md), and the conformance data both sides test against (`vectors/`, `log-fixtures/`) |
+| [`protocol/`](protocol) | The conformance data both sides test against (`vectors/`, `log-fixtures/`). The rules they implement are in [docs/protocol/](docs/protocol) |
 
 The protocol is implemented twice, in Go and in Rust, and the two must agree byte for byte. Both test suites read the same files in `protocol/`, so a protocol change lands in one pull request with both sides.
 
@@ -14,7 +14,7 @@ The protocol is implemented twice, in Go and in Rust, and the two must agree byt
 
 | Document | What it covers |
 |---|---|
-| [protocol/docs/](protocol/docs) | The rules both sides implement: [E2EE](protocol/docs/e2ee-protocol.md), [Sync](protocol/docs/sync-protocol.md), [API reference](protocol/docs/api-reference.md) |
+| [docs/protocol/](docs/protocol) | The rules both sides implement: [E2EE](docs/protocol/e2ee-protocol.md), [Sync](docs/protocol/sync-protocol.md), [API reference](docs/protocol/api-reference.md) |
 | [docs/app.md](docs/app.md) | How the app is built: layers, the vault, sync, screens |
 | [server/README.md](server/README.md) | How the server is built and developed |
 | [docs/self-hosting.md](docs/self-hosting.md) | Running your own server: Docker, configuration, limits, retention, backups |

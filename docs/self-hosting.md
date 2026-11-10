@@ -70,6 +70,7 @@ A purge job runs at startup and then every 24 hours:
 
 | What | When it's removed |
 |---|---|
+| A list's content: its log, updates and snapshots | Kept while the list exists |
 | Deleted lists (with log, memberships, invites, updates and snapshots) | 30 days after deletion |
 | Deleted accounts | 30 days, **if** the account is no longer in any group and authored no updates or invites. Otherwise the row stays, hidden, so other members can still verify who wrote what. |
 | Sessions | At once on logout, account key change or account deletion; expired ones at the next purge |
@@ -87,11 +88,12 @@ Each run logs one `retention purge complete` line with counts.
 | Join requests and link-invite accepts | 10 per invite (burst), then 10 a day |
 | Invite lifetime | 7 days |
 | Log entry `ts` | at most 5 minutes in the future |
-| WebSocket | 10 connections per account, 500 lists each, 50 writes/s, 512 KiB update, 16 MiB snapshot |
+
+The WebSocket's limits are in [Sync §6](protocol/sync-protocol.md#6-limits).
 
 ## Backups
 
-Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. A leaked database dump exposes metadata, never content ([E2EE §1](../protocol/docs/e2ee-protocol.md)).
+Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. A leaked database dump exposes metadata, never content ([E2EE §1](protocol/e2ee-protocol.md)).
 
 ## Running from source
 

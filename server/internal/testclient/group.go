@@ -11,7 +11,7 @@ import (
 )
 
 // GroupEntry is the canonical entry encoding in
-// protocol/docs/e2ee-protocol.md §4.1: these keys in this
+// docs/protocol/e2ee-protocol.md §4.1: these keys in this
 // order, optional ones omitted when empty, ts in Unix milliseconds. It is
 // intentionally a separate, independent definition from grouplog's
 // (unexported) wireEntry — a real client-core would have its own

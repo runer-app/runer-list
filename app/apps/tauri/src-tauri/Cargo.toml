@@ -17,6 +17,7 @@ runer-crypto = { path = "../../../crates/runer-crypto" }
 runer-vault = { path = "../../../crates/runer-vault" }
 tauri = { version = "2", features = [] }
 tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
 tauri-plugin-deep-link = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

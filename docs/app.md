@@ -2,7 +2,7 @@
 
 How the client is built: the Rust vault, the headless `client-core`, the Svelte UI and the Tauri shell.
 
-The protocol is not repeated here. Its rules are in [E2EE](../protocol/docs/e2ee-protocol.md) (**E2EE §n**), [Sync](../protocol/docs/sync-protocol.md) (**Sync §n**) and the [API reference](../protocol/docs/api-reference.md); this page covers only the choices the protocol leaves to the client.
+The protocol is not repeated here. Its rules are in [E2EE](protocol/e2ee-protocol.md) (**E2EE §n**), [Sync](protocol/sync-protocol.md) (**Sync §n**) and the [API reference](protocol/api-reference.md); this page covers only the choices the protocol leaves to the client.
 
 ---
 
@@ -50,7 +50,7 @@ flowchart TB
 
 - **Dependency rule:** `ui` → `client-core` → `Platform`. Only the shells import a platform implementation; no `@tauri-apps/*` import outside `platform-tauri` and `apps/tauri` (lint rule).
 - **Yellow holds keys.** TypeScript never sees a key, a raw signing operation or an unverified log. It holds handles and gets back plaintext bodies and verified list state.
-- **What leaves the device** is ciphertext, signed log entries and public keys.
+- **What leaves the device** is ciphertext, signed log entries and public keys. The server also sees the IP address, timing and sizes, and which accounts share a list; what it keeps is on [runer.app/privacy.html](https://runer.app/privacy.html).
 
 ### 2.1 Layout (`app/`)
 
@@ -175,7 +175,7 @@ The server URL is part of the account, so one user can be on several servers. In
 
 ### 3.7 Account name and settings
 
-- **The server holds no personal data.** Sign-up sends keys only.
+- **The server holds no name or email.** Sign-up sends keys only.
 - **Settings** are `{"v": 1, "clock": "12h" | "24h", "name": "…"}`, every field optional, sealed on the server (E2EE §3.3, `AccountSettings` in `src/account/`). Unknown fields are kept. A change applies at once and offline: kept in `LocalStore` tables `account-settings` and `account-settings-unsent` (sealed), sent in the background, retried every 30 s until the server has them, and exchanged at every connection and foreground (`Account.syncSettings`); on `409` it refetches, reapplies and retries. Other devices see it at their next start.
 - **The name is optional** and cleaned the same way everywhere (`cleanName` in `src/list/doc.ts`: trimmed, control characters and line breaks to spaces, direction overrides dropped, 60 characters).
 - **Members read names from the list**, never from the server: each app writes its own name into the list's `people` map (`ClientCore.shareName`) when membership changes and when the name changes. A device that hasn't seen a change only fills an empty slot, and only once the list's content has arrived, so it can't write an old name back; clearing writes an empty entry for the same reason.
@@ -242,7 +242,7 @@ interface Notifier {
 - **All HTTP and WebSocket traffic goes through Rust**, which holds the session cookie. No CORS, no webview cookies.
 - **Origin.** The Rust transport sends `Origin: tauri://localhost` on everything.
 - **Login** signs the URL the client connected to, never one the server supplies (E2EE §3.4).
-- **Re-auth is silent**: the vault signs a new login when a session is lost or expired. If the server refuses it twice (`401 invalid_credentials`; once can be a stale challenge), the key changed or the account is gone: sync stops as `signed-out`, and the app shows a screen that clears this device and goes to sign-in with the 12 words. A network failure never does this.
+- **Re-auth is silent**: the vault signs a new login when a session is lost or expired. If the server refuses it twice (`401 invalid_credentials`; once can be a stale challenge), the key changed or the account is gone: sync stops as `signed-out`, and the app shows a screen that clears this device and goes to sign-in with the account key. A network failure never does this.
 
 ### 5.1 Reconnect and lifecycle
 
@@ -295,6 +295,7 @@ sequenceDiagram
 | `tauri-plugin-deep-link` | `runer://join`, forwarded as the `runer://link` event; `links_initial` |
 | `tauri-plugin-updater` | Desktop; registered only when the release workflow adds `plugins.updater`, so a local build never updates itself. Checked at start from Rust, which verifies the download's signature; macOS and Linux install it at once, Windows keeps it. The `runer://update-ready` event shows "Restart to update", and `update_restart` (refused until then) installs it on Windows and restarts. No other updater command reaches the webview |
 | `tauri-plugin-single-instance` | Desktop: a second launch hands over to the running app |
+| `tauri-plugin-opener` | Used only from Rust: `open_site` opens runer.app's privacy or support page, by name, so the webview can't pass a URL |
 
 **Lockdown.** The one capability (`capabilities/default.json`) grants the app's own commands and event listening; no plugin command, filesystem, shell or HTTP reaches the webview. CSP is `'self'` only, `connect-src` IPC only.
 
@@ -345,14 +346,14 @@ Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, And
 | Screen | Requirements |
 |---|---|
 | Welcome | Create account / Sign in; a self-hosted URL behind a small link |
-| Create account | Show the 12 words once, confirm 3, offer a recovery sheet. Creates the Inbox |
-| Sign in | 12 words with BIP-39 autocomplete; checksum checked before any request |
+| Create account | Show the 12-word account key once, confirm 3 of its words. Creates the Inbox |
+| Sign in | The account key with BIP-39 autocomplete; checksum checked before any request |
 | Today | Start screen: capture field (to Inbox) and My tasks across lists |
 | Inbox, List | The page of tasks and text; members line; offline indicator; never blocks on the network |
 | Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
-| Settings | Show/change account key, notifications, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
+| Settings | Show/change account key, notifications, links to runer.app's privacy and support pages, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
 
@@ -376,7 +377,7 @@ Keys, crypto and membership logs run in Rust so that JavaScript in the webview, 
 
 What it guarantees even to a compromised webview:
 
-- **No key leaves it**, except the 12 words on the two screens that show them.
+- **No key leaves it**, except the account key on the two screens that show it.
 - **Key material moves only where verified state allows**: a list key to members of the verified log, an `add` only for an identity from a verified log, an invite package only for an invite open in the log.
 - **It signs only what it builds** from typed arguments and its own state, never caller-supplied bytes.
 
@@ -410,7 +411,7 @@ So a compromised webview can act as the user while the compromise lasts, but it 
 
 The vault store is a SQLite file written from Rust (memory in Node); TypeScript can't read or roll it back. Sign-out (`Sync.signOut`) deletes the account from the vault, all its `LocalStore` rows and its scheduled notifications, and empties the log.
 
-The log says what the app did, so a problem on someone's device can be read there: start, version and OS kind, foreground and background, sign-in and sign-out, the sync's connection and catch-up, updates, every step of a reminder, uncaught errors and panics. It stays on the device; nothing sends it, and Settings → Diagnostics shows it with Copy and Clear. It holds events, counts and durations. Content, list names, keys, invite ids and the 12 words never reach it; `debuglog.rs` replaces anything shaped like an id with a label that means something only within this log (`list-1`), errors are reduced to a code or fixed text (`logReason`), and reminder lines hold no title, list or absolute time.
+The log says what the app did, so a problem on someone's device can be read there: start, version and OS kind, foreground and background, sign-in and sign-out, the sync's connection and catch-up, updates, every step of a reminder, uncaught errors and panics. It stays on the device; nothing sends it, and Settings → Diagnostics shows it with Copy and Clear. It holds events, counts and durations. Content, list names, keys, invite ids and the account key never reach it; `debuglog.rs` replaces anything shaped like an id with a label that means something only within this log (`list-1`), errors are reduced to a code or fixed text (`logReason`), and reminder lines hold no title, list or absolute time.
 
 ---
 

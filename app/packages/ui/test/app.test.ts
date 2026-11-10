@@ -84,7 +84,7 @@ describe('the app', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'I’ve written them down' }));
     // A wrong answer is marked once the field is left, and the button stays off until all three are right.
     const inputs = () => screen.getAllByRole('textbox') as HTMLInputElement[];
-    const open = () => screen.getByRole('button', { name: 'Open runer' }) as HTMLButtonElement;
+    const open = () => screen.getByRole('button', { name: 'Open Runer' }) as HTMLButtonElement;
     for (const input of inputs()) {
       await fireEvent.input(input, { target: { value: 'wrong' } });
       await fireEvent.blur(input);

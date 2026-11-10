@@ -1,4 +1,4 @@
--- The whole schema. What each table protects: protocol/docs/e2ee-protocol.md.
+-- The whole schema. What each table protects: docs/protocol/e2ee-protocol.md.
 
 -- A list: its signed membership log and one encrypted document.
 CREATE TABLE groups (
@@ -63,7 +63,7 @@ CREATE TABLE memberships (
 
 CREATE INDEX memberships_account_id_idx ON memberships(account_id);
 
--- Invites and join requests. See protocol/docs/e2ee-protocol.md §6.
+-- Invites and join requests. See docs/protocol/e2ee-protocol.md §6.
 CREATE TABLE invites (
     id          TEXT PRIMARY KEY, -- client-derived HKDF(s, "invite-id"); opaque to the server
     group_id    TEXT NOT NULL REFERENCES groups(id),
@@ -93,7 +93,7 @@ CREATE INDEX join_requests_invite_id_idx ON join_requests(invite_id);
 -- One pending join request per account per invite; a repeat replaces it.
 CREATE UNIQUE INDEX join_requests_pending_idx ON join_requests (invite_id, account_id) WHERE approved_at IS NULL;
 
--- Encrypted realtime sync. See protocol/docs/sync-protocol.md.
+-- Encrypted realtime sync. See docs/protocol/sync-protocol.md.
 CREATE TABLE list_updates (
     list_id           TEXT NOT NULL REFERENCES groups(id),
     seq               BIGSERIAL,
@@ -113,7 +113,7 @@ CREATE TABLE list_snapshots (
     PRIMARY KEY (list_id, epoch)
 );
 
--- Link invites (protocol/docs/e2ee-protocol.md §6). Mirror of every invite key a list's
+-- Link invites (docs/protocol/e2ee-protocol.md §6). Mirror of every invite key a list's
 -- log has opened, derived from group_log like memberships, never
 -- authoritative. Closed rows stay: a key can't be opened twice (rule 9).
 CREATE TABLE group_invites (

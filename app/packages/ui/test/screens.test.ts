@@ -693,7 +693,7 @@ describe('sharing', () => {
       const n = Number(screen.getAllByText(/^Word \d+$/)[k]!.textContent!.replace('Word ', ''));
       await fireEvent.input(input, { target: { value: words[n - 1] } });
     }
-    await fireEvent.click(screen.getByRole('button', { name: 'Open runer' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Open Runer' }));
 
     expect(await screen.findByRole('heading', { name: 'Groceries' })).toBeTruthy();
     expect(screen.getByText('Someone invited you to a list')).toBeTruthy();
@@ -1046,6 +1046,17 @@ describe('settings', () => {
     await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
     await screen.findByRole('heading', { name: 'Diagnostics' });
     expect(details().open).toBe(false);
+  });
+
+  test('privacy and support: Settings names the page, the shell opens it', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const openSite = vi.fn(() => Promise.resolve());
+    render(Main, { core, signedOut: vi.fn(), openSite });
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Privacy' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Help and support' }));
+    expect(openSite.mock.calls).toEqual([['privacy'], ['support']]);
   });
 
   test('delete account: asked first, with what happens to the lists, then back to Welcome', async () => {

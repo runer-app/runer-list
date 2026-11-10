@@ -1,2 +1,2 @@
 /** The product name, in one place. */
-export const PRODUCT_NAME = 'runer';
+export const PRODUCT_NAME = 'Runer';

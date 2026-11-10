@@ -1,6 +1,6 @@
 # Releasing
 
-App and server are versioned separately: the app might be at 1.3.0 while the server is at 0.10.0. Only the git tags carry a prefix, so both can live in one repo. Users see `runer v1.3.0` and the image `runer-api:0.10.0`.
+App and server are versioned separately: the app might be at 1.3.0 while the server is at 0.10.0. Only the git tags carry a prefix, so both can live in one repo. Users see `Runer v1.3.0` and the image `runer-api:0.10.0`.
 
 | Tag | What it releases |
 |---|---|
