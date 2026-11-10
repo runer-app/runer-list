@@ -693,7 +693,7 @@ describe('sharing', () => {
       const n = Number(screen.getAllByText(/^Word \d+$/)[k]!.textContent!.replace('Word ', ''));
       await fireEvent.input(input, { target: { value: words[n - 1] } });
     }
-    await fireEvent.click(screen.getByRole('button', { name: 'Open runer' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Open Runer' }));
 
     expect(await screen.findByRole('heading', { name: 'Groceries' })).toBeTruthy();
     expect(screen.getByText('Someone invited you to a list')).toBeTruthy();
