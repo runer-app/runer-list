@@ -2,6 +2,16 @@
 
 Run your own server. Quickest is the released Docker image with a PostgreSQL database; to run it from source, see [Running from source](#running-from-source).
 
+> **Self-hosting is provided as-is.** The server is open source (AGPL-3.0) and you're welcome to run it, but there is no support for self-hosted instances. Bug reports about the code are welcome as issues; questions about your own setup may go unanswered.
+>
+> **Keep your server up to date.** The app updates itself, so a server that falls behind may stop working with newer app versions. Update the server first, or together with the app.
+
+## What to know before you start
+
+- **One instance only.** Rate limits and login challenges live in process memory, so running several instances behind a load balancer isn't supported ([Shape of a deployment](#shape-of-a-deployment)).
+- **You run the backups.** Everything worth keeping is in PostgreSQL ([Backups](#backups)).
+- **You own the TLS and proxy setup**, including `TRUSTED_PROXIES` ([Configuration](#configuration)).
+
 ## Quick start with Docker
 
 The container listens on port 8080 and needs a PostgreSQL database. `DATABASE_URL`, `ORIGIN` and `PUBLIC_URL` are required; behind a reverse proxy, set `TRUSTED_PROXIES` too ([Configuration](#configuration)).
