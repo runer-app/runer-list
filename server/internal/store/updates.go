@@ -26,13 +26,18 @@ func NewUpdates(pool *pgxpool.Pool) *Updates {
 	return &Updates{pool: pool}
 }
 
-// Append persists one encrypted update and assigns it the next seq (Sync
-// Protocol & API §3, §8: server-assigned, monotonic). Runs inside
-// Groups.AuthorizedWrite's transaction.
+// Append persists one encrypted update and assigns it the list's next seq
+// (Sync Protocol & API §3, §8: server-assigned, monotonic). Runs inside
+// Groups.AuthorizedWrite's transaction, which holds the list row locked
+// until commit, so on every instance a list's writers take seqs one at a
+// time and commit them in seq order: a reader never sees seq n+1 before n.
 func (u *Updates) Append(ctx context.Context, tx pgx.Tx, listID string, epoch int64, authorAccountID string, msg []byte) (Update, error) {
 	var up Update
-	err := tx.QueryRow(ctx, `INSERT INTO list_updates (list_id, epoch, author_account_id, msg)
-		VALUES ($1, $2, $3, $4)
+	err := tx.QueryRow(ctx, `WITH next AS (
+			UPDATE groups SET update_seq = update_seq + 1 WHERE id = $1 RETURNING update_seq
+		)
+		INSERT INTO list_updates (list_id, seq, epoch, author_account_id, msg)
+		SELECT $1, next.update_seq, $2, $3, $4 FROM next
 		RETURNING list_id, seq, epoch, author_account_id, msg, created_at`,
 		listID, epoch, authorAccountID, msg,
 	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.AuthorAccountID, &up.Msg, &up.CreatedAt)

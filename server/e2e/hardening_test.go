@@ -283,9 +283,13 @@ func TestCatchUpLongerThanOneBatch(t *testing.T) {
 	// Seed the history directly: going through the relay would take 10 s
 	// at 50 updates/s, and what's under test here is catch-up, not writes.
 	const n = 520 // > one catch-up batch (500)
-	_, err := pool.Exec(ctx, `INSERT INTO list_updates (list_id, epoch, author_account_id, msg)
-		SELECT $1, 0, $2, convert_to(json_build_object('ct', 'u' || (i - 1))::text, 'UTF8')
+	// Seqs are the list's own (Updates.Append), so seed them and the
+	// list's counter the same way.
+	_, err := pool.Exec(ctx, `INSERT INTO list_updates (list_id, seq, epoch, author_account_id, msg)
+		SELECT $1, i, 0, $2, convert_to(json_build_object('ct', 'u' || (i - 1))::text, 'UTF8')
 		FROM generate_series(1, $3::int) AS i ORDER BY i`, ws.ID, alice.AccountID, n)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `UPDATE groups SET update_seq = $2 WHERE id = $1`, ws.ID, n)
 	require.NoError(t, err)
 
 	reader, err := alice.DialSync(ctx)

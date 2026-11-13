@@ -20,10 +20,10 @@ type Hub struct {
 	accountConns    map[string]map[*Conn]bool // accountID -> conns, for the per-account limit and forced close
 	maxConnsPerAcct int
 
-	// listLocks serialize "persist, then fan out" per list, so seq order,
-	// commit order and delivery order are the same.
-	// Kept simple: striped in-process locks, single instance only; move to
-	// per-list DB sequencing if the relay ever runs on more than one node.
+	// listLocks serialize "persist, then fan out" per list on this
+	// instance, so this instance's live frames go out in seq order. Seqs
+	// themselves need no in-process lock: the list row lock assigns and
+	// commits them in order on every instance (store.Updates.Append).
 	listLocks [256]sync.Mutex
 }
 

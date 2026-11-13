@@ -447,7 +447,7 @@ func access(ctx context.Context, q querier, groupID, accountID string) (Group, s
 	return grp, role, nil
 }
 
-// lockedAccess locks the list row (lock is "FOR SHARE" or "FOR UPDATE")
+// lockedAccess locks the list row (lock is "FOR SHARE", "FOR NO KEY UPDATE" or "FOR UPDATE")
 // and runs access() under that lock. It conflicts with the UPDATE every
 // membership append, rotation and list deletion does to the row, so none
 // of those can commit between this check and the caller's write.
@@ -498,10 +498,13 @@ func (g *Groups) ListMembersWithKeys(ctx context.Context, groupID string) ([]Mem
 
 // AuthorizedWrite runs write in one transaction that first re-checks,
 // under the list's row lock, everything a content write depends on:
-// the list is live, accountID is a member, and epoch is current. The FOR
-// SHARE lock conflicts with the UPDATE every membership append, rotation
-// and list deletion does to the row, so none of those can commit between
-// this check and the write.
+// the list is live, accountID is a member, and epoch is current. The lock
+// conflicts with the UPDATE every membership append, rotation and list
+// deletion does to the row, so none of those can commit between this check
+// and the write. It also serializes the list's content writers on every
+// instance (Updates.Append bumps the row's seq counter): taken FOR SHARE,
+// two writers would both upgrade to the counter's row lock and deadlock.
+// NO KEY UPDATE still lets foreign-key checks on the row through.
 func (g *Groups) AuthorizedWrite(ctx context.Context, listID, accountID string, epoch int64, write func(tx pgx.Tx) error) error {
 	tx, err := g.pool.Begin(ctx)
 	if err != nil {
@@ -509,7 +512,7 @@ func (g *Groups) AuthorizedWrite(ctx context.Context, listID, accountID string, 
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	list, _, err := lockedAccess(ctx, tx, listID, accountID, "FOR SHARE")
+	list, _, err := lockedAccess(ctx, tx, listID, accountID, "FOR NO KEY UPDATE")
 	if err != nil {
 		return err
 	}

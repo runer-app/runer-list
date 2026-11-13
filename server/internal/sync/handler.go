@@ -420,8 +420,8 @@ func (h *Handler) handleUpdate(ctx context.Context, conn *Conn, raw []byte, f cl
 		return
 	}
 
-	// Persist and fan out under the list lock: seq order is commit order is
-	// delivery order.
+	// Fan out under this instance's list lock, so live frames leave in seq
+	// order (seq order is commit order already, by the list row lock).
 	lock := h.hub.listLock(hdr.List)
 	lock.Lock()
 	var up store.Update

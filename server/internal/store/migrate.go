@@ -17,6 +17,12 @@ var migrationFiles embed.FS
 // Migrate applies every migration under migrations/ that has not yet run,
 // tracked in schema_migrations. Safe to call on every startup.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
+	return migrateUpTo(ctx, pool, "")
+}
+
+// migrateUpTo is Migrate stopping after the file named last ("" for all),
+// so a test can build a database as an older server left it.
+func migrateUpTo(ctx context.Context, pool *pgxpool.Pool, last string) error {
 	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version TEXT PRIMARY KEY,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -37,6 +43,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	sort.Strings(names)
 
 	for _, name := range names {
+		if last != "" && name > last {
+			break
+		}
 		var applied bool
 		if err := pool.QueryRow(ctx,
 			`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`, name,
