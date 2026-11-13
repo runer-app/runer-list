@@ -37,7 +37,7 @@ func Start(ctx context.Context) (url string, stop func(), err error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	container, err := postgres.Run(ctx, "postgres:16-alpine",
+	container, err := postgres.Run(ctx, "postgres:18-alpine",
 		postgres.WithDatabase("runer"),
 		postgres.WithUsername("postgres"),
 		postgres.WithPassword("postgres"),
