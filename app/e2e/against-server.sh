@@ -19,7 +19,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-until docker exec "$DB" pg_isready -U postgres -d runer >/dev/null 2>&1; do sleep 0.5; done
+# Over TCP: the image's init step runs a temporary server on the Unix socket
+# only, then restarts, so a socket check can pass before the real server is up.
+until docker exec "$DB" pg_isready -h localhost -U postgres -d runer >/dev/null 2>&1; do sleep 0.5; done
 
 (cd server && go build -o "$TMPDIR/runer-e2e-server" ./cmd/server)
 # The limits are per IP and every test account comes from localhost: lift them, and make the proof-of-work cheap.
