@@ -79,7 +79,7 @@ func newTestServer(t *testing.T, challengeTTL time.Duration) (baseURL string, po
 	t.Cleanup(func() {
 		if _, err := shared.pool.Exec(context.Background(), `TRUNCATE
 			accounts, sessions, groups, group_log, memberships, invites, join_requests, group_invites,
-			list_updates, list_snapshots RESTART IDENTITY CASCADE`); err != nil {
+			list_updates, list_snapshots, challenges, invite_join_budget RESTART IDENTITY CASCADE`); err != nil {
 			t.Errorf("truncate after test: %v", err)
 		}
 	})
@@ -108,9 +108,18 @@ var testProxies, _ = config.ParseCIDRs("127.0.0.0/8,::1/128,10.0.0.0/8")
 // startServer starts a server whose PublicURL is its own address, since
 // that's what clients sign logins for. challengeTTL 0 means the default.
 func startServer(pool *pgxpool.Pool, challengeTTL time.Duration) *httptest.Server {
+	return startServerAt(pool, challengeTTL, "")
+}
+
+// startServerAt is startServer with the PublicURL given ("" for its own
+// address): the load balancer's, for an instance behind one.
+func startServerAt(pool *pgxpool.Pool, challengeTTL time.Duration, publicURL string) *httptest.Server {
 	ts := httptest.NewUnstartedServer(nil)
+	if publicURL == "" {
+		publicURL = "http://" + ts.Listener.Addr().String()
+	}
 	ts.Config.Handler = server.New(pool, server.Options{
-		Origin: testOrigin, PublicURL: "http://" + ts.Listener.Addr().String(),
+		Origin: testOrigin, PublicURL: publicURL,
 		TrustedProxies: testProxies, ChallengeTTL: challengeTTL, Limits: testLimits,
 	})
 	ts.Start()

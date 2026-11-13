@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"runer-api/internal/grouplog"
-	"runer-api/internal/limits"
 	"runer-api/internal/store"
 )
 
@@ -25,17 +24,33 @@ type LogAppender interface {
 }
 
 type Service struct {
-	invites    *store.Invites
-	groups     *store.Groups
-	log        LogAppender
-	joinLimits *limits.Keyed // keyed by invite id, per Self-hosting: Limits
+	invites *store.Invites
+	groups  *store.Groups
+	log     LogAppender
 }
 
+// The join limit per invite (Self-hosting: Limits): a burst of 10, then 10
+// a day, shared by every server instance (store.Invites.TakeJoinToken).
+const (
+	joinBurst     = 10
+	joinPerSecond = 10.0 / 86400
+)
+
 func NewService(invites *store.Invites, groups *store.Groups, log LogAppender) *Service {
-	return &Service{
-		invites: invites, groups: groups, log: log,
-		joinLimits: limits.NewKeyed(10.0/86400, 10), // burst of 10 per invite, then 10 a day
+	return &Service{invites: invites, groups: groups, log: log}
+}
+
+// takeJoinToken spends one of the invite's join attempts. Checked once the
+// invite is known to exist, so the budget only ever holds real invites.
+func (s *Service) takeJoinToken(ctx context.Context, inviteID string) error {
+	ok, err := s.invites.TakeJoinToken(ctx, inviteID, joinPerSecond, joinBurst)
+	if err != nil {
+		return err
 	}
+	if !ok {
+		return ErrTooManyJoinRequests
+	}
+	return nil
 }
 
 // requireOwner is the shared access check (live list, current member)
@@ -117,11 +132,11 @@ func (s *Service) InviteLog(ctx context.Context, inviteID string, fromSeq int64,
 // Accept appends the invitee's own `join` entry. The log rules decide
 // whether it is valid; this only checks it is a join for THIS invite.
 func (s *Service) Accept(ctx context.Context, inviteID, accountID string, raw, sig []byte) (store.Group, error) {
-	if !s.joinLimits.Allow(inviteID) {
-		return store.Group{}, ErrTooManyJoinRequests
-	}
 	inv, err := s.linkInvite(ctx, inviteID)
 	if err != nil {
+		return store.Group{}, err
+	}
+	if err := s.takeJoinToken(ctx, inviteID); err != nil {
 		return store.Group{}, err
 	}
 	entry, err := grouplog.Parse(raw, sig)
@@ -140,16 +155,15 @@ func (s *Service) Accept(ctx context.Context, inviteID, accountID string, raw, s
 // the owner verifies the MAC against the SAME registered keys via
 // ListJoinRequests.
 func (s *Service) Join(ctx context.Context, inviteID, accountID string, encDisplayName, mac []byte) (store.JoinRequest, error) {
-	if !s.joinLimits.Allow(inviteID) {
-		return store.JoinRequest{}, ErrTooManyJoinRequests
-	}
-
 	inv, err := s.invites.Get(ctx, inviteID)
 	if err != nil {
 		return store.JoinRequest{}, err
 	}
 	if !inv.Usable(time.Now()) {
 		return store.JoinRequest{}, ErrNotUsable
+	}
+	if err := s.takeJoinToken(ctx, inviteID); err != nil {
+		return store.JoinRequest{}, err
 	}
 
 	jr, err := s.invites.CreateJoinRequest(ctx, inviteID, accountID, encDisplayName, mac)

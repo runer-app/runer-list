@@ -109,6 +109,7 @@ func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
 	invites := store.NewInvites(pool)
 	updates := store.NewUpdates(pool)
 	snapshots := store.NewSnapshots(pool)
+	challenges := store.NewChallenges(pool)
 
 	e.GET("/healthz", func(c *echo.Context) error {
 		if err := pool.Ping(c.Request().Context()); err != nil {
@@ -130,10 +131,10 @@ func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
 	syncHandler := syncpkg.NewHandler(groups, accounts, sessions, updates, snapshots, origin)
 	syncHandler.RegisterRoutes(v1, requireSession)
 
-	authHandler := auth.NewHandler(accounts, sessions, opts.PublicURL, opts.ChallengeTTL, opts.Limits, syncHandler, grouplog.ParseGenesis)
+	authHandler := auth.NewHandler(accounts, sessions, challenges, opts.PublicURL, opts.ChallengeTTL, opts.Limits, syncHandler, grouplog.ParseGenesis)
 	authHandler.RegisterRoutes(v1, requireSession)
 
-	accountHandler := account.NewHandler(accounts, sessions, opts.PublicURL, syncHandler)
+	accountHandler := account.NewHandler(accounts, sessions, challenges, opts.PublicURL, syncHandler)
 	accountHandler.RegisterRoutes(v1, requireSession)
 
 	grouplogService := grouplog.NewService(groups, accounts, syncHandler)

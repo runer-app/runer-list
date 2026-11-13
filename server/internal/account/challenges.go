@@ -1,51 +1,29 @@
 package account
 
 import (
-	"crypto/rand"
-	"crypto/subtle"
-	"sync"
+	"context"
 	"time"
+
+	"runer-api/internal/store"
 )
+
+// rekeyChallengeTTL is how long a rekey nonce can be answered (E2EE §9.2).
+const rekeyChallengeTTL = 60 * time.Second
 
 // rekeyChallenges issues single-use nonces keyed by account id, for the
 // rekey endpoint's proof-of-possession of the OLD auth key (E2EE §9.2).
-// Same shape as internal/auth's challengeStore but keyed by account id
-// (already authenticated by session) rather than auth_pub (not yet known to
-// be authenticated); small enough not to be worth sharing across packages.
+// Kept in the database (store.Challenges), so any instance can answer one.
+// Unlike login challenges, the account is already authenticated by
+// session: a new challenge replaces the pending one, and any attempt uses
+// it up.
 type rekeyChallenges struct {
-	mu      sync.Mutex
-	entries map[string]rekeyEntry
-	ttl     time.Duration
+	db *store.Challenges
 }
 
-type rekeyEntry struct {
-	nonce     []byte
-	expiresAt time.Time
+func (s *rekeyChallenges) issue(ctx context.Context, accountID string) ([]byte, error) {
+	return s.db.Issue(ctx, store.ChallengeRekey, accountID, rekeyChallengeTTL, true)
 }
 
-func newRekeyChallenges() *rekeyChallenges {
-	return &rekeyChallenges{entries: make(map[string]rekeyEntry), ttl: 60 * time.Second}
-}
-
-func (s *rekeyChallenges) issue(accountID string) ([]byte, error) {
-	nonce := make([]byte, 32)
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
-	}
-	s.mu.Lock()
-	s.entries[accountID] = rekeyEntry{nonce: nonce, expiresAt: time.Now().Add(s.ttl)}
-	s.mu.Unlock()
-	return nonce, nil
-}
-
-func (s *rekeyChallenges) consume(accountID string, nonce []byte) bool {
-	s.mu.Lock()
-	e, ok := s.entries[accountID]
-	delete(s.entries, accountID)
-	s.mu.Unlock()
-
-	if !ok || time.Now().After(e.expiresAt) {
-		return false
-	}
-	return subtle.ConstantTimeCompare(e.nonce, nonce) == 1
+func (s *rekeyChallenges) consume(ctx context.Context, accountID string, nonce []byte) (bool, error) {
+	return s.db.ConsumeAny(ctx, store.ChallengeRekey, accountID, nonce)
 }

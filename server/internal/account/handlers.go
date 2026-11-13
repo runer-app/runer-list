@@ -32,8 +32,8 @@ type Conns interface {
 	NotifyGroup(ctx context.Context, groupID string, headSeq int64, accountIDs []string)
 }
 
-func NewHandler(accounts *store.Accounts, sessions *store.Sessions, serverURL string, conns Conns) *Handler {
-	return &Handler{accounts: accounts, sessions: sessions, serverURL: serverURL, challenges: newRekeyChallenges(), conns: conns}
+func NewHandler(accounts *store.Accounts, sessions *store.Sessions, challenges *store.Challenges, serverURL string, conns Conns) *Handler {
+	return &Handler{accounts: accounts, sessions: sessions, serverURL: serverURL, challenges: &rekeyChallenges{db: challenges}, conns: conns}
 }
 
 func (h *Handler) RegisterRoutes(g *echo.Group, requireSession echo.MiddlewareFunc) {
@@ -125,7 +125,7 @@ func (h *Handler) getBundle(c *echo.Context) error {
 // login challenge/nonce mechanism rather than inventing a new one.
 func (h *Handler) rekeyChallenge(c *echo.Context) error {
 	acc, _ := auth.AccountFromContext(c)
-	nonce, err := h.challenges.issue(acc.ID)
+	nonce, err := h.challenges.issue(c.Request().Context(), acc.ID)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,9 @@ func (h *Handler) rekey(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid new_bundle")
 	}
 
-	if !h.challenges.consume(acc.ID, nonce) {
+	if ok, err := h.challenges.consume(c.Request().Context(), acc.ID, nonce); err != nil {
+		return err
+	} else if !ok {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid or expired rekey challenge")
 	}
 	// Signed with the CURRENT (old) auth key, proving possession before the swap.

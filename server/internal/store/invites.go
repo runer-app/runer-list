@@ -220,3 +220,25 @@ func (iv *Invites) ListJoinRequestsForGroup(ctx context.Context, groupID string)
 	}
 	return out, rows.Err()
 }
+
+// TakeJoinToken spends one join attempt from the invite's bucket: burst
+// attempts, refilled at perSecond, on the database's clock. Reports false
+// when the bucket is empty. Atomic under the bucket row's lock, so every
+// instance spends from the same budget.
+func (iv *Invites) TakeJoinToken(ctx context.Context, inviteID string, perSecond float64, burst int) (bool, error) {
+	var ok bool
+	err := iv.pool.QueryRow(ctx, `INSERT INTO invite_join_budget AS b (invite_id, tokens, updated_at)
+		VALUES ($1, $3::float8 - 1, now())
+		ON CONFLICT (invite_id) DO UPDATE
+		SET tokens = LEAST($3::float8, b.tokens + extract(epoch FROM now() - b.updated_at) * $2::float8) - 1,
+		    updated_at = now()
+		WHERE LEAST($3::float8, b.tokens + extract(epoch FROM now() - b.updated_at) * $2::float8) >= 1
+		RETURNING true`, inviteID, perSecond, burst).Scan(&ok)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("take join token: %w", err)
+	}
+	return ok, nil
+}

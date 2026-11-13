@@ -59,12 +59,12 @@ type GenesisParser func(raw, sig, signPub, agreePub []byte) (store.LogEntry, err
 // parameter (rather than a package constant) so tests can inject a short
 // TTL and exercise real expiry without sleeping 60s; production always
 // passes DefaultChallengeTTL.
-func NewHandler(accounts *store.Accounts, sessions *store.Sessions, serverURL string, challengeTTL time.Duration, lim Limits, conns ConnCloser, parseGenesis GenesisParser) *Handler {
+func NewHandler(accounts *store.Accounts, sessions *store.Sessions, challenges *store.Challenges, serverURL string, challengeTTL time.Duration, lim Limits, conns ConnCloser, parseGenesis GenesisParser) *Handler {
 	return &Handler{
 		accounts:     accounts,
 		sessions:     sessions,
 		serverURL:    serverURL,
-		challenges:   newChallengeStore(challengeTTL),
+		challenges:   newChallengeStore(challenges, challengeTTL),
 		challengeIPs: limits.PerMinute(lim.ChallengesPerIPPerMinute),
 		signupIPs:    limits.NewKeyed(float64(lim.SignupsPerIPPerHour)/3600, lim.SignupBurstPerIP),
 		powBits:      lim.SignupPoWBits,
@@ -98,7 +98,7 @@ func (h *Handler) challenge(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid auth_pub")
 	}
 
-	nonce, err := h.challenges.issue(base64.RawURLEncoding.EncodeToString(authPub))
+	nonce, err := h.challenges.issue(c.Request().Context(), base64.RawURLEncoding.EncodeToString(authPub))
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,9 @@ func (h *Handler) login(c *echo.Context) error {
 		return ErrInvalidCredentials
 	}
 
-	if !h.challenges.consume(base64.RawURLEncoding.EncodeToString(authPub), nonce) {
+	if ok, err := h.challenges.consume(c.Request().Context(), base64.RawURLEncoding.EncodeToString(authPub), nonce); err != nil {
+		return err
+	} else if !ok {
 		return ErrInvalidCredentials
 	}
 	if !ed25519.Verify(authPub, LoginMessage(h.serverURL, nonce), sig) {
