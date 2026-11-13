@@ -30,7 +30,7 @@ func subscribed(t *testing.T, ctx context.Context, c *testclient.Client, i int, 
 
 // aliceAndBob signs both up behind the cluster and makes bob a member of
 // one of alice's lists.
-func aliceAndBob(t *testing.T, ctx context.Context, c cluster) (alice, bob *testclient.Client, l testclient.GroupView) {
+func aliceAndBob(t *testing.T, ctx context.Context, c *cluster) (alice, bob *testclient.Client, l testclient.GroupView) {
 	t.Helper()
 	alice = newClient(t, c.URL)
 	require.NoError(t, alice.Signup(ctx, []byte("alice-bundle")))
@@ -106,7 +106,14 @@ func TestBehindLoadBalancerAckComesAfterEarlierUpdates(t *testing.T) {
 			header := w.client.UpdateHeader(l.ID, l.Epoch, "")
 			go func() {
 				for i := 0; i < n; i++ {
-					if err := w.conn.SendUpdate(ctx, fmt.Sprintf("w%d-%d", wi, i), header, "x"); err != nil {
+					// Writer 1's updates are too large for a notification
+					// payload, so instances read them back: slower to
+					// deliver than writer 0's own ack would be to send.
+					ct := "x"
+					if wi == 1 {
+						ct = strings.Repeat("x", 10_000)
+					}
+					if err := w.conn.SendUpdate(ctx, fmt.Sprintf("w%d-%d", wi, i), header, ct); err != nil {
 						t.Error(err)
 						return
 					}

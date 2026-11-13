@@ -483,6 +483,9 @@ func (h *Handler) handleUpdate(ctx context.Context, conn *Conn, raw []byte, f cl
 	case <-w.done:
 		delivered = w.ok // written before done was closed
 	case <-timer.C:
+	case <-conn.closed:
+		h.relay.forget(hdr.List, up.Seq)
+		return
 	case <-ctx.Done():
 		h.relay.forget(hdr.List, up.Seq)
 		return

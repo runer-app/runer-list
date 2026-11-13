@@ -278,8 +278,14 @@ func notifyUpdate(ctx context.Context, tx pgx.Tx, list string, seq int64, from s
 	return err
 }
 
+// publishTimeout bounds a notification sent from a request, so a stuck
+// database can't hold up a logout.
+const publishTimeout = 5 * time.Second
+
 // publish sends events outside any transaction.
 func (r *relay) publish(ctx context.Context, events ...event) error {
+	ctx, cancel := context.WithTimeout(ctx, publishTimeout)
+	defer cancel()
 	for _, e := range events {
 		payload, err := json.Marshal(e)
 		if err != nil {

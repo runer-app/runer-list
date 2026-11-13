@@ -49,6 +49,8 @@ Some limits are **per instance**, so N instances allow N times as much: the per-
 
 The retention job runs on every instance. Its deletes are idempotent, so this only repeats work.
 
+**Upgrading to several instances.** A rolling upgrade from a version that ran single-instance only is safe: old and new instances can run side by side for the overlap, and no edit is lost. Edits made through an old instance reach clients connected to new ones at their next catch-up rather than live.
+
 ## Configuration
 
 All configuration comes from environment variables.

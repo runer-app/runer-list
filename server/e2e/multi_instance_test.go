@@ -26,6 +26,12 @@ import (
 // so a client's consecutive requests always land on different instances.
 type cluster struct {
 	URL string // the load balancer's: every instance's PublicURL
+
+	t         *testing.T
+	publicURL string
+	mu        gosync.Mutex
+	servers   []*testServer
+	proxies   []*httputil.ReverseProxy
 }
 
 // pinHeader steers a request to one instance (0-based) instead of the next.
@@ -40,35 +46,60 @@ func pin(c *testclient.Client, i int) {
 	c.Header = http.Header{pinHeader: []string{strconv.Itoa(i)}}
 }
 
-func newCluster(t *testing.T, n int) cluster {
+func newCluster(t *testing.T, n int) *cluster {
 	t.Helper()
 	newTestServer(t, auth.DefaultChallengeTTL) // the per-test cleanup
 	lb := httptest.NewUnstartedServer(nil)
-	publicURL := "http://" + lb.Listener.Addr().String()
-	proxies := make([]*httputil.ReverseProxy, n)
-	for i := range proxies {
-		ts := startServerAt(shared.pool, 0, publicURL)
-		t.Cleanup(ts.Close)
-		u, err := url.Parse(ts.URL)
-		require.NoError(t, err)
-		proxies[i] = httputil.NewSingleHostReverseProxy(u)
+	c := &cluster{t: t, publicURL: "http://" + lb.Listener.Addr().String(),
+		servers: make([]*testServer, n), proxies: make([]*httputil.ReverseProxy, n)}
+	for i := range n {
+		c.start(i)
 	}
+	t.Cleanup(func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		for _, s := range c.servers {
+			s.Close()
+		}
+	})
 	var next atomic.Uint64
 	lb.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		i := int((next.Add(1) - 1) % uint64(n))
 		if pin := r.Header.Get(pinHeader); pin != "" {
-			i, err := strconv.Atoi(pin)
-			if err != nil || i < 0 || i >= n {
+			var err error
+			if i, err = strconv.Atoi(pin); err != nil || i < 0 || i >= n {
 				http.Error(w, "bad "+pinHeader, http.StatusBadRequest)
 				return
 			}
-			proxies[i].ServeHTTP(w, r)
-			return
 		}
-		proxies[(next.Add(1)-1)%uint64(n)].ServeHTTP(w, r)
+		c.mu.Lock()
+		p := c.proxies[i]
+		c.mu.Unlock()
+		p.ServeHTTP(w, r)
 	})
 	lb.Start()
 	t.Cleanup(lb.Close)
-	return cluster{URL: lb.URL}
+	c.URL = lb.URL
+	return c
+}
+
+func (c *cluster) start(i int) {
+	ts := startServerAt(shared.pool, 0, c.publicURL)
+	u, err := url.Parse(ts.URL)
+	require.NoError(c.t, err)
+	c.mu.Lock()
+	c.servers[i], c.proxies[i] = ts, httputil.NewSingleHostReverseProxy(u)
+	c.mu.Unlock()
+}
+
+// restart stops instance i, cutting its sockets as a crash or a deploy
+// would, and starts a new one in its place. Requests in between get 502.
+func (c *cluster) restart(i int) {
+	c.mu.Lock()
+	old := c.servers[i]
+	c.mu.Unlock()
+	old.Close()
+	c.start(i)
 }
 
 // secondInstance starts another server over the shared database, as a

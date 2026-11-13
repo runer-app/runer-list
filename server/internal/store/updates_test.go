@@ -184,11 +184,17 @@ func TestPerListSeqMigrationContinuesFromExistingSeqs(t *testing.T) {
 	require.EqualValues(t, 3, appendOne(b))
 	require.EqualValues(t, 1, appendOne(empty))
 
+	// A server from before 0004, still running during a rolling deploy,
+	// inserts without a seq: the list's counter supplies it.
+	_, err = pool.Exec(ctx, `INSERT INTO list_updates (list_id, epoch, author_account_id, msg) VALUES ($1, 0, $2, '{}')`, a, acct)
+	require.NoError(t, err)
+	require.EqualValues(t, 7, appendOne(a), "and the counter moved on")
+
 	got, err := updates.ListSince(ctx, a, 0, 100)
 	require.NoError(t, err)
 	var seqs []int64
 	for _, u := range got {
 		seqs = append(seqs, u.Seq)
 	}
-	require.Equal(t, []int64{1, 3, 4, 5}, seqs)
+	require.Equal(t, []int64{1, 3, 4, 5, 6, 7}, seqs)
 }

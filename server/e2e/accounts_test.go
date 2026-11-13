@@ -117,9 +117,11 @@ type testServer struct {
 	stop context.CancelFunc
 }
 
+// Close stops the relay first: that closes the instance's WebSockets, whose
+// handlers Server.Close would otherwise wait for.
 func (s *testServer) Close() {
-	s.Server.Close()
 	s.stop()
+	s.Server.Close()
 }
 
 // newServer is server.New for a test, stopped when the test ends.
