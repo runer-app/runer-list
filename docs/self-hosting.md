@@ -9,7 +9,7 @@ Run your own server. Quickest is the released Docker image with a PostgreSQL dat
 ## What to know before you start
 
 - **One instance or several.** Instances behind a load balancer share their state through PostgreSQL: no sticky sessions, no Redis. A few limits count per instance ([Shape of a deployment](#shape-of-a-deployment)).
-- **PostgreSQL 13 or newer, reached directly or through a pooler in session mode.** A pooler in transaction mode (e.g. PgBouncer with `pool_mode = transaction`) can't carry `LISTEN`, which live updates need, even on one instance ([Shape of a deployment](#shape-of-a-deployment)).
+- **PostgreSQL 16 or newer (tested on 18), reached directly or through a pooler in session mode.** A pooler in transaction mode (e.g. PgBouncer with `pool_mode = transaction`) can't carry `LISTEN`, which live updates need, even on one instance ([Shape of a deployment](#shape-of-a-deployment)).
 - **You run the backups.** Everything worth keeping is in PostgreSQL ([Backups](#backups)).
 - **You own the TLS and proxy setup**, including `TRUSTED_PROXIES` ([Configuration](#configuration)).
 
@@ -58,7 +58,7 @@ All configuration comes from environment variables.
 
 | Variable | Required | Default | Meaning |
 |---|---|---|---|
-| `DATABASE_URL` | yes | | PostgreSQL connection string: PostgreSQL 13 or newer, directly or through a session-mode pooler, never a transaction-mode one |
+| `DATABASE_URL` | yes | | PostgreSQL connection string: PostgreSQL 16 or newer, directly or through a session-mode pooler, never a transaction-mode one |
 | `ORIGIN` | yes | | The single `Origin` accepted on mutations and the WebSocket upgrade, e.g. `tauri://localhost` for the desktop app |
 | `PUBLIC_URL` | yes | | The canonical API URL, e.g. `https://api.runer.app`. Login signatures cover it, so it must be exactly what clients connect to (a trailing `/` is stripped). |
 | `LISTEN_ADDR` | no | `:8080` | Bind address |
@@ -122,11 +122,11 @@ Everything worth keeping is in PostgreSQL. Back up the database, and test a rest
 
 ## Running from source
 
-You need Go (the version in `server/go.mod`) and PostgreSQL 13 or newer (the migrations use the built-in `gen_random_uuid()`). From `server/`:
+You need Go (the version in `server/go.mod`) and PostgreSQL 16 or newer (the tests run on 18). From `server/`:
 
 ```sh
 # 1. A database
-docker run -d --name runer-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=runer -p 5432:5432 postgres
+docker run -d --name runer-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=runer -p 5432:5432 postgres:18
 
 # 2. The server (migrations run automatically on startup)
 make run
