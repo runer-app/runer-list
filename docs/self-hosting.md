@@ -8,7 +8,7 @@ Run your own server. Quickest is the released Docker image with a PostgreSQL dat
 
 ## What to know before you start
 
-- **One instance only.** Rate limits and login challenges live in process memory, so running several instances behind a load balancer isn't supported ([Shape of a deployment](#shape-of-a-deployment)).
+- **One instance or several.** Instances behind a load balancer share their state through PostgreSQL: no sticky sessions, no Redis. A few limits count per instance ([Shape of a deployment](#shape-of-a-deployment)).
 - **You run the backups.** Everything worth keeping is in PostgreSQL ([Backups](#backups)).
 - **You own the TLS and proxy setup**, including `TRUSTED_PROXIES` ([Configuration](#configuration)).
 
@@ -35,7 +35,19 @@ One container, one PostgreSQL database. There's no Redis, no object storage and 
 client ──HTTPS/WSS──► reverse proxy (TLS) ──► server:8080 ──► PostgreSQL
 ```
 
-Rate limits and login challenges are kept **in process memory**. That's correct for a single instance. Running several instances behind a load balancer would need shared state (e.g. Redis) first.
+**Several instances.** Run as many containers as you like against the same database, behind a load balancer that spreads both HTTP requests and WebSockets in any way (round robin is fine; sticky sessions are not needed). Give every instance the same configuration, in particular the same `PUBLIC_URL`: the load balancer's. Instances started together, as in a rolling deploy, take turns migrating.
+
+```text
+                                      ┌──► server:8080 ──┐
+client ──HTTPS/WSS──► load balancer ──┼──► server:8080 ──┼──► PostgreSQL
+                         (TLS)        └──► server:8080 ──┘
+```
+
+What the instances share lives in PostgreSQL: login and rekey challenges, the join limit per invite, and live updates, which reach the other instances through `LISTEN/NOTIFY`. So each instance keeps **one PostgreSQL connection open for listening**: `DATABASE_URL` must reach PostgreSQL directly or through a pooler in session mode, not one in transaction mode, which can't carry `LISTEN`. If an instance loses that connection, it closes its WebSockets and refuses new ones (`503`) until it listens again; the app reconnects and catches up.
+
+Some limits are **per instance**, so N instances allow N times as much: the per-IP limits on login challenges, sign-ups and invite package reads, and the WebSocket connections per account. The proof-of-work, not the counter, is what makes sign-up spam expensive. The join limit per invite is shared.
+
+The retention job runs on every instance. Its deletes are idempotent, so this only repeats work.
 
 ## Configuration
 
@@ -91,11 +103,11 @@ Each run logs one `retention purge complete` line with counts.
 
 | Area | Limit |
 |---|---|
-| Login challenges | 120 per minute per IP (configurable), valid 60 s |
-| Sign-up | 20 at once then 100 per hour per IP, + 20-bit proof-of-work (all configurable) |
+| Login challenges | 120 per minute per IP per instance (configurable), valid 60 s |
+| Sign-up | 20 at once then 100 per hour per IP per instance, + 20-bit proof-of-work (all configurable) |
 | Sessions | 30 days idle, 180 days absolute |
-| Invite package reads | 30 per minute per IP (configurable) |
-| Join requests and link-invite accepts | 10 per invite (burst), then 10 a day |
+| Invite package reads | 30 per minute per IP per instance (configurable) |
+| Join requests and link-invite accepts | 10 per invite (burst), then 10 a day, shared by all instances |
 | Invite lifetime | 7 days |
 | Log entry `ts` | at most 5 minutes in the future |
 

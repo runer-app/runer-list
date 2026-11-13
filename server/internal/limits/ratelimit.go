@@ -11,11 +11,12 @@ import (
 const sweepInterval = time.Minute
 
 // Keyed is a set of per-key token-bucket rate limiters, e.g. one per client
-// IP or per invite id.
+// IP.
 //
-// Kept simple: in-process map, not Redis — correct for the single-instance
-// deployment (Self-hosting: Shape of a deployment): move to Redis only if there is ever more than
-// one server instance. Keys are attacker-chosen (IPs, ids), so
+// In-process, so with several instances each allows the full budget:
+// fine for the per-IP flood guards (Self-hosting: Shape of a deployment).
+// A limit that must hold across instances lives in the database instead
+// (the join limit per invite). Keys are attacker-chosen (IPs, ids), so
 // idle limiters are swept: a bucket back at full burst is identical to a
 // fresh one, so dropping it changes no decision.
 type Keyed struct {

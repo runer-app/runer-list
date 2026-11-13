@@ -24,10 +24,11 @@ Cookie: session=…
 Origin: tauri://localhost   (the server's configured ORIGIN)
 ```
 
-- `401` without a valid session, `403` on an `Origin` mismatch.
+- `401` without a valid session, `403` on an `Origin` mismatch, `503` when the server can't deliver live updates right now: retry with the usual backoff.
 - The server pings every 30 s and closes a connection with no pong for 60 s. A client that receives nothing for 90 s, pings included, treats the connection as dead and reconnects.
 - The session is re-checked on every frame and every ping; a connection whose session ended gets `bye` `session-revoked`.
 - A client that stops reading is disconnected rather than slowing anyone else; it recovers through catch-up.
+- The server may also close a connection without `bye` (close code `1013`) when it can no longer guarantee complete live delivery on it; the client reconnects and catches up as after any other close.
 - Clients reconnect with exponential backoff (1 s, 2 s, 4 s … capped at 30 s, plus up to 1 s jitter), re-subscribe with their stored `since` per list, and resend their outbox (§4).
 
 ---
@@ -97,7 +98,7 @@ Live updates arriving during catch-up are held and delivered after it, in order,
 | `snapshot` frame | 16 MiB |
 | Writes per connection | 50/s |
 | Subscribed lists per connection | 500 |
-| Connections per account | 10 |
+| Connections per account | 10 per server instance |
 
 HTTP limits are in [Self-hosting](../self-hosting.md#limits-at-a-glance).
 

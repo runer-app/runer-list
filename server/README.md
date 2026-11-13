@@ -32,7 +32,7 @@ The client is part of the trusted base ([E2EE §1](../docs/protocol/e2ee-protoco
 
 ## Code layout
 
-One Go binary and one PostgreSQL database. Rate limits and login challenges live in process memory, so a deployment is a single instance.
+One Go binary and one PostgreSQL database, run as one instance or several behind a load balancer. Anything instances must agree on is in PostgreSQL: list seqs come from a per-list counter under the list's row lock, challenges and the join limit per invite are rows, and live frames, group frames and forced closes travel between instances by `LISTEN/NOTIFY` (`internal/sync/relay.go`). Per-IP limits and the per-account WebSocket limit are per instance ([Self-hosting](../docs/self-hosting.md#shape-of-a-deployment)).
 
 | Package (`internal/`) | What it does |
 |---|---|
@@ -41,7 +41,7 @@ One Go binary and one PostgreSQL database. Rate limits and login challenges live
 | `account` | The account, its settings, the key bundle, rekey, delete |
 | `grouplog` | The membership log: parsing, the validity rules (E2EE §4.2, the same verdicts as the app's vault), compare-and-swap append |
 | `invite` | The invite flows (E2EE §6); stores opaque bytes, never the invite secret |
-| `sync` | The WebSocket: subscriptions, ordered relay, catch-up |
+| `sync` | The WebSocket: subscriptions, ordered relay between instances, catch-up |
 | `store` | PostgreSQL access and embedded migrations |
 | `limits`, `config`, `httpx`, `retention` | Rate limits and proof-of-work, config, HTTP helpers, the daily purge |
 | `testclient` | The small Go client the end-to-end tests use |
