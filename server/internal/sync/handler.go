@@ -16,6 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 )
 
@@ -42,13 +43,22 @@ type Handler struct {
 	snapshots *store.Snapshots
 	origin    string
 	hub       *Hub
+	relay     *relay
 }
 
-func NewHandler(groups *store.Groups, accounts *store.Accounts, sessions *store.Sessions, updates *store.Updates, snapshots *store.Snapshots, origin string) *Handler {
+// NewHandler builds the relay handler. It serves no socket until Start.
+func NewHandler(pool *pgxpool.Pool, groups *store.Groups, accounts *store.Accounts, sessions *store.Sessions, updates *store.Updates, snapshots *store.Snapshots, origin string) *Handler {
+	hub := newHub(maxConnsPerAccount)
 	return &Handler{
 		groups: groups, accounts: accounts, sessions: sessions, updates: updates, snapshots: snapshots,
-		origin: origin, hub: newHub(maxConnsPerAccount),
+		origin: origin, hub: hub, relay: newRelay(pool, updates, hub),
 	}
+}
+
+// Start listens for the notifications that carry live frames between
+// instances (relay.go) until ctx is done, and returns once listening.
+func (h *Handler) Start(ctx context.Context) error {
+	return h.relay.start(ctx)
 }
 
 func (h *Handler) RegisterRoutes(g *echo.Group, requireSession echo.MiddlewareFunc) {
@@ -59,10 +69,22 @@ func (h *Handler) RegisterRoutes(g *echo.Group, requireSession echo.MiddlewareFu
 // (Sync §3): the client does not retry on it.
 const byeSessionRevoked = "session-revoked"
 
+// closeEverywhere closes the matching connections here at once, and on
+// every instance (this one again, harmlessly) through the relay. The
+// per-frame session check and the keep-alive's stay the authority, so a
+// lost notification only delays a cut-off.
+func (h *Handler) closeEverywhere(ctx context.Context, e event) {
+	e.Kind = "c"
+	h.hub.closeConnections(e.Account, e.Reason, closeMatch(e))
+	if err := h.relay.publish(context.WithoutCancel(ctx), e); err != nil {
+		slog.Warn("notify other instances of a forced close failed", "error", err)
+	}
+}
+
 // CloseAccountConnections implements grouplog.Notifier: force-
 // closes every live connection for accountID after a group removal/leave.
-func (h *Handler) CloseAccountConnections(_ context.Context, accountID, reason string) {
-	h.hub.closeConnections(accountID, reason, func(*Conn) bool { return true })
+func (h *Handler) CloseAccountConnections(ctx context.Context, accountID, reason string) {
+	h.closeEverywhere(ctx, event{Account: accountID, Reason: reason})
 }
 
 // CloseAccountSessions closes every connection of a deleted account.
@@ -74,20 +96,24 @@ func (h *Handler) CloseAccountSessions(ctx context.Context, accountID string) {
 // session (logout, device revocation). The per-frame session check is the
 // authority; this just makes the cut-off prompt for idle listeners too.
 func (h *Handler) CloseSessionConnections(accountID, sessionID string) {
-	h.hub.closeConnections(accountID, byeSessionRevoked, func(c *Conn) bool { return c.sessionID == sessionID })
+	h.closeEverywhere(context.Background(), event{Account: accountID, Reason: byeSessionRevoked, Session: sessionID})
 }
 
 // CloseOtherSessionConnections force-closes every connection of accountID
 // not opened with keepSessionID (a rekey ends all other sessions).
 func (h *Handler) CloseOtherSessionConnections(accountID, keepSessionID string) {
-	h.hub.closeConnections(accountID, byeSessionRevoked, func(c *Conn) bool { return c.sessionID != keepSessionID })
+	h.closeEverywhere(context.Background(), event{Account: accountID, Reason: byeSessionRevoked, Session: keepSessionID, Keep: true})
 }
 
 // NotifyGroup implements grouplog.Notifier: tells every live connection of
 // accountIDs that a membership log grew or the group was deleted (Sync §3,
 // `group`), so clients refetch and re-verify without polling.
-func (h *Handler) NotifyGroup(_ context.Context, groupID string, headSeq int64, accountIDs []string) {
-	h.hub.sendToAccounts(accountIDs, map[string]any{"t": "group", "group": groupID, "head_seq": headSeq})
+// Sent through the relay, so members on every instance get it.
+func (h *Handler) NotifyGroup(ctx context.Context, groupID string, headSeq int64, accountIDs []string) {
+	if err := h.relay.publish(context.WithoutCancel(ctx), groupEvents(groupID, headSeq, accountIDs)...); err != nil {
+		// Only a hint to refetch; clients also get one per list at connect.
+		slog.Warn("notify group change failed", "group", groupID, "error", err)
+	}
 }
 
 // serveWS upgrades the connection. Origin is checked here explicitly
@@ -97,6 +123,9 @@ func (h *Handler) NotifyGroup(_ context.Context, groupID string, headSeq int64, 
 func (h *Handler) serveWS(c *echo.Context) error {
 	if c.Request().Header.Get("Origin") != h.origin {
 		return echo.NewHTTPError(http.StatusForbidden, "origin mismatch")
+	}
+	if !h.hub.isListening() {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "live updates unavailable, retry")
 	}
 	acc, _ := auth.AccountFromContext(c)
 	sess, _ := auth.SessionFromContext(c)
@@ -114,8 +143,11 @@ func (h *Handler) serveWS(c *echo.Context) error {
 
 	conn := newConn(ws, acc.ID, sess.ID)
 	defer conn.shutdown(websocket.StatusNormalClosure, "", nil)
-	if !h.hub.tryAddConnection(acc.ID, conn) {
-		_ = ws.Close(websocket.StatusPolicyViolation, "too many connections for this account")
+	if err := h.hub.tryAddConnection(acc.ID, conn); errors.Is(err, errNotListening) {
+		_ = ws.Close(websocket.StatusTryAgainLater, err.Error())
+		return nil
+	} else if err != nil {
+		_ = ws.Close(websocket.StatusPolicyViolation, err.Error())
 		return nil
 	}
 	defer h.hub.removeConnection(acc.ID, conn)
@@ -420,24 +452,46 @@ func (h *Handler) handleUpdate(ctx context.Context, conn *Conn, raw []byte, f cl
 		return
 	}
 
-	// Fan out under this instance's list lock, so live frames leave in seq
-	// order (seq order is commit order already, by the list row lock).
-	lock := h.hub.listLock(hdr.List)
-	lock.Lock()
+	// Persisted and notified in one transaction; every instance, this one
+	// included, fans it out when it hears the notification (relay.go).
 	var up store.Update
+	var w *waiter
 	err := h.groups.AuthorizedWrite(ctx, hdr.List, conn.accountID, hdr.Epoch, func(tx pgx.Tx) error {
 		var err error
-		up, err = h.updates.Append(ctx, tx, hdr.List, hdr.Epoch, conn.accountID, msgBytes)
-		return err
+		if up, err = h.updates.Append(ctx, tx, hdr.List, hdr.Epoch, conn.accountID, msgBytes); err != nil {
+			return err
+		}
+		w = h.relay.expect(hdr.List, up.Seq)
+		return notifyUpdate(ctx, tx, hdr.List, up.Seq, conn.id, msgBytes)
 	})
-	if err == nil {
-		h.hub.broadcast(hdr.List, conn, up.Seq, map[string]any{
-			"t": "update", "list": hdr.List, "seq": up.Seq, "msg": json.RawMessage(msgBytes),
-		})
-	}
-	lock.Unlock()
 	if err != nil {
+		if w != nil {
+			h.relay.forget(hdr.List, up.Seq)
+		}
 		h.sendWriteError(ctx, conn, f.Cid, err)
+		return
+	}
+
+	// Sync §3, ordering per connection: the ack comes after every earlier
+	// update to the list. Those were committed, so notified, first; once
+	// this instance has handed out this update's own notification, they
+	// are all queued on this connection ahead of the ack.
+	timer := time.NewTimer(ackTimeout)
+	defer timer.Stop()
+	delivered := false
+	select {
+	case <-w.done:
+		delivered = w.ok // written before done was closed
+	case <-timer.C:
+	case <-ctx.Done():
+		h.relay.forget(hdr.List, up.Seq)
+		return
+	}
+	if !delivered {
+		// The relay lost notifications; this socket is closing (or must),
+		// and the client catches up when it reconnects.
+		h.relay.forget(hdr.List, up.Seq)
+		conn.shutdown(websocket.StatusTryAgainLater, "reconnect", nil)
 		return
 	}
 

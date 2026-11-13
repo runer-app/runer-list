@@ -6,11 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJoinPageHandsTheFragmentToTheApp(t *testing.T) {
-	e := New(nil, Options{Origin: "tauri://localhost", PublicURL: "http://localhost:8080"})
+	e := echo.New()
+	e.GET("/join", joinHandler)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/join", nil))
 

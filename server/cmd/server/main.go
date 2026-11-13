@@ -52,10 +52,13 @@ func run() error {
 		"signups_per_ip_per_hour", lim.SignupsPerIPPerHour, "signup_burst_per_ip", lim.SignupBurstPerIP,
 		"signup_pow_bits", lim.SignupPoWBits)
 
-	e := server.New(pool, server.Options{
+	e, err := server.New(ctx, pool, server.Options{
 		Origin: cfg.Origin, PublicURL: cfg.PublicURL, TrustedProxies: cfg.TrustedProxies,
 		Limits: lim, InviteReadsPerIPPerMinute: cfg.InviteReadsPerIPPerMinute,
 	})
+	if err != nil {
+		return err
+	}
 	go runRetentionLoop(ctx, pool)
 
 	// Blocks until ctx is cancelled, then shuts down gracefully (10s).

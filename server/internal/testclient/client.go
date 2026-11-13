@@ -35,6 +35,10 @@ type Client struct {
 	// as from its proxy), so each Client is its own user to per-IP limits
 	// even when many share one test server.
 	ip string
+
+	// Header is added to every request and WebSocket dial, e.g. to steer
+	// them to one instance behind the e2e suite's load balancer.
+	Header http.Header
 }
 
 // New creates a client with its own cookie jar (one session per Client,
@@ -85,6 +89,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		req.Header.Set("Origin", c.Origin)
 	}
 	req.Header.Set("X-Forwarded-For", c.ip)
+	for k, v := range c.Header {
+		req.Header[k] = v
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

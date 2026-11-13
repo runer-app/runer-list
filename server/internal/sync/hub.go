@@ -2,29 +2,24 @@ package sync
 
 import (
 	"encoding/json"
-	"hash/fnv"
+	"errors"
 	"log/slog"
 	"sync"
 
 	"github.com/coder/websocket"
 )
 
-// Hub tracks locally connected WebSocket clients so live updates can be
-// fanned out to other subscribers of the same list. In-process, not
-// Redis — correct for the single-instance deployment (Self-hosting:
-// Shape of a deployment); shared state is only needed once realtime users
-// are spread across several server instances.
+// Hub tracks this instance's WebSocket clients, so what the relay hears
+// (relay.go) reaches the right sockets. Other instances have their own;
+// nothing here is shared, and the per-account limit is per instance.
 type Hub struct {
 	mu              sync.Mutex
 	subscribers     map[string]map[*Conn]bool // list id -> conns
 	accountConns    map[string]map[*Conn]bool // accountID -> conns, for the per-account limit and forced close
 	maxConnsPerAcct int
-
-	// listLocks serialize "persist, then fan out" per list on this
-	// instance, so this instance's live frames go out in seq order. Seqs
-	// themselves need no in-process lock: the list row lock assigns and
-	// commits them in order on every instance (store.Updates.Append).
-	listLocks [256]sync.Mutex
+	// listening is whether the relay hears notifications. Without it a
+	// socket would silently miss live frames, so none is accepted.
+	listening bool
 }
 
 func newHub(maxConnsPerAccount int) *Hub {
@@ -35,26 +30,75 @@ func newHub(maxConnsPerAccount int) *Hub {
 	}
 }
 
-func (h *Hub) listLock(key string) *sync.Mutex {
-	f := fnv.New32a()
-	_, _ = f.Write([]byte(key))
-	return &h.listLocks[f.Sum32()%uint32(len(h.listLocks))]
-}
+var (
+	errTooManyConns = errors.New("too many connections for this account")
+	errNotListening = errors.New("not listening for live updates")
+)
 
 // tryAddConnection enforces "WebSocket connections per account" (Sync
 // Protocol & API §6, default 10) and registers c for later lookup (e.g.
 // forced close on removal or session end).
-func (h *Hub) tryAddConnection(accountID string, c *Conn) bool {
+func (h *Hub) tryAddConnection(accountID string, c *Conn) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if !h.listening {
+		return errNotListening
+	}
 	if len(h.accountConns[accountID]) >= h.maxConnsPerAcct {
-		return false
+		return errTooManyConns
 	}
 	if h.accountConns[accountID] == nil {
 		h.accountConns[accountID] = make(map[*Conn]bool)
 	}
 	h.accountConns[accountID][c] = true
-	return true
+	return nil
+}
+
+func (h *Hub) setListening(on bool) {
+	h.mu.Lock()
+	h.listening = on
+	h.mu.Unlock()
+}
+
+func (h *Hub) isListening() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.listening
+}
+
+func (h *Hub) hasSubscribers(key string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subscribers[key]) > 0
+}
+
+// closeAll closes every connection on this instance; clients reconnect
+// and catch up.
+func (h *Hub) closeAll() {
+	h.mu.Lock()
+	var targets []*Conn
+	for _, conns := range h.accountConns {
+		for c := range conns {
+			targets = append(targets, c)
+		}
+	}
+	h.mu.Unlock()
+	for _, c := range targets {
+		c.shutdown(websocket.StatusTryAgainLater, "reconnect", nil)
+	}
+}
+
+// closeSubscribers closes every connection subscribed to key.
+func (h *Hub) closeSubscribers(key string) {
+	h.mu.Lock()
+	targets := make([]*Conn, 0, len(h.subscribers[key]))
+	for c := range h.subscribers[key] {
+		targets = append(targets, c)
+	}
+	h.mu.Unlock()
+	for _, c := range targets {
+		c.shutdown(websocket.StatusTryAgainLater, "reconnect", nil)
+	}
 }
 
 func (h *Hub) removeConnection(accountID string, c *Conn) {
@@ -90,11 +134,11 @@ func (h *Hub) unsubscribeAll(c *Conn) {
 	}
 }
 
-// broadcast queues frame for every subscriber of key except exclude (nil
-// excludes nobody). The author never receives their own live update back
-// (Sync §4: "to every subscriber except the author"). It
+// broadcast queues frame for every subscriber of key except the connection
+// with id exclude ("" excludes nobody). The author never receives their own
+// live update back (Sync §4: "to every subscriber except the author"). It
 // never blocks on a subscriber: a full queue disconnects that subscriber.
-func (h *Hub) broadcast(key string, exclude *Conn, seq int64, frame map[string]any) {
+func (h *Hub) broadcast(key string, exclude string, seq int64, frame map[string]any) {
 	data, err := json.Marshal(frame)
 	if err != nil {
 		slog.Error("marshal broadcast frame failed", "error", err)
@@ -103,7 +147,7 @@ func (h *Hub) broadcast(key string, exclude *Conn, seq int64, frame map[string]a
 	h.mu.Lock()
 	targets := make([]*Conn, 0, len(h.subscribers[key]))
 	for c := range h.subscribers[key] {
-		if c != exclude {
+		if c.id != exclude {
 			targets = append(targets, c)
 		}
 	}

@@ -652,7 +652,7 @@ func TestOnlyConfiguredProxiesTrusted(t *testing.T) {
 	_, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	lim := testLimits
 	lim.ChallengesPerIPPerMinute = 20
-	e := server.New(pool, server.Options{Origin: testOrigin, PublicURL: "http://unused", TrustedProxies: testProxies, Limits: lim})
+	e := newServer(t, pool, server.Options{Origin: testOrigin, PublicURL: "http://unused", TrustedProxies: testProxies, Limits: lim})
 
 	challenge := func(peer, xff string) int {
 		pub, _, err := ed25519.GenerateKey(nil)

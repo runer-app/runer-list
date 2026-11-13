@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"sort"
+	"strconv"
 	gosync "sync"
 	"sync/atomic"
 	"testing"
@@ -27,6 +28,18 @@ type cluster struct {
 	URL string // the load balancer's: every instance's PublicURL
 }
 
+// pinHeader steers a request to one instance (0-based) instead of the next.
+const pinHeader = "X-Test-Instance"
+
+// pin sends c's requests and dials to instance i; -1 goes back to round robin.
+func pin(c *testclient.Client, i int) {
+	if i < 0 {
+		c.Header = nil
+		return
+	}
+	c.Header = http.Header{pinHeader: []string{strconv.Itoa(i)}}
+}
+
 func newCluster(t *testing.T, n int) cluster {
 	t.Helper()
 	newTestServer(t, auth.DefaultChallengeTTL) // the per-test cleanup
@@ -42,6 +55,15 @@ func newCluster(t *testing.T, n int) cluster {
 	}
 	var next atomic.Uint64
 	lb.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if pin := r.Header.Get(pinHeader); pin != "" {
+			i, err := strconv.Atoi(pin)
+			if err != nil || i < 0 || i >= n {
+				http.Error(w, "bad "+pinHeader, http.StatusBadRequest)
+				return
+			}
+			proxies[i].ServeHTTP(w, r)
+			return
+		}
 		proxies[(next.Add(1)-1)%uint64(n)].ServeHTTP(w, r)
 	})
 	lb.Start()

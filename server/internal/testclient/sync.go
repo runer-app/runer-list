@@ -18,6 +18,14 @@ type SyncConn struct {
 	ws *websocket.Conn
 }
 
+func (c *Client) dialHeader() http.Header {
+	h := http.Header{"Origin": []string{c.Origin}}
+	for k, v := range c.Header {
+		h[k] = v
+	}
+	return h
+}
+
 // DialSync opens the sync WebSocket.
 func (c *Client) DialSync(ctx context.Context) (*SyncConn, error) {
 	wsURL := strings.Replace(c.BaseURL, "http://", "ws://", 1)
@@ -25,7 +33,7 @@ func (c *Client) DialSync(ctx context.Context) (*SyncConn, error) {
 
 	ws, _, err := websocket.Dial(ctx, wsURL+"/v1/sync", &websocket.DialOptions{
 		HTTPClient: c.http,
-		HTTPHeader: http.Header{"Origin": []string{c.Origin}},
+		HTTPHeader: c.dialHeader(),
 	})
 	if err != nil {
 		return nil, err

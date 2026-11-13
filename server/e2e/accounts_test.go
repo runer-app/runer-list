@@ -107,23 +107,47 @@ var testProxies, _ = config.ParseCIDRs("127.0.0.0/8,::1/128,10.0.0.0/8")
 
 // startServer starts a server whose PublicURL is its own address, since
 // that's what clients sign logins for. challengeTTL 0 means the default.
-func startServer(pool *pgxpool.Pool, challengeTTL time.Duration) *httptest.Server {
+func startServer(pool *pgxpool.Pool, challengeTTL time.Duration) *testServer {
 	return startServerAt(pool, challengeTTL, "")
+}
+
+// testServer is a running instance; Close also stops its relay listener.
+type testServer struct {
+	*httptest.Server
+	stop context.CancelFunc
+}
+
+func (s *testServer) Close() {
+	s.Server.Close()
+	s.stop()
+}
+
+// newServer is server.New for a test, stopped when the test ends.
+func newServer(t *testing.T, pool *pgxpool.Pool, opts server.Options) http.Handler {
+	t.Helper()
+	e, err := server.New(t.Context(), pool, opts)
+	require.NoError(t, err)
+	return e
 }
 
 // startServerAt is startServer with the PublicURL given ("" for its own
 // address): the load balancer's, for an instance behind one.
-func startServerAt(pool *pgxpool.Pool, challengeTTL time.Duration, publicURL string) *httptest.Server {
+func startServerAt(pool *pgxpool.Pool, challengeTTL time.Duration, publicURL string) *testServer {
 	ts := httptest.NewUnstartedServer(nil)
 	if publicURL == "" {
 		publicURL = "http://" + ts.Listener.Addr().String()
 	}
-	ts.Config.Handler = server.New(pool, server.Options{
+	ctx, stop := context.WithCancel(context.Background())
+	e, err := server.New(ctx, pool, server.Options{
 		Origin: testOrigin, PublicURL: publicURL,
 		TrustedProxies: testProxies, ChallengeTTL: challengeTTL, Limits: testLimits,
 	})
+	if err != nil {
+		panic(err) // only fails when the database is unreachable
+	}
+	ts.Config.Handler = e
 	ts.Start()
-	return ts
+	return &testServer{Server: ts, stop: stop}
 }
 
 func newClient(t *testing.T, baseURL string) *testclient.Client {
@@ -379,7 +403,7 @@ func TestChallengeLimitKeysOnRealIP(t *testing.T) {
 	_, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	lim := testLimits
 	lim.ChallengesPerIPPerMinute = 20
-	e := server.New(pool, server.Options{Origin: testOrigin, PublicURL: "http://unused", TrustedProxies: testProxies, Limits: lim})
+	e := newServer(t, pool, server.Options{Origin: testOrigin, PublicURL: "http://unused", TrustedProxies: testProxies, Limits: lim})
 
 	challenge := func(peer, xff string) int {
 		pub, _, err := ed25519.GenerateKey(nil)
@@ -420,7 +444,7 @@ func TestSignupLimitIsConfigurable(t *testing.T) {
 	lim := testLimits
 	lim.SignupsPerIPPerHour, lim.SignupBurstPerIP, lim.SignupPoWBits = 1, 3, 6
 	ts := httptest.NewUnstartedServer(nil)
-	ts.Config.Handler = server.New(pool, server.Options{
+	ts.Config.Handler = newServer(t, pool, server.Options{
 		Origin: testOrigin, PublicURL: "http://" + ts.Listener.Addr().String(),
 		TrustedProxies: testProxies, Limits: lim,
 	})

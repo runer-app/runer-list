@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -48,7 +49,9 @@ const DefaultInviteReadsPerIPPerMinute = 30
 // New builds a fully wired Echo instance. Middleware order: RequestID,
 // Logger, Recover, body limit, security headers, then routes (Origin is
 // checked on the /v1 group).
-func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
+// The sync relay listens for notifications from every instance until ctx
+// is done; New returns once it does, or the error if it can't.
+func New(ctx context.Context, pool *pgxpool.Pool, opts Options) (*echo.Echo, error) {
 	if opts.ChallengeTTL == 0 {
 		opts.ChallengeTTL = auth.DefaultChallengeTTL
 	}
@@ -128,7 +131,10 @@ func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
 	// syncHandler is built first so it can be passed in as the Notifier
 	// that closes a removed member's live connections, and as the
 	// ConnCloser that ends sockets when their session ends.
-	syncHandler := syncpkg.NewHandler(groups, accounts, sessions, updates, snapshots, origin)
+	syncHandler := syncpkg.NewHandler(pool, groups, accounts, sessions, updates, snapshots, origin)
+	if err := syncHandler.Start(ctx); err != nil {
+		return nil, err
+	}
 	syncHandler.RegisterRoutes(v1, requireSession)
 
 	authHandler := auth.NewHandler(accounts, sessions, challenges, opts.PublicURL, opts.ChallengeTTL, opts.Limits, syncHandler, grouplog.ParseGenesis)
@@ -145,5 +151,5 @@ func New(pool *pgxpool.Pool, opts Options) *echo.Echo {
 	inviteHandler := invite.NewHandler(inviteService, opts.InviteReadsPerIPPerMinute)
 	inviteHandler.RegisterRoutes(v1, requireSession)
 
-	return e
+	return e, nil
 }

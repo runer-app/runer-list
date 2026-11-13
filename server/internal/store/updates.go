@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -72,4 +73,20 @@ func (u *Updates) HeadSeq(ctx context.Context, tx pgx.Tx, listID string) (int64,
 		return 0, fmt.Errorf("list head seq: %w", err)
 	}
 	return seq, nil
+}
+
+// Get returns one update, for an instance relaying a notification whose
+// payload was too large to carry the message.
+func (u *Updates) Get(ctx context.Context, listID string, seq int64) (Update, error) {
+	var up Update
+	err := u.pool.QueryRow(ctx, `SELECT list_id, seq, epoch, author_account_id, msg, created_at
+		FROM list_updates WHERE list_id = $1 AND seq = $2`, listID, seq,
+	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.AuthorAccountID, &up.Msg, &up.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Update{}, ErrNotFound
+	}
+	if err != nil {
+		return Update{}, fmt.Errorf("get update: %w", err)
+	}
+	return up, nil
 }

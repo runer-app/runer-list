@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -33,6 +35,7 @@ var errConnClosed = errors.New("connection closed")
 // a single writer goroutine fed by a bounded queue, so no other connection's
 // goroutine ever blocks on this peer's socket.
 type Conn struct {
+	id         string // unique across instances: excludes the author from fan-out
 	ws         *websocket.Conn
 	accountID  string
 	sessionID  string
@@ -62,6 +65,7 @@ type liveFrame struct {
 
 func newConn(ws *websocket.Conn, accountID, sessionID string) *Conn {
 	c := &Conn{
+		id: newConnID(),
 		ws: ws, accountID: accountID, sessionID: sessionID,
 		limiter:      rate.NewLimiter(50, 50),
 		subLimiter:   rate.NewLimiter(5, 10),
@@ -237,4 +241,11 @@ func (c *Conn) subscribedKeys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// newConnID returns a random id; 96 bits never collide across instances.
+func newConnID() string {
+	b := make([]byte, 12)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
