@@ -2,10 +2,11 @@ import { addDays, ClientCore, en, localDateString, type ClientCoreOptions, type 
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MemoryServer } from '../../client-core/test/platform-node/memory-server.js';
-import { createMemoryPlatform, ManualLinkSource, RecordingNotifier } from '../../client-core/test/platform-node/memory.js';
+import { createMemoryPlatform, ManualLifecycle, ManualLinkSource, RecordingNotifier } from '../../client-core/test/platform-node/memory.js';
 import App from '../src/App.svelte';
 import Main from '../src/screens/Main.svelte';
 import { startAppearance } from '../src/appearance.svelte.js';
+import { day } from '../src/day.svelte.js';
 import type { Shell } from '../src/shell.js';
 
 // The screens through the real components and ClientCore, on
@@ -482,6 +483,65 @@ describe('Today', () => {
     document.body.appendChild(Object.assign(document.createElement('input'), { id: 'elsewhere' })).dispatchEvent(typed);
     expect(typed.defaultPrevented).toBe(false);
     document.getElementById('elsewhere')!.remove();
+  });
+});
+
+describe('midnight', () => {
+  afterEach(() => {
+    day.today = localDateString(new Date());
+  });
+
+  /** A person on a device whose clock the test moves; `foreground` is the app coming back to it. */
+  async function onClock(start: Date) {
+    server = new MemoryServer();
+    const clock = { now: start };
+    const platform = createMemoryPlatform({ transport: server.transport() });
+    const { core } = await ClientCore.signUp(platform, SERVER, 'Someone', { ...OPTS, now: () => clock.now });
+    cores.push(core);
+    return { core, clock, lifecycle: platform.lifecycle as ManualLifecycle };
+  }
+
+  test('past midnight a list, the detail panel and the date picker say "Yesterday" for what was today, and it is late', async () => {
+    const { core, clock, lifecycle } = await onClock(new Date(2026, 10, 12, 23, 30));
+    const id = await core.createList('Errands');
+    core.list(id).addTask('pay the rent', { due: '2026-11-12' });
+    await signedIn(core);
+    await fireEvent.click(nav().getByRole('button', { name: 'Errands' }));
+    const main = within(screen.getByRole('main'));
+    expect(await main.findByText('Today')).toBeTruthy();
+    await fireEvent.click(await screen.findByDisplayValue('pay the rent'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Date: Today' }));
+    const picker = () => within(screen.getByRole('dialog', { name: 'Date' }));
+    expect(picker().getByRole('button', { name: /^Today/ }).textContent).toContain('Thu');
+    expect(picker().getByRole('button', { name: 'Thursday, November 12, 2026' }).classList.contains('today')).toBe(true);
+
+    // The device slept through midnight; the app comes back to the foreground.
+    clock.now = new Date(2026, 10, 13, 0, 5);
+    lifecycle.foreground();
+
+    expect(await main.findByText('Overdue · Yesterday')).toBeTruthy();
+    expect(main.queryByText('Today')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Date: Yesterday' }).classList.contains('late')).toBe(true);
+    expect(picker().getByRole('button', { name: /^Today/ }).textContent).toContain('Fri');
+    expect(picker().getByRole('button', { name: 'Friday, November 13, 2026' }).classList.contains('today')).toBe(true);
+    const old = picker().getByRole('button', { name: 'Thursday, November 12, 2026' });
+    expect([old.classList.contains('today'), old.classList.contains('past')]).toEqual([false, true]);
+  });
+
+  test('past midnight the Today screen shows the new date and moves what was due into Overdue', async () => {
+    const { core, clock, lifecycle } = await onClock(new Date(2026, 10, 12, 23, 30));
+    core.list(core.inbox).addTask('pay the rent', { due: '2026-11-12' });
+    await signedIn(core);
+    const main = within(screen.getByRole('main'));
+    expect(await main.findByText('Thursday, November 12')).toBeTruthy();
+    expect(main.queryByRole('heading', { name: /^Overdue/ })).toBeNull();
+
+    clock.now = new Date(2026, 10, 13, 0, 5);
+    await lifecycle.wake();
+
+    expect(await main.findByText('Friday, November 13')).toBeTruthy();
+    expect(main.getByRole('heading', { name: /^Overdue/ })).toBeTruthy();
+    expect(main.getByText('Overdue · Yesterday')).toBeTruthy();
   });
 });
 

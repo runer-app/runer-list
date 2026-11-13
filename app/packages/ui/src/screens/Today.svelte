@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { localDateString, type ClientCore, type ListId, type TaskRef } from '@runer/client-core';
+  import { type ClientCore, type ListId, type TaskRef } from '@runer/client-core';
   import { tick } from 'svelte';
   import { fromStore } from 'svelte/store';
   import { moveBlock } from '../blocks.js';
-  import { reminderLabel, whenLabel, type Typed } from '../dates.js';
+  import { asDate, reminderLabel, today, whenLabel, type Typed } from '../dates.js';
   import { startDrag, stepGap } from '../drag.js';
   import { t } from '../messages.js';
   import Capture from '../components/Capture.svelte';
@@ -22,7 +22,7 @@
   const stores = $derived({ today: fromStore(core.today), mine: fromStore(core.myTasks) });
   const tasks = $derived(stores.today.current);
   const mine = $derived(stores.mine.current);
-  const date = new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  const date = $derived(new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(today())));
 
   type Section = 'overdue' | 'today' | 'upcoming' | 'planned';
   /** The date (and time) beside a task; in Today's own section only a time, since the day is known. */
@@ -40,7 +40,7 @@
 
   // A task captured here goes to the Inbox, due today, so it shows up right here.
   function add(title: string, when?: Typed) {
-    core.list(core.inbox).addTask(title, { due: when?.due ?? localDateString(new Date()), ...(when?.remindAt === undefined ? {} : { remindAt: when.remindAt }) });
+    core.list(core.inbox).addTask(title, { due: when?.due ?? today(), ...(when?.remindAt === undefined ? {} : { remindAt: when.remindAt }) });
   }
 
   const listName = (ref: TaskRef) => (ref.listId === core.inbox ? t('nav.inbox') : ref.listName || t('list.untitled'));

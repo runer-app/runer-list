@@ -4,6 +4,7 @@
   import type { AppUpdate, DebugLog, Shell } from '../shell.js';
   import { fromStore } from 'svelte/store';
   import { clock, deviceHour12 } from '../clock.svelte.js';
+  import { day } from '../day.svelte.js';
   import { t } from '../messages.js';
   import type { View } from '../view.js';
   import Icon from '../components/Icon.svelte';
@@ -56,6 +57,7 @@
 
   const stores = $derived({ lists: fromStore(core.lists), today: fromStore(core.today), connection: fromStore(core.connection), warnings: fromStore(core.warnings) });
   const settings = $derived(fromStore(core.settings));
+  $effect(() => core.date.subscribe((d) => (day.today = d)));
   $effect(() => {
     const c = settings.current.clock;
     clock.hour12 = c === undefined ? deviceHour12() : c === '12h';

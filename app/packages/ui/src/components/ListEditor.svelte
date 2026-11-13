@@ -65,7 +65,7 @@
   let menuFor = $state<string | null>(null);
 
   const fields = new Map<string, HTMLElement>();
-  const now = today();
+  const now = $derived(today());
   const shared = $derived(members.length > 1);
 
   type Row =

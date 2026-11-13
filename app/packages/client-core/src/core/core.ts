@@ -142,6 +142,7 @@ export class ClientCore {
   readonly invites: InviteApi;
   private readonly summaries = new Writable<ListSummary[]>([]);
   private readonly todayRefs = new Writable<TaskRef[]>([]);
+  private readonly day: Writable<string>;
   private readonly mine = new Writable<MyTasks>({ today: [], upcoming: [], planned: [] });
   private readonly states = new Map<ListId, ListState>();
   private readonly now: () => Date;
@@ -165,6 +166,7 @@ export class ClientCore {
     private readonly opts: ClientCoreOptions,
   ) {
     this.now = opts.now ?? (() => new Date());
+    this.day = new Writable(localDateString(this.now()));
     this.invites = { open: (link) => this.openInvite(link) };
   }
 
@@ -233,8 +235,13 @@ export class ClientCore {
     await this.loadStates();
     this.scheduleMidnight();
     this.unhook.push(this.account.platform.lifecycle.onWake(() => this.wake()));
-    // The OS's settings can change while the app is away.
-    this.unhook.push(this.account.platform.lifecycle.onForeground(() => this.checkPermission()));
+    // The OS's settings can change while the app is away, and so can the date.
+    this.unhook.push(
+      this.account.platform.lifecycle.onForeground(() => {
+        this.checkDate();
+        this.checkPermission();
+      }),
+    );
     this.checkPermission();
   }
 
@@ -483,6 +490,15 @@ export class ClientCore {
     return this.todayRefs;
   }
 
+  /**
+   * Today's date on the device (`YYYY-MM-DD`), the one the views use. It
+   * changes at local midnight, and on a wake or a return to the foreground
+   * after a midnight the app slept through.
+   */
+  get date(): Readable<string> {
+    return this.day;
+  }
+
   get myTasks(): Readable<MyTasks> {
     return this.mine;
   }
@@ -547,6 +563,7 @@ export class ClientCore {
   private recompute(): void {
     const lists = this.snapshots();
     const ctx = { me: this.me, today: localDateString(this.now()) };
+    this.day.set(ctx.today);
     this.queueReminders();
     const order = this.sync.doc(this.account.inbox)?.viewOrder(TASK_ORDER) ?? [];
     this.todayRefs.set(inOrder(todayView(lists, ctx), order));
@@ -613,12 +630,21 @@ export class ClientCore {
 
   /** Background refresh: catch up, then wait until the reminders that brought are with the OS. */
   private async wake(): Promise<void> {
+    this.checkDate();
     try {
       await this.sync.wake();
     } finally {
       await this.reminding;
       this.log('wake: reminders with the OS');
     }
+  }
+
+  /** A timer can fire late, or not at all, while the device sleeps: a date that has moved on is taken up here. */
+  private checkDate(): void {
+    if (this.closed || localDateString(this.now()) === this.day.value) return;
+    clearTimeout(this.midnight);
+    this.recompute();
+    this.scheduleMidnight();
   }
 
   /** Today changes at local midnight even when nothing else does. */

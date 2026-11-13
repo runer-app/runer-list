@@ -1,5 +1,6 @@
 import { addDays, en, localDateString, parseTask, parseTime as parseTimeIn } from '@runer/client-core';
 import { clock } from './clock.svelte.js';
+import { day } from './day.svelte.js';
 import { t } from './messages.js';
 
 /** Formatting for due dates (`YYYY-MM-DD`, a date only) and reminders (an instant), in the device's zone. */
@@ -12,7 +13,8 @@ const time24 = new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit
 const time = { format: (d: Date) => (clock.hour12 ? time12 : time24).format(d) };
 const shortDay = new Intl.DateTimeFormat('en', { weekday: 'short' });
 
-export const today = (): string => localDateString(new Date());
+/** Today's date, the one all of the UI shows (`day.svelte.ts`). Reactive. */
+export const today = (): string => day.today;
 
 export function asDate(d: string): Date {
   const [y, m, day] = d.split('-').map(Number) as [number, number, number];

@@ -276,6 +276,37 @@ describe('ClientCore', () => {
     });
   });
 
+  test('the date and Today move on at local midnight, and on a wake or the foreground after a midnight that was slept through', async () => {
+    server = new MemoryServer();
+    const clock = { now: new Date(2026, 10, 12, 23, 59, 30) };
+    const p = device();
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const { core } = await ClientCore.signUp(p, SERVER, '', { ...OPTS, now: () => clock.now });
+      running.push(core);
+      core.list(core.inbox).addTask('pay the rent', { due: '2026-11-13' });
+      expect(value(core.date)).toBe('2026-11-12');
+      expect(value(core.today)).toEqual([]);
+
+      // The timer: 30 s to midnight, and a second more.
+      clock.now = new Date(2026, 10, 13, 0, 0, 1);
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(value(core.date)).toBe('2026-11-13');
+      expect(value(core.today).map((r) => r.item.title)).toEqual(['pay the rent']);
+
+      // Asleep past the next midnight, the timer not fired yet: a wake takes it up, and so does the foreground.
+      clock.now = new Date(2026, 10, 14, 7, 0);
+      await (p.lifecycle as ManualLifecycle).wake();
+      expect(value(core.date)).toBe('2026-11-14');
+      expect(value(core.today).map((r) => r.overdue)).toEqual([true]);
+      clock.now = new Date(2026, 10, 15, 7, 0);
+      (p.lifecycle as ManualLifecycle).foreground();
+      expect(value(core.date)).toBe('2026-11-15');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('sign-out forgets the account on this device', async () => {
     server = new MemoryServer();
     const p = device();

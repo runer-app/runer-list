@@ -174,6 +174,7 @@ const core = {
   lists,
   today: todayRefs,
   myTasks: mine,
+  date: new Writable(localDateString(new Date())),
   connection: new Writable('online'),
   warnings: new Writable([]),
   // `?member=<name>` names Anna, for the layout test; she has just joined.
