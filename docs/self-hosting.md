@@ -9,6 +9,7 @@ Run your own server. Quickest is the released Docker image with a PostgreSQL dat
 ## What to know before you start
 
 - **One instance or several.** Instances behind a load balancer share their state through PostgreSQL: no sticky sessions, no Redis. A few limits count per instance ([Shape of a deployment](#shape-of-a-deployment)).
+- **PostgreSQL 13 or newer, reached directly or through a pooler in session mode.** A pooler in transaction mode (e.g. PgBouncer with `pool_mode = transaction`) can't carry `LISTEN`, which live updates need, even on one instance ([Shape of a deployment](#shape-of-a-deployment)).
 - **You run the backups.** Everything worth keeping is in PostgreSQL ([Backups](#backups)).
 - **You own the TLS and proxy setup**, including `TRUSTED_PROXIES` ([Configuration](#configuration)).
 
@@ -43,13 +44,13 @@ client ──HTTPS/WSS──► load balancer ──┼──► server:8080 ─
                          (TLS)        └──► server:8080 ──┘
 ```
 
-What the instances share lives in PostgreSQL: login and rekey challenges, the join limit per invite, and live updates, which reach the other instances through `LISTEN/NOTIFY`. So each instance keeps **one PostgreSQL connection open for listening**: `DATABASE_URL` must reach PostgreSQL directly or through a pooler in session mode, not one in transaction mode, which can't carry `LISTEN`. If an instance loses that connection, it closes its WebSockets and refuses new ones (`503`) until it listens again; the app reconnects and catches up.
+What the instances share lives in PostgreSQL: login and rekey challenges, the join limit per invite, and live updates, which reach the other instances through `LISTEN/NOTIFY`. So each instance keeps **one PostgreSQL connection open for listening**: `DATABASE_URL` must reach PostgreSQL directly or through a pooler in session mode, not one in transaction mode, which can't carry `LISTEN`. That holds for a single instance too. Through such a pooler the server starts, but no live update arrives: every edit waits 10 s for its acknowledgement and then the socket closes. If an instance loses that connection, it closes its WebSockets and refuses new ones (`503`) until it listens again; the app reconnects and catches up.
 
 Some limits are **per instance**, so N instances allow N times as much: the per-IP limits on login challenges, sign-ups and invite package reads, and the WebSocket connections per account. The proof-of-work, not the counter, is what makes sign-up spam expensive. The join limit per invite is shared.
 
 The retention job runs on every instance. Its deletes are idempotent, so this only repeats work.
 
-**Upgrading to several instances.** A rolling upgrade from a version that ran single-instance only is safe: old and new instances can run side by side for the overlap, and no edit is lost. Edits made through an old instance reach clients connected to new ones at their next catch-up rather than live.
+**Upgrading to several instances.** A rolling upgrade from a version that ran single-instance only is safe: old and new instances can run side by side for the overlap, and no edit is lost. Edits made through an old instance reach clients connected to new ones at their next catch-up rather than live. Each instance holds one more database connection than before (the listener), so leave room under PostgreSQL's `max_connections`.
 
 ## Configuration
 
@@ -57,7 +58,7 @@ All configuration comes from environment variables.
 
 | Variable | Required | Default | Meaning |
 |---|---|---|---|
-| `DATABASE_URL` | yes | | PostgreSQL connection string |
+| `DATABASE_URL` | yes | | PostgreSQL connection string: PostgreSQL 13 or newer, directly or through a session-mode pooler, never a transaction-mode one |
 | `ORIGIN` | yes | | The single `Origin` accepted on mutations and the WebSocket upgrade, e.g. `tauri://localhost` for the desktop app |
 | `PUBLIC_URL` | yes | | The canonical API URL, e.g. `https://api.runer.app`. Login signatures cover it, so it must be exactly what clients connect to (a trailing `/` is stripped). |
 | `LISTEN_ADDR` | no | `:8080` | Bind address |
@@ -121,7 +122,7 @@ Everything worth keeping is in PostgreSQL. Back up the database, and test a rest
 
 ## Running from source
 
-You need Go (the version in `server/go.mod`) and PostgreSQL (any recent version; the migrations use `gen_random_uuid()`). From `server/`:
+You need Go (the version in `server/go.mod`) and PostgreSQL 13 or newer (the migrations use the built-in `gen_random_uuid()`). From `server/`:
 
 ```sh
 # 1. A database
