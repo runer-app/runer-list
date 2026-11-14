@@ -18,7 +18,6 @@ The protocol is implemented twice, in Go and in Rust, and the two must agree byt
 | [docs/app.md](docs/app.md) | How the app is built: layers, the vault, sync, screens |
 | [server/README.md](server/README.md) | How the server is built and developed |
 | [docs/self-hosting.md](docs/self-hosting.md) | Running your own server: Docker, configuration, limits, retention, backups |
-| [docs/releasing.md](docs/releasing.md) | Versions, tags, and the one-time release setup |
 
 ## Commands
 
@@ -26,14 +25,14 @@ The protocol is implemented twice, in Go and in Rust, and the two must agree byt
 make            # list the targets; app/ and server/ have their own Makefiles with more
 make test       # both sides' full suites (the server's end-to-end tests need Docker)
 make up         # the server and PostgreSQL in local Docker on :8080
-make dev-local  # the desktop app against that local server
+make dev        # the desktop app against that local server
 ```
 
 Each side's README has its setup: [app](app/README.md) · [server](server/README.md).
 
 ## Releases
 
-App and server are versioned and released separately, with tags `app-vX.Y.Z` and `server-vX.Y.Z` made by `make bump-app` and `make bump-server`. See [docs/releasing.md](docs/releasing.md).
+App and server are versioned and released separately: an `app-vX.Y.Z` tag builds the installers, a `server-vX.Y.Z` tag the Docker image `ghcr.io/runer-app/runer-api`.
 
 ## Contributing and security
 

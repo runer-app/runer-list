@@ -436,9 +436,9 @@ The in-memory server checks little of what the real one does; the e2e suite is w
 
 ## 12. Build and release
 
-`.github/workflows/app-release.yml` builds signed-for-update installers for macOS (`.dmg`, self-signed so the keychain keeps trusting it), Windows (`.msi`, `.exe`) and Linux (AppImage, `.deb`, `.rpm`) from an `app-v*` tag, published as a release once all of them are built. Setup: [releasing.md](releasing.md).
+`.github/workflows/app-release.yml` builds signed-for-update installers for macOS (`.dmg`, self-signed so the keychain keeps trusting it), Windows (`.msi`, `.exe`) and Linux (AppImage, `.deb`, `.rpm`) from an `app-v*` tag, published as a release once all of them are built.
 
-The updater key is part of the trusted base (E2EE §1): releases are built only in CI, the key lives in CI secrets and an offline backup, and the app contacts only its server and the update feed (no analytics). If the key leaks, users must reinstall by hand.
+Installed copies install an update only when its signature matches the public key built into the app, so the updater key is part of the trusted base (E2EE §1): releases are built only in CI, the key lives in CI secrets and an offline backup, and the app contacts only its server and the update feed (no analytics). If the key leaks, users must reinstall by hand.
 
 ---
 

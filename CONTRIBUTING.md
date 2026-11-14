@@ -16,6 +16,7 @@ make -C server check   # format, vet, lint, vulnerability scan, unit + end-to-en
 CI runs the same, plus a short fuzz run of the server's log validator.
 
 - **Tests come with the change.** Behaviour the server enforces gets an end-to-end test in `server/e2e/`, driven by `server/internal/testclient`. The app's e2e suite in `app/e2e/` runs against the real server; the app's unit tests use an in-memory server (`app/packages/client-core/test/platform-node/memory-server.ts`), which changes with the API.
+- **Compatibility:** app and server are released separately and self-hosted servers update later, so the app must keep working against the previous server version.
 - **Schema changes** are a new numbered file in `server/internal/store/migrations/`. Never edit a migration that a deployed database has already run.
 - **Comments cite the documents** as `E2EE §n` and `Sync §n`. Keep the citation right when you move code or renumber a section.
 - Setup: [app/README.md](app/README.md) · [server/README.md](server/README.md).

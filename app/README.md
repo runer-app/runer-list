@@ -21,17 +21,17 @@ Test data shared with the server is in `../protocol/`: `log-fixtures/` (membersh
 make               # list the targets
 make install
 make test          # everything CI runs: fmt, clippy, lint, types, unit tests, then the e2e suite against the real server
-make dev           # the desktop app with hot reload, against the dev API (dev-prod: the prod API; dev-local: the compose stack on :8080, `make up` in ../server)
-make dev2          # a second copy beside a running `make dev*`, as another account with its own data and keychain entries
+make dev           # the desktop app with hot reload, against the compose stack on :8080 (`make up` in ../server); API=<url> for another server
+make dev2          # a second copy beside a running `make dev`, as another account with its own data and keychain entries
                    # (dev builds only; `PROFILE=<name>` for more). To join by link: `make dev2 LINK='<the invite link>'`
-make ios-dev       # the iOS app in the simulator, against the dev API (ios-prod: the prod API)
-make ios-phone     # build and install on the connected iPhone (API=prod for the prod API)
-make build-dev     # installers for this OS, against the dev API, as the separate app "runer dev" (build-prod: the prod API, as the release app); a build never uses the local API
+make ios-dev       # the iOS app in the simulator, against API as for dev
+make ios-phone API=<url>   # build and install on the connected iPhone
+make build-dev API=<url>   # installers for this OS, as the separate app "runer dev" (build-prod: as the release app); a build never uses the local API
 make design        # the real UI in a browser on sample data (http://localhost:5199), for look-and-feel work; no server needed
 make screenshots   # the marketing screenshots from that preview (dark theme, 1440x900 desktop and 390x844 mobile) into img/marketing/, which is not checked in
 ```
 
-The server field on Welcome must equal the server's PUBLIC_URL; the API URLs are at the top of the `Makefile`.
+`API` and the server field on Welcome must equal the server's PUBLIC_URL.
 
 On macOS the keychain asks for the password again after every rebuild, because an unsigned build is a new app to it each time. To stop that, make a self-signed code-signing certificate in Keychain Access and put its name in `RUNER_SIGN_IDENTITY` (for example in `~/.zshrc`): the app is then signed with it before each run (`.cargo/run-signed.sh`), and "Always Allow" lasts.
 

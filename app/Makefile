@@ -1,16 +1,15 @@
-.PHONY: help install dev dev-prod dev-local dev2 ios-dev ios-prod ios-phone ios-log build-dev build-prod macos-icon design screenshots test
+.PHONY: help install dev dev2 ios-dev ios-phone ios-log build-dev build-prod macos-icon design screenshots test
 
-# Each must equal that server's PUBLIC_URL.
-DEV_API   ?= https://api-dev.runer.app
-PROD_API  ?= https://api.runer.app
-LOCAL_API ?= http://localhost:8080
+# API is the server the app talks to and must equal its PUBLIC_URL. dev and ios-dev fall back to the local compose
+# stack; builds never do, so they need API set.
+LOCAL_API := http://localhost:8080
 
 # Dev builds are their own app, so they install and keep their data and keychain entries beside the release.
 # Their icon carries a DEV band (img/runer-icon-macos-dev.svg; regenerate with `tauri icon`), and they leave out the
 # release's macOS 26 icon (macos-icon), so macOS shows their icon.icns.
 DEV_CONFIG = '{"identifier":"app.runer.dev","productName":"runer dev","bundle":{"icon":["icons-dev/32x32.png","icons-dev/128x128.png","icons-dev/128x128@2x.png","icons-dev/icon.icns","icons-dev/icon.ico"],"macOS":{"files":null,"infoPlist":null}}}'
 
-# iOS gets its own dev server port, so it runs beside `make dev*` (5173).
+# iOS gets its own dev server port, so it runs beside `make dev` (5173).
 IOS_CONFIG = '{"build":{"devUrl":"http://localhost:5174","beforeDevCommand":"npm run dev -- --port 5174"}}'
 
 # The paired iPhone's UDID, over USB or Wi-Fi.
@@ -23,26 +22,17 @@ install: ## install npm dependencies and the browsers the layout test runs in
 	npm install
 	npx playwright install chromium webkit
 
-dev: ## desktop app with hot reload, against the dev API
-	VITE_RUNER_SERVER=$(DEV_API) npm run app:dev -- --config $(DEV_CONFIG)
+dev: ## desktop app with hot reload, against API (the local compose stack by default)
+	VITE_RUNER_SERVER=$(or $(API),$(LOCAL_API)) npm run app:dev -- --config $(DEV_CONFIG)
 
-dev-prod: ## desktop app with hot reload, against the prod API
-	VITE_RUNER_SERVER=$(PROD_API) npm run app:dev -- --config $(DEV_CONFIG)
-
-dev-local: ## desktop app with hot reload, against the local compose stack
-	VITE_RUNER_SERVER=$(LOCAL_API) npm run app:dev -- --config $(DEV_CONFIG)
-
-dev2: ## a second copy beside a running dev*, as another account (PROFILE=two); join with LINK='<invite link>'
+dev2: ## a second copy beside a running dev, as another account (PROFILE=two); join with LINK='<invite link>'
 	RUNER_PROFILE=$(or $(PROFILE),two) RUNER_LINK='$(LINK)' target/debug/runer-app
 
-ios-dev: ## iOS app in the simulator, against the dev API; ARGS=--open for Xcode
-	VITE_RUNER_SERVER=$(DEV_API) npm run tauri -w @runer/app -- ios dev $(ARGS) --config $(IOS_CONFIG)
+ios-dev: ## iOS app in the simulator, against API (the local compose stack by default); ARGS=--open for Xcode
+	VITE_RUNER_SERVER=$(or $(API),$(LOCAL_API)) npm run tauri -w @runer/app -- ios dev $(ARGS) --config $(IOS_CONFIG)
 
-ios-prod: ## iOS app in the simulator, against the prod API; ARGS=--open for Xcode
-	VITE_RUNER_SERVER=$(PROD_API) npm run tauri -w @runer/app -- ios dev $(ARGS) --config $(IOS_CONFIG)
-
-ios-phone: ## build and install on the connected iPhone, against the dev API (API=prod for the prod API)
-	VITE_RUNER_SERVER=$(if $(filter prod,$(API)),$(PROD_API),$(DEV_API)) npm run tauri -w @runer/app -- ios build --debug
+ios-phone: ## build and install on the connected iPhone, against API (required: the phone can't reach localhost)
+	VITE_RUNER_SERVER=$(API) npm run tauri -w @runer/app -- ios build --debug
 	xcrun devicectl device install app apps/tauri/src-tauri/gen/apple/build/arm64/runer.ipa --device "$(PHONE)"
 
 # Copying the file doesn't launch or attach to the app, so background refresh behaves as without it.
@@ -52,11 +42,11 @@ ios-log: ## print the debug log of the ios-phone build, copied from the phone
 			--source "Library/Application Support/app.runer/debug.log" --destination $$d/log > /dev/null && \
 		perl -MPOSIX -pe 's/^(\d+)\d{3} /strftime("%F %T ", localtime $$1)/e' $$d/log
 
-build-dev: ## installers for this OS, against the dev API
-	VITE_RUNER_SERVER=$(DEV_API) npm run app:build -- --config $(DEV_CONFIG)
+build-dev: ## installers for this OS as the separate app "runer dev", against API (required)
+	VITE_RUNER_SERVER=$(API) npm run app:build -- --config $(DEV_CONFIG)
 
-build-prod: ## installers for this OS, against the prod API
-	VITE_RUNER_SERVER=$(PROD_API) npm run app:build
+build-prod: ## installers for this OS as the release app, against API (required)
+	VITE_RUNER_SERVER=$(API) npm run app:build
 
 # Built here and committed, so CI needs no particular Xcode: the bundle copies Assets.car in and names it in Info.plist.
 macos-icon: ## rebuild the macOS 26 icon (Assets.car) from apps/tauri/src-tauri/icons/Icon.icon; needs Xcode 26 or newer
