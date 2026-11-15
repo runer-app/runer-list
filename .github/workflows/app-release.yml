@@ -4,18 +4,11 @@
 # notes, and installed copies find it through the update feed. Run by hand, the
 # workflow stops at the draft, to try a build.
 #
-# Settings of the repository:
-#   variable RUNER_SERVER         the server the app suggests; must equal its PUBLIC_URL
-#   variable UPDATER_PUBKEY       the updater's public key; without it the build has no updater
-#   secret   TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD)   its private half
-#   variable MACOS_SIGNING_IDENTITY   the name of the macOS code-signing certificate
-#   secret   MACOS_CERTIFICATE (and _PASSWORD)   that certificate as a .p12 file, in base64
-#
-# There is no Apple developer account and no Windows certificate, so
-# neither system trusts the installers. The macOS certificate is a self-signed
-# one: it doesn't satisfy Gatekeeper, but it keeps the app's signature the same
-# from one release to the next, which the keychain needs (.cargo/run-signed.sh).
-# Without it the macOS build is signed ad hoc.
+# Reads these repository settings: the variables RUNER_SERVER (required: the
+# server the app suggests), UPDATER_PUBKEY, MACOS_SIGNING_IDENTITY, and the
+# secrets TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD), MACOS_CERTIFICATE (and
+# _PASSWORD). Without UPDATER_PUBKEY the build has no updater. Without the macOS
+# certificate the app is signed ad hoc (Apple silicon runs nothing unsigned).
 name: app-release
 
 on:
