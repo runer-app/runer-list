@@ -326,7 +326,7 @@ sequenceDiagram
 
 ### 6.4 Webview minimums
 
-Tauri 2's defaults: macOS 10.13, iOS 15, Windows 10 with Evergreen WebView2, Android API 24, Linux with `webkit2gtk-4.1`. Raise one only when the UI needs it.
+Minimums: macOS 14 (`minimumSystemVersion` in `app/apps/tauri/src-tauri/tauri.conf.json`), iOS 18.6 (set in `app/apps/tauri/src-tauri/gen/apple/project.yml`), Windows 10 with Evergreen WebView2, Android API 24, Linux with `webkit2gtk-4.1`. Raise one only when the UI needs it.
 
 ---
 

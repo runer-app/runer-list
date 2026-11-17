@@ -8,13 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		0949C1C4B20B7DE273851729 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF75FB57F0A0F711423E88BA /* Metal.framework */; };
-		A1B2C3D4E5F60718293A4B5C /* BackgroundTasks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */; };
 		1E8B66B0D0F4C994377D9299 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 61EA1D3AEE032D59B18AF4F9 /* Security.framework */; };
 		48AF8B9B1C26DBD005DE8792 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 626F4ABDEFA57F4A38E389B6 /* libapp.a */; };
 		504F6985B8265956AFB61D91 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B0FD74E5BEC5CA56A999582 /* WebKit.framework */; };
 		5E37A36CC66F08D27CE12F5D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 02C874CB3BFEAE56BFCF4CF3 /* LaunchScreen.storyboard */; };
 		5E74C166E5DC0DEB394A6644 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB3A2B4FE0C182D8FAC37FED /* MetalKit.framework */; };
 		5F3CA51E24F0E3E5364E936C /* assets in Resources */ = {isa = PBXBuildFile; fileRef = F079E3D1292158DA2481A962 /* assets */; };
+		A1B2C3D4E5F60718293A4B5C /* BackgroundTasks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */; };
 		BF9041A5E5433A137B091E82 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B17E3D273026945B2CB3CF4 /* Assets.xcassets */; };
 		C100BC556E99DF0F8EC2A258 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 392811B114AA18F409EFB6D0 /* QuartzCore.framework */; };
 		EE2FA7C4A6417C425307EFAD /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF3379CACC7CF17D57D4F214 /* UIKit.framework */; };
@@ -30,7 +30,6 @@
 		392811B114AA18F409EFB6D0 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		3F3C349CD7A61F25F068088D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6143B80C4C578C82376AB12F /* store.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = store.rs; sourceTree = "<group>"; };
-		B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		61EA1D3AEE032D59B18AF4F9 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		626F4ABDEFA57F4A38E389B6 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		62EB711ACD9E89581913AFC9 /* runer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = runer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -41,6 +40,7 @@
 		89380D9DB0BDBE2A98841FF5 /* wire.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = wire.rs; sourceTree = "<group>"; };
 		96706A504685825EC993EDEE /* net.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = net.rs; sourceTree = "<group>"; };
 		9F4B0BD6653D7206D1B57FD0 /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
+		B1C2D3E4F5A60718293A4B5D /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		CAFFC44D25E09F2F78550C52 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		CB3A2B4FE0C182D8FAC37FED /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		CF75FB57F0A0F711423E88BA /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -282,6 +282,7 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "runer-app_iOS/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -301,7 +302,7 @@
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.runer;
-				PRODUCT_NAME = "runer";
+				PRODUCT_NAME = runer;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -443,6 +444,7 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "runer-app_iOS/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -462,7 +464,7 @@
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.runer;
-				PRODUCT_NAME = "runer";
+				PRODUCT_NAME = runer;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

@@ -2,7 +2,7 @@ name: runer-app
 options:
   bundleIdPrefix: app.runer
   deploymentTarget:
-    iOS: 15.0
+    iOS: 18.6
 fileGroups: [../../src]
 configs:
   debug: debug
