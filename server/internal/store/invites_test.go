@@ -25,8 +25,8 @@ func TestJoinTokensSharedAcrossInstancesAndRefill(t *testing.T) {
 
 	acct, signPub := seedAccount(t, ctx, a)
 	list := seedList(t, ctx, a, acct, signPub)
-	_, err = a.Exec(ctx, `INSERT INTO invites (id, group_id, created_by, package, expires_at)
-		VALUES ('inv', $1, $2, 'pkg', now() + interval '1 day')`, list, acct)
+	_, err = a.Exec(ctx, `INSERT INTO invites (id, group_id, package, expires_at)
+		VALUES ('inv', $1, 'pkg', now() + interval '1 day')`, list)
 	require.NoError(t, err)
 
 	take := func(iv *store.Invites, perSecond float64) bool {

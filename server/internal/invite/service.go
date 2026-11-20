@@ -122,11 +122,14 @@ func (s *Service) linkInvite(ctx context.Context, inviteID string) (store.Invite
 // can verify it from genesis and build a `join` on the current head
 // (E2EE §6).
 func (s *Service) InviteLog(ctx context.Context, inviteID string, fromSeq int64, limit int) ([]store.LogEntry, error) {
-	inv, err := s.linkInvite(ctx, inviteID)
+	inv, entries, err := s.invites.GetWithLog(ctx, inviteID, fromSeq, limit)
 	if err != nil {
 		return nil, err
 	}
-	return s.groups.ListLogFrom(ctx, inv.GroupID, fromSeq, limit)
+	if inv.InvitePub == nil || !inv.Usable(time.Now()) {
+		return nil, ErrNotUsable
+	}
+	return entries, nil
 }
 
 // Accept appends the invitee's own `join` entry. The log rules decide

@@ -17,7 +17,6 @@ type Group struct {
 	HeadHash  []byte
 	Epoch     int64
 	CreatedAt time.Time
-	DeletedAt *time.Time
 }
 
 type LogEntry struct {
@@ -68,22 +67,21 @@ func NewGroups(pool *pgxpool.Pool) *Groups {
 	return &Groups{pool: pool}
 }
 
-const groupColumns = `id, head_seq, head_hash, epoch, created_at, deleted_at`
+const groupColumns = `id, head_seq, head_hash, epoch, created_at`
 
 // accessibleMembers is the one access predicate, shared by
-// Access, ListForAccount and the notification audience: the list is live,
-// and member m belongs to it under the identity key its account holds.
-// Callers append "AND ..." conditions.
+// Access, ListForAccount and the notification audience: member m belongs
+// to list g under the identity key its account holds. Callers add a
+// WHERE clause.
 const accessibleMembers = `groups g
 	JOIN memberships m ON m.group_id = g.id
-	JOIN accounts a ON a.id = m.account_id AND a.identity_sign_pub = m.identity_sign_pub
-	WHERE g.deleted_at IS NULL`
+	JOIN accounts a ON a.id = m.account_id AND a.identity_sign_pub = m.identity_sign_pub`
 
-const groupColumnsG = `g.id, g.head_seq, g.head_hash, g.epoch, g.created_at, g.deleted_at`
+const groupColumnsG = `g.id, g.head_seq, g.head_hash, g.epoch, g.created_at`
 
 func scanGroup(row pgx.Row) (Group, error) {
 	var g Group
-	err := row.Scan(&g.ID, &g.HeadSeq, &g.HeadHash, &g.Epoch, &g.CreatedAt, &g.DeletedAt)
+	err := row.Scan(&g.ID, &g.HeadSeq, &g.HeadHash, &g.Epoch, &g.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Group{}, ErrNotFound
 	}
@@ -156,7 +154,7 @@ func isInbox(ctx context.Context, q querier, id string) (bool, error) {
 }
 
 func (g *Groups) Get(ctx context.Context, id string) (Group, error) {
-	row := g.pool.QueryRow(ctx, `SELECT `+groupColumns+` FROM groups WHERE id = $1 AND deleted_at IS NULL`, id)
+	row := g.pool.QueryRow(ctx, `SELECT `+groupColumns+` FROM groups WHERE id = $1`, id)
 	return scanGroup(row)
 }
 
@@ -164,7 +162,7 @@ func (g *Groups) Get(ctx context.Context, id string) (Group, error) {
 // same predicate as Access.
 func (g *Groups) ListForAccount(ctx context.Context, accountID string) ([]Group, error) {
 	rows, err := g.pool.Query(ctx, `SELECT `+groupColumnsG+` FROM `+accessibleMembers+`
-		  AND m.account_id = $1
+		WHERE m.account_id = $1
 		ORDER BY g.created_at`, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("list groups for account: %w", err)
@@ -193,7 +191,7 @@ type AppendGuard struct {
 	SubjectAccountID string
 	// Accounts the entry depends on (its author and an `add` subject) must
 	// still hold the identity key it names. Their rows are locked, which
-	// orders the append against ScheduleDeletion.
+	// orders the append against Accounts.Delete.
 	Accounts []MemberView
 }
 
@@ -213,7 +211,7 @@ func (g *Groups) AppendEntry(ctx context.Context, entry LogEntry, newHeadHash []
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	row := tx.QueryRow(ctx, `UPDATE groups SET head_seq = $1, head_hash = $2, epoch = $3
-		WHERE id = $4 AND head_seq = $5 AND deleted_at IS NULL
+		WHERE id = $4 AND head_seq = $5
 		RETURNING `+groupColumns,
 		entry.Seq, newHeadHash, newEpoch, entry.GroupID, entry.Seq-1)
 	updated, err := scanGroup(row)
@@ -337,13 +335,13 @@ func insertLogEntry(ctx context.Context, tx pgx.Tx, e LogEntry) error {
 	return nil
 }
 
-// requireAccountKey locks the account row and checks it is live and still
+// requireAccountKey locks the account row and checks it exists and still
 // holds identityKey: ErrConflict otherwise (it was deleted since the
 // caller read it).
 func requireAccountKey(ctx context.Context, tx pgx.Tx, accountID string, identityKey []byte) error {
 	var ok bool
 	err := tx.QueryRow(ctx, `SELECT true FROM accounts
-		WHERE id = $1 AND identity_sign_pub = $2 AND deleted_at IS NULL FOR SHARE`, accountID, identityKey).Scan(&ok)
+		WHERE id = $1 AND identity_sign_pub = $2 FOR SHARE`, accountID, identityKey).Scan(&ok)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrConflict
 	}
@@ -353,9 +351,28 @@ func requireAccountKey(ctx context.Context, tx pgx.Tx, accountID string, identit
 	return nil
 }
 
-// ListLogFrom returns at most limit entries from fromSeq on.
-func (g *Groups) ListLogFrom(ctx context.Context, groupID string, fromSeq int64, limit int) ([]LogEntry, error) {
-	rows, err := g.pool.Query(ctx, `SELECT group_id, seq, entry, sig, hash, ts FROM group_log
+// MemberLog returns at most limit entries from fromSeq on, if accountID
+// can access the list. Access and the read share one
+// snapshot. Read one after the other, a list deletion committing in
+// between would pass the check and then serve an empty log, which the
+// member's client would rightly report as a rollback (E2EE §4.4).
+func (g *Groups) MemberLog(ctx context.Context, groupID, accountID string, fromSeq int64, limit int) ([]LogEntry, error) {
+	var out []LogEntry
+	err := readSnapshot(ctx, g.pool, func(tx pgx.Tx) error {
+		if _, _, err := access(ctx, tx, groupID, accountID); err != nil {
+			return err
+		}
+		var err error
+		out, err = listLogFrom(ctx, tx, groupID, fromSeq, limit)
+		return err
+	})
+	return out, err
+}
+
+func listLogFrom(ctx context.Context, q interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}, groupID string, fromSeq int64, limit int) ([]LogEntry, error) {
+	rows, err := q.Query(ctx, `SELECT group_id, seq, entry, sig, hash, ts FROM group_log
 		WHERE group_id = $1 AND seq >= $2 ORDER BY seq LIMIT $3`, groupID, fromSeq, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list log: %w", err)
@@ -373,6 +390,20 @@ func (g *Groups) ListLogFrom(ctx context.Context, groupID string, fromSeq int64,
 	return out, rows.Err()
 }
 
+// readSnapshot runs read in a read-only transaction that sees one snapshot
+// throughout, so a deletion commits either before all of it or after.
+func readSnapshot(ctx context.Context, pool *pgxpool.Pool, read func(tx pgx.Tx) error) error {
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return fmt.Errorf("begin read: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := read(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (g *Groups) GetLogEntry(ctx context.Context, groupID string, seq int64) (LogEntry, error) {
 	var e LogEntry
 	err := g.pool.QueryRow(ctx, `SELECT group_id, seq, entry, sig, hash, ts FROM group_log
@@ -387,14 +418,14 @@ func (g *Groups) GetLogEntry(ctx context.Context, groupID string, seq int64) (Lo
 	return e, nil
 }
 
-// SoftDelete marks a list deleted and revokes its invites. An
-// account's current Inbox can't be deleted: ErrForbidden; the
-// retention job purges it after the window (API Reference).
-// accountID must still be the owner, re-checked under the list's row lock.
-func (g *Groups) SoftDelete(ctx context.Context, id, accountID string) error {
+// Delete deletes a list and everything in it at once, for every member
+// (API Reference). An account's current Inbox can't be deleted:
+// ErrForbidden. accountID must still be the owner, re-checked under the
+// list's row lock.
+func (g *Groups) Delete(ctx context.Context, id, accountID string) error {
 	tx, err := g.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin soft delete group: %w", err)
+		return fmt.Errorf("begin delete group: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -410,23 +441,45 @@ func (g *Groups) SoftDelete(ctx context.Context, id, accountID string) error {
 	} else if inbox {
 		return ErrForbidden
 	}
-	if _, err := tx.Exec(ctx, `UPDATE groups SET deleted_at = now() WHERE id = $1`, id); err != nil {
-		return fmt.Errorf("soft delete group: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `UPDATE invites SET revoked_at = now()
-		WHERE group_id = $1 AND revoked_at IS NULL AND consumed_at IS NULL`, id); err != nil {
-		return fmt.Errorf("revoke invites: %w", err)
+	if err := deleteList(ctx, tx, id); err != nil {
+		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit soft delete group: %w", err)
+		return fmt.Errorf("commit delete group: %w", err)
+	}
+	return nil
+}
+
+// deleteList removes a list with its updates, snapshots, invites and their
+// join requests, memberships and log, inside the caller's transaction,
+// which holds the list's row FOR UPDATE: no append, write or new invite
+// can commit alongside. The invites are locked first, so a join request
+// racing in on one waits and then finds the invite gone.
+func deleteList(ctx context.Context, tx pgx.Tx, id string) error {
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM invites WHERE group_id = $1 FOR UPDATE`, id); err != nil {
+		return fmt.Errorf("lock invites of deleted list: %w", err)
+	}
+	for _, stmt := range []string{
+		`DELETE FROM list_updates WHERE list_id = $1`,
+		`DELETE FROM list_snapshots WHERE list_id = $1`,
+		`DELETE FROM join_requests WHERE invite_id IN (SELECT id FROM invites WHERE group_id = $1)`,
+		`DELETE FROM invites WHERE group_id = $1`,
+		`DELETE FROM group_invites WHERE group_id = $1`,
+		`DELETE FROM memberships WHERE group_id = $1`,
+		`DELETE FROM group_log WHERE group_id = $1`,
+		`DELETE FROM groups WHERE id = $1`,
+	} {
+		if _, err := tx.Exec(ctx, stmt, id); err != nil {
+			return fmt.Errorf("delete list: %w", err)
+		}
 	}
 	return nil
 }
 
 // Access is the one list-access check every HTTP and WebSocket path
-// uses: the list is live and accountID is a member. Returns the list and
-// the caller's role in it. Anything else — unknown list, deleted list, not
-// a member — is ErrForbidden, so ids can't be probed.
+// uses: the list exists and accountID is a member. Returns the list and
+// the caller's role in it. Anything else — unknown or deleted list, not a
+// member — is ErrForbidden, so ids can't be probed.
 func (g *Groups) Access(ctx context.Context, groupID, accountID string) (Group, string, error) {
 	return access(ctx, g.pool, groupID, accountID)
 }
@@ -437,7 +490,7 @@ func access(ctx context.Context, q querier, groupID, accountID string) (Group, s
 	err := q.QueryRow(ctx, `SELECT `+groupColumnsG+`, m.role FROM `+accessibleMembers+`
 		  AND g.id = $1 AND m.account_id = $2`,
 		groupID, accountID,
-	).Scan(&grp.ID, &grp.HeadSeq, &grp.HeadHash, &grp.Epoch, &grp.CreatedAt, &grp.DeletedAt, &role)
+	).Scan(&grp.ID, &grp.HeadSeq, &grp.HeadHash, &grp.Epoch, &grp.CreatedAt, &role)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Group{}, "", ErrForbidden
 	}
@@ -498,7 +551,7 @@ func (g *Groups) ListMembersWithKeys(ctx context.Context, groupID string) ([]Mem
 
 // AuthorizedWrite runs write in one transaction that first re-checks,
 // under the list's row lock, everything a content write depends on:
-// the list is live, accountID is a member, and epoch is current. The lock
+// the list exists, accountID is a member, and epoch is current. The lock
 // conflicts with the UPDATE every membership append, rotation and list
 // deletion does to the row, so none of those can commit between this check
 // and the write. It also serializes the list's content writers on every

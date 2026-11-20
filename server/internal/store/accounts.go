@@ -22,7 +22,6 @@ type Account struct {
 	BundleGen        int
 	CreatedAt        time.Time
 	LastSeenAt       time.Time
-	DeletedAt        *time.Time
 	InboxID          *string // nil only for accounts that predate the Inbox
 	SettingsSealed   []byte  // the account's settings, sealed by the client; opaque. nil until first set
 	SettingsGen      int
@@ -38,13 +37,13 @@ func NewAccounts(pool *pgxpool.Pool) *Accounts {
 }
 
 const accountColumns = `id, auth_pub, identity_sign_pub, identity_agree_pub, identity_bundle,
-	bundle_gen, created_at, last_seen_at, deleted_at, inbox_id,
+	bundle_gen, created_at, last_seen_at, inbox_id,
 	settings_sealed, settings_gen`
 
 func scanAccount(row pgx.Row) (Account, error) {
 	var a Account
 	err := row.Scan(&a.ID, &a.AuthPub, &a.IdentitySignPub, &a.IdentityAgreePub, &a.IdentityBundle,
-		&a.BundleGen, &a.CreatedAt, &a.LastSeenAt, &a.DeletedAt, &a.InboxID,
+		&a.BundleGen, &a.CreatedAt, &a.LastSeenAt, &a.InboxID,
 		&a.SettingsSealed, &a.SettingsGen)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Account{}, ErrNotFound
@@ -96,19 +95,19 @@ func setInbox(ctx context.Context, tx pgx.Tx, accountID string, identityKey []by
 }
 
 func (a *Accounts) GetByAuthPub(ctx context.Context, authPub []byte) (Account, error) {
-	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE auth_pub = $1 AND deleted_at IS NULL`, authPub)
+	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE auth_pub = $1`, authPub)
 	return scanAccount(row)
 }
 
 // GetByIdentitySignPub looks up the account owning an identity signing key,
 // e.g. to resolve a membership log entry's author/subject to an account.
 func (a *Accounts) GetByIdentitySignPub(ctx context.Context, identitySignPub []byte) (Account, error) {
-	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE identity_sign_pub = $1 AND deleted_at IS NULL`, identitySignPub)
+	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE identity_sign_pub = $1`, identitySignPub)
 	return scanAccount(row)
 }
 
 func (a *Accounts) GetByID(ctx context.Context, id string) (Account, error) {
-	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE id = $1 AND deleted_at IS NULL`, id)
+	row := a.pool.QueryRow(ctx, `SELECT `+accountColumns+` FROM accounts WHERE id = $1`, id)
 	return scanAccount(row)
 }
 
@@ -120,7 +119,7 @@ func (a *Accounts) SetSettings(ctx context.Context, id string, settingsSealed []
 	var gen int
 	err := a.pool.QueryRow(ctx, `UPDATE accounts
 		SET settings_sealed = $1, settings_gen = settings_gen + 1
-		WHERE id = $2 AND settings_gen = $3 AND deleted_at IS NULL
+		WHERE id = $2 AND settings_gen = $3
 		RETURNING settings_gen`, settingsSealed, id, expectedGen).Scan(&gen)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrConflict
@@ -155,7 +154,7 @@ func (a *Accounts) Rekey(ctx context.Context, id, keepSessionID string, newAuthP
 
 	row := tx.QueryRow(ctx, `UPDATE accounts
 		SET auth_pub = $1, identity_bundle = $2, bundle_gen = bundle_gen + 1
-		WHERE id = $3 AND bundle_gen = $4 AND deleted_at IS NULL
+		WHERE id = $3 AND bundle_gen = $4
 		RETURNING `+accountColumns,
 		newAuthPub, newBundle, id, expectedGen)
 	acc, err := scanAccount(row)
@@ -183,59 +182,64 @@ type DeletedList struct {
 	Members []string
 }
 
-// ScheduleDeletion marks an account deleted, soft-deletes every list it
-// owns (its Inbox and the lists it shares, for all their members) and
-// revokes their invites, revokes all its sessions, and clears the bundle
-// and settings (Self-hosting: Data retention), in one transaction; the
-// retention job purges what it safely can after the window. It returns the
+// ownedLists locks and returns every list the account owns.
+const ownedLists = `SELECT g.id, g.head_seq FROM groups g
+	JOIN memberships m ON m.group_id = g.id
+	WHERE m.account_id = $1 AND m.role = 'owner'
+	ORDER BY g.id
+	FOR UPDATE OF g`
+
+// Delete deletes an account at once, in one transaction: every list it
+// owns (its Inbox and the lists it shares, for all their members), its
+// sessions, its join requests (approved ones too), its pending rekey
+// challenges and the account row with its keys, bundle and settings. No
+// history row points at an account, so nothing keeps it. It returns the
 // deleted lists that had other members.
 //
 // ErrAccountHasLists, with nothing changed, while the account is a member of
 // a list it doesn't own: only a signed `leave` takes a member out of a log
-// (E2EE §4.3), and the server can't sign one.
-// Kept simple: public keys are kept. Memberships now carry their own copy of
-// the admitted key, so these could be cleared once identity_sign_pub is
-// made nullable.
-func (a *Accounts) ScheduleDeletion(ctx context.Context, id string) ([]DeletedList, error) {
+// (E2EE §8.4), and the server can't sign one.
+func (a *Accounts) Delete(ctx context.Context, id string) ([]DeletedList, error) {
 	tx, err := a.pool.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("begin schedule account deletion: %w", err)
+		return nil, fmt.Errorf("begin delete account: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	collect := func() ([]DeletedList, error) {
+		rows, err := tx.Query(ctx, ownedLists, id)
+		if err != nil {
+			return nil, fmt.Errorf("lock owned lists: %w", err)
+		}
+		return pgx.CollectRows(rows, func(row pgx.CollectableRow) (DeletedList, error) {
+			var l DeletedList
+			err := row.Scan(&l.ID, &l.HeadSeq)
+			return l, err
+		})
+	}
 	// Lists before the account: the same lock order as an append, which
 	// locks its list and then the accounts it names.
-	rows, err := tx.Query(ctx, `UPDATE groups SET deleted_at = now()
-		WHERE deleted_at IS NULL AND id IN (
-			SELECT group_id FROM memberships WHERE account_id = $1 AND role = 'owner')
-		RETURNING id, head_seq`, id)
-	if err != nil {
-		return nil, fmt.Errorf("delete owned lists: %w", err)
+	if _, err := collect(); err != nil {
+		return nil, err
 	}
-	owned, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (DeletedList, error) {
-		var l DeletedList
-		err := row.Scan(&l.ID, &l.HeadSeq)
-		return l, err
-	})
-	if err != nil {
-		return nil, fmt.Errorf("delete owned lists: %w", err)
-	}
-
-	tag, err := tx.Exec(ctx, `UPDATE accounts
-		SET deleted_at = now(), identity_bundle = ''::bytea, settings_sealed = NULL
-		WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err != nil {
-		return nil, fmt.Errorf("schedule account deletion: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
+	var exists bool
+	err = tx.QueryRow(ctx, `SELECT true FROM accounts WHERE id = $1 FOR UPDATE`, id).Scan(&exists)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	// Checked after the update above: it holds the account's row lock, which
-	// an add or join waits for (requireAccountKey), so none can slip in.
+	if err != nil {
+		return nil, fmt.Errorf("lock account: %w", err)
+	}
+	// Again under the account's lock, which a new list, add or join waits
+	// for (requireAccountKey): a list created just before is in this set,
+	// and no membership can be added from here on.
+	owned, err := collect()
+	if err != nil {
+		return nil, err
+	}
 	var inLists bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS (
-		SELECT 1 FROM memberships m JOIN groups g ON g.id = m.group_id
-		WHERE m.account_id = $1 AND g.deleted_at IS NULL)`, id).Scan(&inLists); err != nil {
+		SELECT 1 FROM memberships WHERE account_id = $1 AND role != 'owner')`, id).Scan(&inLists); err != nil {
 		return nil, fmt.Errorf("check account lists: %w", err)
 	}
 	if inLists {
@@ -244,10 +248,6 @@ func (a *Accounts) ScheduleDeletion(ctx context.Context, id string) ([]DeletedLi
 
 	var shared []DeletedList
 	for _, l := range owned {
-		if _, err := tx.Exec(ctx, `UPDATE invites SET revoked_at = now()
-			WHERE group_id = $1 AND revoked_at IS NULL AND consumed_at IS NULL`, l.ID); err != nil {
-			return nil, fmt.Errorf("revoke invites: %w", err)
-		}
 		rows, err := tx.Query(ctx, `SELECT account_id::text FROM memberships WHERE group_id = $1 AND account_id != $2`, l.ID, id)
 		if err != nil {
 			return nil, fmt.Errorf("list members of deleted list: %w", err)
@@ -258,12 +258,22 @@ func (a *Accounts) ScheduleDeletion(ctx context.Context, id string) ([]DeletedLi
 		if len(l.Members) > 0 {
 			shared = append(shared, l)
 		}
+		if err := deleteList(ctx, tx, l.ID); err != nil {
+			return nil, err
+		}
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE account_id = $1`, id); err != nil {
-		return nil, fmt.Errorf("delete sessions: %w", err)
+	for _, stmt := range []string{
+		`DELETE FROM sessions WHERE account_id = $1`,
+		`DELETE FROM join_requests WHERE account_id = $1`,
+		`DELETE FROM challenges WHERE kind = 'rekey' AND subject = $1::text`,
+		`DELETE FROM accounts WHERE id = $1`,
+	} {
+		if _, err := tx.Exec(ctx, stmt, id); err != nil {
+			return nil, fmt.Errorf("delete account: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit schedule account deletion: %w", err)
+		return nil, fmt.Errorf("commit delete account: %w", err)
 	}
 	return shared, nil
 }

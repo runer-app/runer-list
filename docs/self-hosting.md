@@ -30,7 +30,7 @@ Point the platform's health check at `GET /healthz`.
 
 ## Shape of a deployment
 
-One container, one PostgreSQL database. There's no Redis, no object storage and no worker process. Migrations are embedded in the binary and run on startup. The retention job runs inside the server process.
+One container, one PostgreSQL database. There's no Redis, no object storage and no worker process. Migrations are embedded in the binary and run on startup. The session purge runs inside the server process.
 
 ```text
 client ──HTTPS/WSS──► reverse proxy (TLS) ──► server:8080 ──► PostgreSQL
@@ -48,7 +48,7 @@ What the instances share lives in PostgreSQL: login and rekey challenges, the jo
 
 Some limits are **per instance**, so N instances allow N times as much: the per-IP limits on login challenges, sign-ups and invite package reads, and the WebSocket connections per account. The proof-of-work, not the counter, is what makes sign-up spam expensive. The join limit per invite is shared.
 
-The retention job runs on every instance. Its deletes are idempotent, so this only repeats work.
+The session purge runs on every instance. Its deletes are idempotent, so this only repeats work.
 
 **Upgrading to several instances.** A rolling upgrade from a version that ran single-instance only is safe: old and new instances can run side by side for the overlap, and no edit is lost. Edits made through an old instance reach clients connected to new ones at their next catch-up rather than live. Each instance holds one more database connection than before (the listener), so leave room under PostgreSQL's `max_connections`.
 
@@ -91,16 +91,16 @@ The logs never include client IPs. Rate limits hold them in memory only.
 
 ## Data retention
 
-A purge job runs at startup and then every 24 hours:
+Deleting is immediate. There is no retention window and no way to undo a deletion on the server; the app's confirmation is the guard.
 
 | What | When it's removed |
 |---|---|
 | A list's content: its log, updates and snapshots | Kept while the list exists |
-| Deleted lists (with log, memberships, invites, updates and snapshots) | 30 days after deletion |
-| Deleted accounts | 30 days, **if** the account is no longer in any group and authored no updates or invites. Otherwise the row stays, hidden, so other members can still verify who wrote what. |
-| Sessions | At once on logout, account key change or account deletion; expired ones at the next purge |
+| A deleted list (with log, memberships, invites, join requests, updates and snapshots) | At once, for every member |
+| A deleted account | At once, with every list it owns, its sessions and its join requests. Its public keys stay only inside the signed history of lists it had joined and that still exist, where the other members need them to verify what it wrote ([E2EE §8.4](protocol/e2ee-protocol.md#84-deleting-an-account)). |
+| Sessions | At once on logout, account key change or account deletion; expired ones by a purge that runs at startup and then every 24 hours |
 
-Each run logs one `retention purge complete` line with counts.
+Each purge logs one `retention purge complete` line with the count. Deleted data stays in your [backups](#backups) for as long as you keep them.
 
 ## Limits at a glance
 
@@ -118,7 +118,7 @@ The WebSocket's limits are in [Sync §6](protocol/sync-protocol.md#6-limits).
 
 ## Backups
 
-Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. A leaked database dump exposes metadata, never content ([E2EE §1](protocol/e2ee-protocol.md)).
+Everything worth keeping is in PostgreSQL. Back up the database, and test a restore. The server keeps no copy of deleted lists or accounts, so a backup is the only way back from a deletion, and it holds deleted data until you rotate it out. A leaked database dump exposes metadata, never content ([E2EE §1](protocol/e2ee-protocol.md)).
 
 ## Running from source
 

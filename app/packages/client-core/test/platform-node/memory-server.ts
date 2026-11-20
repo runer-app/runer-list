@@ -244,7 +244,7 @@ export class MemoryServer {
         this.sessions.delete(s);
         s.account = undefined;
       }
-      return ok({ scheduled: true });
+      return ok({ deleted: true });
     }
     if (route === 'GET /v1/groups') {
       return ok(

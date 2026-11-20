@@ -11,12 +11,11 @@ import (
 )
 
 type Update struct {
-	ListID          string
-	Seq             int64
-	Epoch           int64
-	AuthorAccountID string
-	Msg             []byte
-	CreatedAt       time.Time
+	ListID    string
+	Seq       int64
+	Epoch     int64
+	Msg       []byte
+	CreatedAt time.Time
 }
 
 type Updates struct {
@@ -32,16 +31,16 @@ func NewUpdates(pool *pgxpool.Pool) *Updates {
 // Groups.AuthorizedWrite's transaction, which holds the list row locked
 // until commit, so on every instance a list's writers take seqs one at a
 // time and commit them in seq order: a reader never sees seq n+1 before n.
-func (u *Updates) Append(ctx context.Context, tx pgx.Tx, listID string, epoch int64, authorAccountID string, msg []byte) (Update, error) {
+func (u *Updates) Append(ctx context.Context, tx pgx.Tx, listID string, epoch int64, msg []byte) (Update, error) {
 	var up Update
 	err := tx.QueryRow(ctx, `WITH next AS (
 			UPDATE groups SET update_seq = update_seq + 1 WHERE id = $1 RETURNING update_seq
 		)
-		INSERT INTO list_updates (list_id, seq, epoch, author_account_id, msg)
-		SELECT $1, next.update_seq, $2, $3, $4 FROM next
-		RETURNING list_id, seq, epoch, author_account_id, msg, created_at`,
-		listID, epoch, authorAccountID, msg,
-	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.AuthorAccountID, &up.Msg, &up.CreatedAt)
+		INSERT INTO list_updates (list_id, seq, epoch, msg)
+		SELECT $1, next.update_seq, $2, $3 FROM next
+		RETURNING list_id, seq, epoch, msg, created_at`,
+		listID, epoch, msg,
+	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.Msg, &up.CreatedAt)
 	if err != nil {
 		return Update{}, fmt.Errorf("append update: %w", err)
 	}
@@ -52,7 +51,7 @@ func (u *Updates) Append(ctx context.Context, tx pgx.Tx, listID string, epoch in
 // page of the catch-up tail (Sync §4). Callers loop, so a
 // long history is never loaded into memory at once.
 func (u *Updates) ListSince(ctx context.Context, listID string, sinceSeq int64, limit int) ([]Update, error) {
-	rows, err := u.pool.Query(ctx, `SELECT list_id, seq, epoch, author_account_id, msg, created_at
+	rows, err := u.pool.Query(ctx, `SELECT list_id, seq, epoch, msg, created_at
 		FROM list_updates WHERE list_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`,
 		listID, sinceSeq, limit)
 	if err != nil {
@@ -60,7 +59,7 @@ func (u *Updates) ListSince(ctx context.Context, listID string, sinceSeq int64, 
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Update, error) {
 		var up Update
-		err := row.Scan(&up.ListID, &up.Seq, &up.Epoch, &up.AuthorAccountID, &up.Msg, &up.CreatedAt)
+		err := row.Scan(&up.ListID, &up.Seq, &up.Epoch, &up.Msg, &up.CreatedAt)
 		return up, err
 	})
 }
@@ -79,9 +78,9 @@ func (u *Updates) HeadSeq(ctx context.Context, tx pgx.Tx, listID string) (int64,
 // payload was too large to carry the message.
 func (u *Updates) Get(ctx context.Context, listID string, seq int64) (Update, error) {
 	var up Update
-	err := u.pool.QueryRow(ctx, `SELECT list_id, seq, epoch, author_account_id, msg, created_at
+	err := u.pool.QueryRow(ctx, `SELECT list_id, seq, epoch, msg, created_at
 		FROM list_updates WHERE list_id = $1 AND seq = $2`, listID, seq,
-	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.AuthorAccountID, &up.Msg, &up.CreatedAt)
+	).Scan(&up.ListID, &up.Seq, &up.Epoch, &up.Msg, &up.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Update{}, ErrNotFound
 	}

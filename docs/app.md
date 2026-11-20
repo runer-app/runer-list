@@ -353,7 +353,7 @@ Minimums: macOS 14 (`minimumSystemVersion` in `app/apps/tauri/src-tauri/tauri.co
 | Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
-| Settings | Show/change account key, notifications, links to runer.app's privacy and support pages, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`) |
+| Settings | Show/change account key, notifications, links to runer.app's privacy and support pages, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`, which deletes the account and the lists it owns at once, with no undo) |
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
 

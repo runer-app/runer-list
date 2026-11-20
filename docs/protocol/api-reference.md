@@ -43,9 +43,9 @@ Everything is under `/v1` except `/healthz` and `/join`. The protocol behind the
 | `GET` | `/v1/account/bundle` | 🔒 | → `{identity_bundle, bundle_gen}` |
 | `POST` | `/v1/account/rekey/challenge` | 🔒 | → `{nonce}` |
 | `POST` | `/v1/account/rekey` | 🔒 | `{nonce, sig, new_auth_pub, new_bundle, bundle_gen}` → `{bundle_gen}` |
-| `DELETE` | `/v1/account` | 🔒 | → `{scheduled}`. Deletes the account and every list it owns, and ends every session. `409 account_has_lists` while the account is a member of a list it doesn't own: see below |
+| `DELETE` | `/v1/account` | 🔒 | → `{deleted}`. Deletes the account and every list it owns at once, and ends every session. `409 account_has_lists` while the account is a member of a list it doesn't own: see below |
 
-**Deleting an account.** Every list the account owns is deleted with it, at once and for all members: its Inbox and the lists it shares, as `DELETE /v1/groups/{id}` would (invites revoked, members sent a `group` frame). There is no ownership transfer. A list the account is only a member of is different: only a signed `leave` takes a member out of a log ([E2EE §8.4](./e2ee-protocol.md#84-deleting-an-account)), and the server can't sign one. So while the account is a member of a list it doesn't own, the server refuses with `409 account_has_lists` and changes nothing; the client appends a `leave` to each such list, then calls `DELETE /v1/account`. On success every session of the account ends at once (open sockets get `bye` with `session-revoked`), the key can no longer log in, and the identity bundle and sealed settings are cleared. What remains, and for how long, is under [Data retention](../self-hosting.md#data-retention).
+**Deleting an account.** Every list the account owns is deleted with it, at once and for all members: its Inbox and the lists it shares, as `DELETE /v1/groups/{id}` would (members sent a `group` frame). There is no ownership transfer. A list the account is only a member of is different: only a signed `leave` takes a member out of a log ([E2EE §8.4](./e2ee-protocol.md#84-deleting-an-account)), and the server can't sign one. So while the account is a member of a list it doesn't own, the server refuses with `409 account_has_lists` and changes nothing; the client appends a `leave` to each such list, then calls `DELETE /v1/account`. On success the account is gone at once: its keys, identity bundle, sealed settings, sessions and join requests are deleted, open sockets get `bye` with `session-revoked`, and the key can no longer log in. Its public keys remain only inside the signed history of lists it left that still exist. Nothing can be restored ([Data retention](../self-hosting.md#data-retention)).
 
 ### Lists
 
@@ -58,7 +58,7 @@ A list is called a group in the API: it's a membership log plus one encrypted do
 | `GET` | `/v1/groups/{id}/log?from=N` | 🔒 | → `[{seq, entry, sig, hash}]` |
 | `POST` | `/v1/groups/{id}/log` | 🔒 | `{entry, sig}` → list. `409` if the head moved; `403` for an `add` or `invite` on an account's Inbox |
 | `GET` | `/v1/groups/{id}/members` | 🔒 | → `[{account_id, identity_sign_pub, role}]`, role `owner` or `member`. A convenience: clients trust the log |
-| `DELETE` | `/v1/groups/{id}` | 🔒 owner | → `{deleted}`. Also revokes its invites. `403` on an account's Inbox |
+| `DELETE` | `/v1/groups/{id}` | 🔒 owner | → `{deleted}`. Deletes the list at once for every member, with its log, content, invites and join requests. `403` on an account's Inbox |
 
 ### Invites
 

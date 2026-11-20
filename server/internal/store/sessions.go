@@ -57,14 +57,14 @@ func scanSession(row pgx.Row) (Session, error) {
 	return s, nil
 }
 
-// Create starts a session, but only while the account is live and its
+// Create starts a session, but only while the account exists and its
 // auth key is still authPub. The FOR SHARE lock orders this against a
 // concurrent rekey: a rekey that commits first makes this insert
 // nothing (ErrNotFound); one that commits later revokes this session.
 func (s *Sessions) Create(ctx context.Context, accountID string, authPub, tokenHash []byte) (Session, error) {
 	row := s.pool.QueryRow(ctx, `INSERT INTO sessions (account_id, token_hash, expires_at)
 		SELECT $1, $2, now() + $3::interval
-		WHERE EXISTS (SELECT 1 FROM accounts WHERE id = $1 AND auth_pub = $4 AND deleted_at IS NULL FOR SHARE)
+		WHERE EXISTS (SELECT 1 FROM accounts WHERE id = $1 AND auth_pub = $4 FOR SHARE)
 		RETURNING `+sessionColumns,
 		accountID, tokenHash, fmt.Sprintf("%d seconds", int(SessionAbsoluteTimeout.Seconds())), authPub)
 	return scanSession(row)

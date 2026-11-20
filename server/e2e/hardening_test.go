@@ -54,28 +54,6 @@ func TestFutureTimestampRejected(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Account purge must not change memberships behind the log's back.
-func TestPurgeKeepsMemberships(t *testing.T) {
-	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
-	ctx := context.Background()
-
-	alice := newClient(t, baseURL)
-	require.NoError(t, alice.Signup(ctx, []byte("a")))
-	ws := createList(t, ctx, alice)
-	// Through the API an account's lists are deleted with it, so mark it
-	// deleted directly: the purge must be safe on its own.
-	_, err := pool.Exec(ctx, `UPDATE accounts SET deleted_at = now() WHERE id = $1`, alice.AccountID)
-	require.NoError(t, err)
-
-	purger := retention.NewPurger(pool, fakeClock{now: time.Now().Add(retention.DefaultWindow + time.Hour)}, retention.DefaultWindow)
-	_, err = purger.PurgeOnce(ctx)
-	require.NoError(t, err)
-
-	var n int
-	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM memberships WHERE group_id = $1 AND role = 'owner'`, ws.ID).Scan(&n))
-	require.Equal(t, 1, n, "the owner's membership must survive purge")
-}
-
 // Oversized bodies are refused before they are parsed.
 func TestBodyLimit(t *testing.T) {
 	baseURL, _ := newTestServer(t, auth.DefaultChallengeTTL)
@@ -285,9 +263,9 @@ func TestCatchUpLongerThanOneBatch(t *testing.T) {
 	const n = 520 // > one catch-up batch (500)
 	// Seqs are the list's own (Updates.Append), so seed them and the
 	// list's counter the same way.
-	_, err := pool.Exec(ctx, `INSERT INTO list_updates (list_id, seq, epoch, author_account_id, msg)
-		SELECT $1, i, 0, $2, convert_to(json_build_object('ct', 'u' || (i - 1))::text, 'UTF8')
-		FROM generate_series(1, $3::int) AS i ORDER BY i`, ws.ID, alice.AccountID, n)
+	_, err := pool.Exec(ctx, `INSERT INTO list_updates (list_id, seq, epoch, msg)
+		SELECT $1, i, 0, convert_to(json_build_object('ct', 'u' || (i - 1))::text, 'UTF8')
+		FROM generate_series(1, $2::int) AS i ORDER BY i`, ws.ID, n)
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `UPDATE groups SET update_seq = $2 WHERE id = $1`, ws.ID, n)
 	require.NoError(t, err)
@@ -372,7 +350,7 @@ func TestWriteSerializedWithEpochChange(t *testing.T) {
 
 // ---- Deletion and retention ----
 
-func TestListDeletionEndsAccessAndPurgesContent(t *testing.T) {
+func TestListDeletionEndsAccessAndRemovesContent(t *testing.T) {
 	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	ctx := context.Background()
 	alice := newClient(t, baseURL)
@@ -399,11 +377,7 @@ func TestListDeletionEndsAccessAndPurgesContent(t *testing.T) {
 	lists := sharedLists(t, ctx, alice)
 	require.Empty(t, lists)
 
-	// After the window the list and all its content are gone.
-	purger := retention.NewPurger(pool, fakeClock{now: time.Now().Add(retention.DefaultWindow + time.Hour)}, retention.DefaultWindow)
-	report, err := purger.PurgeOnce(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 1, report.Groups)
+	// The list and all its content are gone at once.
 	for _, q := range []string{
 		`SELECT count(*) FROM groups WHERE id NOT IN (SELECT inbox_id FROM accounts)`,
 		`SELECT count(*) FROM list_updates`, `SELECT count(*) FROM list_snapshots`,
@@ -414,16 +388,16 @@ func TestListDeletionEndsAccessAndPurgesContent(t *testing.T) {
 	}
 }
 
-func TestAccountDeletionClearsBundle(t *testing.T) {
+func TestAccountDeletionRemovesTheRow(t *testing.T) {
 	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	ctx := context.Background()
 	alice := newClient(t, baseURL)
 	require.NoError(t, alice.Signup(ctx, []byte("alice-bundle")))
 	require.NoError(t, alice.DeleteAccount(ctx))
 
-	var bundleLen int
-	require.NoError(t, pool.QueryRow(ctx, `SELECT length(identity_bundle) FROM accounts WHERE id = $1`, alice.AccountID).Scan(&bundleLen))
-	require.Zero(t, bundleLen)
+	var n int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM accounts WHERE id = $1`, alice.AccountID).Scan(&n))
+	require.Zero(t, n, "the keys, bundle and settings go with the row")
 }
 
 func TestEndedSessionsAreGone(t *testing.T) {
@@ -439,14 +413,14 @@ func TestEndedSessionsAreGone(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM sessions`).Scan(&rows))
 	require.Equal(t, 1, rows, "logout deletes the session; only the live one is left")
 
-	now := retention.NewPurger(pool, fakeClock{now: time.Now()}, retention.DefaultWindow)
+	now := retention.NewPurger(pool, fakeClock{now: time.Now()})
 	report, err := now.PurgeOnce(ctx)
 	require.NoError(t, err)
 	require.Zero(t, report.Sessions, "a live session stays")
 	_, err = live.GetAccount(ctx)
 	require.NoError(t, err)
 
-	idle := retention.NewPurger(pool, fakeClock{now: time.Now().Add(store.SessionIdleTimeout + time.Hour)}, retention.DefaultWindow)
+	idle := retention.NewPurger(pool, fakeClock{now: time.Now().Add(store.SessionIdleTimeout + time.Hour)})
 	report, err = idle.PurgeOnce(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, report.Sessions, "an expired session goes")

@@ -188,7 +188,7 @@ func (s *Service) AppendEntry(ctx context.Context, callerAccountID, groupID stri
 	return updated, nil
 }
 
-// DeleteGroup soft-deletes the list if the caller is still its owner
+// DeleteGroup deletes the list if the caller is still its owner
 // (re-checked inside the delete's transaction), then tells whoever
 // could access it (Sync §3, `group`: "the client's access changed").
 func (s *Service) DeleteGroup(ctx context.Context, groupID, callerAccountID string) error {
@@ -200,7 +200,7 @@ func (s *Service) DeleteGroup(ctx context.Context, groupID, callerAccountID stri
 	// from every listing.
 	audience, _ := s.groups.AccessibleAccountIDs(ctx, groupID)
 
-	if err := s.groups.SoftDelete(ctx, groupID, callerAccountID); err != nil {
+	if err := s.groups.Delete(ctx, groupID, callerAccountID); err != nil {
 		return err
 	}
 	if s.notifier != nil {

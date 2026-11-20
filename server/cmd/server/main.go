@@ -86,7 +86,7 @@ func setIf(dst *int, v int) {
 }
 
 func runRetentionLoop(ctx context.Context, pool *pgxpool.Pool) {
-	purger := retention.NewPurger(pool, retention.RealClock{}, retention.DefaultWindow)
+	purger := retention.NewPurger(pool, retention.RealClock{})
 
 	purge := func() {
 		report, err := purger.PurgeOnce(ctx)
@@ -94,7 +94,7 @@ func runRetentionLoop(ctx context.Context, pool *pgxpool.Pool) {
 			slog.Error("retention purge failed", "error", err)
 			return
 		}
-		slog.Info("retention purge complete", "groups", report.Groups, "accounts", report.Accounts, "sessions", report.Sessions)
+		slog.Info("retention purge complete", "sessions", report.Sessions)
 	}
 
 	purge()

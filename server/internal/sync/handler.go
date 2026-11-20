@@ -458,7 +458,7 @@ func (h *Handler) handleUpdate(ctx context.Context, conn *Conn, raw []byte, f cl
 	var w *waiter
 	err := h.groups.AuthorizedWrite(ctx, hdr.List, conn.accountID, hdr.Epoch, func(tx pgx.Tx) error {
 		var err error
-		if up, err = h.updates.Append(ctx, tx, hdr.List, hdr.Epoch, conn.accountID, msgBytes); err != nil {
+		if up, err = h.updates.Append(ctx, tx, hdr.List, hdr.Epoch, msgBytes); err != nil {
 			return err
 		}
 		w = h.relay.expect(hdr.List, up.Seq)

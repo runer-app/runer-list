@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"runer-api/internal/auth"
-	"runer-api/internal/retention"
 	"runer-api/internal/testclient"
 
 	"github.com/stretchr/testify/require"
@@ -94,7 +93,7 @@ func TestInbox_NotDeletableOrShareable(t *testing.T) {
 	requireAPIError(t, err, "forbidden")
 }
 
-// Account deletion removes the Inbox, and the retention job can purge it.
+// Account deletion removes the Inbox at once.
 func TestInbox_RemovedWithAccount(t *testing.T) {
 	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
 	ctx := context.Background()
@@ -102,13 +101,9 @@ func TestInbox_RemovedWithAccount(t *testing.T) {
 	require.NoError(t, c.Signup(ctx, []byte("b")))
 	require.NoError(t, c.DeleteAccount(ctx))
 
-	var deleted bool
-	require.NoError(t, pool.QueryRow(ctx, `SELECT deleted_at IS NOT NULL FROM groups WHERE id = $1`, c.InboxID).Scan(&deleted))
-	require.True(t, deleted)
-
-	purger := retention.NewPurger(pool, fakeClock{now: time.Now().Add(retention.DefaultWindow + time.Hour)}, retention.DefaultWindow)
-	report, err := purger.PurgeOnce(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 1, report.Groups)
-	require.Equal(t, 1, report.Accounts)
+	for _, q := range []string{`SELECT count(*) FROM groups WHERE id = $1`, `SELECT count(*) FROM group_log WHERE group_id = $1`} {
+		var n int
+		require.NoError(t, pool.QueryRow(ctx, q, c.InboxID).Scan(&n))
+		require.Zero(t, n, q)
+	}
 }

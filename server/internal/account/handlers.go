@@ -192,15 +192,14 @@ func (h *Handler) rekey(c *echo.Context) error {
 	})
 }
 
-// deleteAccount schedules deletion (Self-hosting: Data retention): the account
-// stops resolving from here on, every session is revoked and every open
-// socket closed immediately.
-// The retention job purges what it safely can after the window.
+// deleteAccount deletes the account and the lists it owns at once
+// (Self-hosting: Data retention): every session ends and every open socket
+// closes.
 func (h *Handler) deleteAccount(c *echo.Context) error {
 	acc, _ := auth.AccountFromContext(c)
 	ctx := c.Request().Context()
 
-	deleted, err := h.accounts.ScheduleDeletion(ctx, acc.ID)
+	deleted, err := h.accounts.Delete(ctx, acc.ID)
 	if err != nil {
 		return err
 	}
@@ -213,5 +212,5 @@ func (h *Handler) deleteAccount(c *echo.Context) error {
 	http.SetCookie(c.Response(), &http.Cookie{
 		Name: "session", Value: "", Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
 	})
-	return httpx.JSONData(c, http.StatusOK, map[string]any{"scheduled": true})
+	return httpx.JSONData(c, http.StatusOK, map[string]any{"deleted": true})
 }

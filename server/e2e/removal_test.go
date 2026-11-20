@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"runer-api/internal/auth"
-	"runer-api/internal/retention"
 	"runer-api/internal/testclient"
 
 	"github.com/stretchr/testify/require"
@@ -282,49 +281,8 @@ func TestDeleteListOwnerOnly(t *testing.T) {
 	require.Empty(t, groups)
 }
 
-// fakeClock is a fixed-instant retention.Clock, so the purge window can be
-// exercised deterministically instead of sleeping 30 days.
+// fakeClock is a fixed-instant retention.Clock, so session expiry can be
+// exercised deterministically instead of sleeping.
 type fakeClock struct{ now time.Time }
 
 func (f fakeClock) Now() time.Time { return f.now }
-
-func TestRetentionPurgesDeletedListAfterWindow(t *testing.T) {
-	baseURL, pool := newTestServer(t, auth.DefaultChallengeTTL)
-	ctx := context.Background()
-
-	alice := newClient(t, baseURL)
-	require.NoError(t, alice.Signup(ctx, []byte("alice-bundle")))
-	l := createList(t, ctx, alice)
-
-	conn, err := alice.DialSync(ctx)
-	require.NoError(t, err)
-	defer func() { _ = conn.Close() }()
-
-	header := alice.UpdateHeader(l.ID, l.Epoch, "")
-	require.NoError(t, conn.SendUpdate(ctx, "c1", header, "content"))
-	_, err = conn.RecvUntil(ctx, isAck("c1"))
-	require.NoError(t, err)
-
-	require.NoError(t, alice.DeleteGroup(ctx, l.ID))
-
-	count := func(query string) int {
-		var n int
-		require.NoError(t, pool.QueryRow(ctx, query, l.ID).Scan(&n))
-		return n
-	}
-
-	// Immediately after: not purged yet (window hasn't elapsed by the
-	// purger's clock).
-	report, err := retention.NewPurger(pool, fakeClock{now: time.Now()}, retention.DefaultWindow).PurgeOnce(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 0, report.Groups)
-	require.Equal(t, 1, count(`SELECT count(*) FROM groups WHERE id = $1`))
-
-	// Fast-forward the purger's clock past the retention window.
-	future := fakeClock{now: time.Now().Add(retention.DefaultWindow + time.Hour)}
-	report, err = retention.NewPurger(pool, future, retention.DefaultWindow).PurgeOnce(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 1, report.Groups)
-	require.Equal(t, 0, count(`SELECT count(*) FROM groups WHERE id = $1`))
-	require.Equal(t, 0, count(`SELECT count(*) FROM list_updates WHERE list_id = $1`))
-}

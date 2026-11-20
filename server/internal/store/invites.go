@@ -13,7 +13,6 @@ import (
 type Invite struct {
 	ID         string
 	GroupID    string
-	CreatedBy  string
 	Package    []byte
 	ExpiresAt  time.Time
 	ConsumedAt *time.Time
@@ -49,11 +48,11 @@ func NewInvites(pool *pgxpool.Pool) *Invites {
 	return &Invites{pool: pool}
 }
 
-const inviteColumns = `id, group_id, created_by, package, expires_at, consumed_at, revoked_at, created_at, invite_pub`
+const inviteColumns = `id, group_id, package, expires_at, consumed_at, revoked_at, created_at, invite_pub`
 
 func scanInvite(row pgx.Row) (Invite, error) {
 	var i Invite
-	err := row.Scan(&i.ID, &i.GroupID, &i.CreatedBy, &i.Package, &i.ExpiresAt, &i.ConsumedAt, &i.RevokedAt, &i.CreatedAt, &i.InvitePub)
+	err := row.Scan(&i.ID, &i.GroupID, &i.Package, &i.ExpiresAt, &i.ConsumedAt, &i.RevokedAt, &i.CreatedAt, &i.InvitePub)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Invite{}, ErrNotFound
 	}
@@ -63,20 +62,19 @@ func scanInvite(row pgx.Row) (Invite, error) {
 	return i, nil
 }
 
-// Create stores an invite if createdBy is still the owner of the live
-// list, re-checked under its row lock: a deletion that commits first
-// denies it, and a deletion that commits after it
-// revokes it. A link invite (invitePub set) also needs its log
+// Create stores an invite if ownerID is still the owner of the list,
+// re-checked under its row lock: a deletion that commits first denies
+// it, and a deletion that commits after it deletes it. A link invite (invitePub set) also needs its log
 // `invite` entry to be open and to expire no earlier than expiresAt:
 // ErrInviteNotUsable otherwise.
-func (iv *Invites) Create(ctx context.Context, id, groupID, createdBy string, pkg []byte, expiresAt time.Time, invitePub []byte) (Invite, error) {
+func (iv *Invites) Create(ctx context.Context, id, groupID, ownerID string, pkg []byte, expiresAt time.Time, invitePub []byte) (Invite, error) {
 	tx, err := iv.pool.Begin(ctx)
 	if err != nil {
 		return Invite{}, fmt.Errorf("begin create invite: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	_, role, err := lockedAccess(ctx, tx, groupID, createdBy, "FOR SHARE")
+	_, role, err := lockedAccess(ctx, tx, groupID, ownerID, "FOR SHARE")
 	if err != nil {
 		return Invite{}, err
 	}
@@ -94,10 +92,10 @@ func (iv *Invites) Create(ctx context.Context, id, groupID, createdBy string, pk
 			return Invite{}, fmt.Errorf("check log invite: %w", err)
 		}
 	}
-	row := tx.QueryRow(ctx, `INSERT INTO invites (id, group_id, created_by, package, expires_at, invite_pub)
-		VALUES ($1, $2, $3, $4, $5, $6)
+	row := tx.QueryRow(ctx, `INSERT INTO invites (id, group_id, package, expires_at, invite_pub)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING `+inviteColumns,
-		id, groupID, createdBy, pkg, expiresAt, invitePub)
+		id, groupID, pkg, expiresAt, invitePub)
 	inv, err := scanInvite(row)
 	if isUniqueViolation(err) {
 		return Invite{}, ErrConflict
@@ -114,6 +112,23 @@ func (iv *Invites) Create(ctx context.Context, id, groupID, createdBy string, pk
 func (iv *Invites) Get(ctx context.Context, id string) (Invite, error) {
 	row := iv.pool.QueryRow(ctx, `SELECT `+inviteColumns+` FROM invites WHERE id = $1`, id)
 	return scanInvite(row)
+}
+
+// GetWithLog returns the invite and its list's log from fromSeq, in one
+// snapshot: a list deletion can't fall between them and serve an invitee
+// a live invite with an empty log.
+func (iv *Invites) GetWithLog(ctx context.Context, id string, fromSeq int64, limit int) (Invite, []LogEntry, error) {
+	var inv Invite
+	var entries []LogEntry
+	err := readSnapshot(ctx, iv.pool, func(tx pgx.Tx) error {
+		var err error
+		if inv, err = scanInvite(tx.QueryRow(ctx, `SELECT `+inviteColumns+` FROM invites WHERE id = $1`, id)); err != nil {
+			return err
+		}
+		entries, err = listLogFrom(ctx, tx, inv.GroupID, fromSeq, limit)
+		return err
+	})
+	return inv, entries, err
 }
 
 func (iv *Invites) Revoke(ctx context.Context, id, groupID string) error {
@@ -157,17 +172,16 @@ func consumeInvite(ctx context.Context, tx pgx.Tx, groupID string, mac []byte, s
 	return nil
 }
 
-// CreateJoinRequest records a join request if the invite is still usable
-// and its group live, checked in the same statement under the invite's row
-// lock, so a revocation or group deletion can't slip between check and
-// insert. An account has at most one pending request per invite; a
+// CreateJoinRequest records a join request if the invite is still usable,
+// checked in the same statement under the invite's row lock, so a
+// revocation or list deletion (deleteList locks the invites first) can't
+// slip between check and insert. An account has at most one pending request per invite; a
 // repeat replaces it. ErrInviteNotUsable if the invite isn't usable.
 func (iv *Invites) CreateJoinRequest(ctx context.Context, inviteID, accountID string, encDisplayName, mac []byte) (JoinRequest, error) {
 	var jr JoinRequest
 	err := iv.pool.QueryRow(ctx, `INSERT INTO join_requests (invite_id, account_id, enc_display_name, mac)
-		SELECT i.id, $2, $3, $4 FROM invites i JOIN groups g ON g.id = i.group_id
+		SELECT i.id, $2, $3, $4 FROM invites i
 		WHERE i.id = $1 AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
-		  AND g.deleted_at IS NULL
 		FOR SHARE OF i
 		ON CONFLICT (invite_id, account_id) WHERE approved_at IS NULL
 		DO UPDATE SET enc_display_name = EXCLUDED.enc_display_name, mac = EXCLUDED.mac, created_at = now()
@@ -192,8 +206,8 @@ type PendingJoinRequest struct {
 }
 
 // ListJoinRequestsForGroup returns requests the owner can still approve: not
-// approved, on an invite that is unexpired, unrevoked and unconsumed, from
-// an account that still exists.
+// approved, on an invite that is unexpired, unrevoked and unconsumed. A
+// deleted account's requests are deleted with it.
 func (iv *Invites) ListJoinRequestsForGroup(ctx context.Context, groupID string) ([]PendingJoinRequest, error) {
 	rows, err := iv.pool.Query(ctx, `SELECT jr.id, jr.invite_id, jr.account_id, jr.enc_display_name, jr.mac, jr.created_at, jr.approved_at,
 			a.identity_sign_pub, a.identity_agree_pub
@@ -202,7 +216,6 @@ func (iv *Invites) ListJoinRequestsForGroup(ctx context.Context, groupID string)
 		JOIN accounts a ON a.id = jr.account_id
 		WHERE i.group_id = $1 AND jr.approved_at IS NULL
 		  AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
-		  AND a.deleted_at IS NULL
 		ORDER BY jr.created_at`, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("list join requests: %w", err)

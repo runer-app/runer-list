@@ -74,6 +74,8 @@ The **Identity key pair** (Ed25519 signing + X25519 agreement) is generated rand
 | `settings_sealed` (nullable), `settings_gen` | The account's settings, the same on every device. Opaque to the server: `nonce(12) ‖ AES-256-GCM(HKDF(identity_agree_private, "runer/v1/account-settings"), UTF-8 JSON, AD = "runer/v1/account-settings" ‖ 0x00 ‖ identity_sign_pub)`. The JSON is a client concern: an object with a format version `v`, and unknown fields from a newer client are kept, never dropped. The optional account name lives in this JSON, so the server never sees it; the name collaborators see is the one the client copies into each shared list's encrypted document (and `owner_name` and `enc_display_name` when inviting and joining, §6), any of which may be empty. Empty until first set, replaced with `PUT /account/settings`. `settings_gen` increments on every write, and a write must name the current one: the server can't merge what it can't read, so a device that lost the race refetches, reapplies its change and retries. |
 | `created_at`, `last_seen_at` | Activity. |
 
+All of it is deleted with the account (§8.4).
+
 The Account Key has 128 bits of entropy, so a stolen database offers no offline brute-force path, and no password hashing is needed. Signup requires a small proof-of-work, with a loose per-IP flood cap (many people share one IP).
 
 ## 3.4 Login
@@ -335,7 +337,7 @@ sig    = Ed25519(author, header || nonce || ct)
 
 **Receiver:** checks the author was a member at `epoch`, verifies `sig`, decrypts, merges. A member at `epoch` is anyone who was a member at any point while that epoch was current, by the receiver's verified log: someone added mid-epoch counts; a `remove` starts a new epoch, so the removed member is in none from then on; someone who left stays in their last epoch's set until the next `rotate` (they held that key anyway, and the server refuses their writes). Catch-up may carry older epochs (history). A *live* update with an older epoch is applied but triggers the withheld-removal warning (§4.4).
 
-**Server:** checks the session is `author`, `author` is a current member of `list`, and `epoch` is current; otherwise `forbidden` or `stale-epoch` ([Sync §5](./sync-protocol.md)). On `stale-epoch` the client re-encrypts its outbox under the new epoch and resends; updates are idempotent.
+**Server:** checks the session is `author`, `author` is a current member of `list`, and `epoch` is current; otherwise `forbidden` or `stale-epoch` ([Sync §5](./sync-protocol.md)). It stores the frame as it came and no author beside it: `author` in the signed header is the only record of who wrote it, so it outlives the author's account (§8.4). On `stale-epoch` the client re-encrypts its outbox under the new epoch and resends; updates are idempotent.
 
 **Why sign as well as encrypt:** AEAD proves "some member wrote this"; the signature proves which one.
 
@@ -367,6 +369,12 @@ Removal protects data encrypted under an epoch the removed identity never receiv
 Deleting an account deletes every list it owns, at once and for all members: the owner can't leave (rule 6) and there is no ownership transfer, so a list doesn't outlive its owner. To the other members this is an ordinary list deletion.
 
 A list the account is only a member of is different. The server can't take an account out of it: membership is what the signed log says, and the server holds no key that could sign for a member. So the server refuses to delete an account that is still a member of a list it doesn't own, and the client appends a `leave` to each such list first. To the other members that is an ordinary leave (§8.2): the next remaining member to come online rotates the key. Nothing new appears in any log.
+
+The server then deletes the account at once, in one step with its owned lists: the row with its keys, Identity Bundle and settings (§3.3), its sessions and its join requests. Nothing is kept for later and nothing can be restored. No stored update, invite or log entry points at the account: the server records no author for them, since members check authorship against the key in the signed bytes (§4.2, §7).
+
+**What remains.** The account's public identity keys stay only inside the signed history of the lists it left that still exist: the log entries it signed or that name it (its `add` or `join`, its `leave`) and the `author` of its update and snapshot headers. The other members need them there to verify that history, and still can. No account row, session or other record ties those keys to anything on the server any more.
+
+**The keys afterwards.** With the row gone the server no longer knows the keys, so they could sign up again. Only the holder of the private keys can do that (a sign-up is signed by both the auth key and the identity key), the app never does (it always signs up with fresh keys; a device whose login is refused stops and asks the user), and it gives back no list: the account left every log, and getting back in takes a new `add` or `join` like anyone else's. The server keeps no record of deleted keys, which would be exactly the identifying data deletion removes.
 
 ---
 

@@ -100,9 +100,7 @@ const logPageSize = 500
 
 func (h *Handler) getLog(c *echo.Context) error {
 	groupID := c.Param("id")
-	if _, err := h.requireMember(c, groupID); err != nil {
-		return err
-	}
+	acc, _ := auth.AccountFromContext(c)
 	from := int64(0)
 	if s := c.QueryParam("from"); s != "" {
 		v, err := strconv.ParseInt(s, 10, 64)
@@ -112,7 +110,7 @@ func (h *Handler) getLog(c *echo.Context) error {
 		from = v
 	}
 
-	entries, err := h.groups.ListLogFrom(c.Request().Context(), groupID, from, logPageSize)
+	entries, err := h.groups.MemberLog(c.Request().Context(), groupID, acc.ID, from, logPageSize)
 	if err != nil {
 		return err
 	}
@@ -177,7 +175,7 @@ func (h *Handler) listMembers(c *echo.Context) error {
 	return httpx.JSONData(c, http.StatusOK, views)
 }
 
-// deleteGroup soft-deletes the list and all its content, owner only
+// deleteGroup deletes the list and all its content at once, owner only
 // (API Reference).
 func (h *Handler) deleteGroup(c *echo.Context) error {
 	groupID := c.Param("id")
