@@ -76,6 +76,19 @@ describe('sharing', () => {
     expect(await bob.safetyCode(bobInBobsLog)).toEqual(code);
   });
 
+  test('sharing lists by link in quick succession raises no warning', async () => {
+    const [alice, bob] = [await person(), await person()];
+    // A head Alice reads just before her own invite lands is lower than her log; it must not read as a rollback.
+    for (let round = 0; round < 20; round++) {
+      const lists = [await alice.createList(`A${round}`), await alice.createList(`B${round}`)];
+      for (const list of lists) await joinByLink(alice, bob, list);
+      for (const list of lists) {
+        await until('Alice sees Bob join', () => summary(alice, list)?.members.some((m) => toBase64url(m.signPub) === bob.me) ?? false);
+      }
+      expect(value(alice.warnings)).toEqual([]);
+    }
+  }, 120_000);
+
   test('share with two and remove one: the removed member loses the list, the others write under the new epoch', async () => {
     const [alice, bob, carol] = [await person(), await person(), await person()];
     const first = await alice.createList('First');

@@ -81,7 +81,17 @@ async function refreshList(account: Account, g: GroupView): Promise<ListState> {
   const { vault } = account.platform;
   const ours = await verified(account, g.id);
   if (ours !== null) {
-    const warnings = await vault.checkHead(account.handle, g.id, g.head_seq, fromBase64url(g.head_hash));
+    let warnings = await vault.checkHead(account.handle, g.id, g.head_seq, fromBase64url(g.head_hash));
+    // A head read before one of our own appends landed is lower than the log
+    // that append left us. The server took that append before we applied it,
+    // so a head read now includes it: only a head still lower is a rollback.
+    if (warnings.length === 1 && warnings[0]!.kind === 'log-rollback') {
+      const again = (await account.request<GroupView[]>('GET', '/v1/groups')).find((h) => h.id === g.id);
+      if (again !== undefined) {
+        g = again;
+        warnings = await vault.checkHead(account.handle, g.id, g.head_seq, fromBase64url(g.head_hash));
+      }
+    }
     account.warn(warnings);
     if (warnings.length > 0 || g.head_seq === ours.head.seq) return ours;
   }

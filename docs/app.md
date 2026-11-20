@@ -392,7 +392,7 @@ So a compromised webview can act as the user while the compromise lasts, but it 
 
 - **Same checks, same order, same reasons as Go** (`validate_entry`; `tests/log_fixtures.rs` pins each reason), including Go's base64url and JSON escaping quirks.
 - **A fork keeps nothing.** If `applyLog` meets a different entry at a known seq, it drops the batch and returns `log-fork`.
-- **`checkHead`** compares each head from `GET /groups` with the verified log: lower is `log-rollback`, a different hash is `log-fork`. Catch-up refetches from our own head, so a swap there is caught too.
+- **`checkHead`** compares each head from `GET /groups` with the verified log: lower is `log-rollback`, a different hash is `log-fork`. A lower head alone is read once more first: it may predate one of our own appends, which the server takes before the vault applies it; it is reported only if still lower. Catch-up refetches from our own head, so a swap there is caught too.
 - **`applyLog` checks the genesis against the list id** (`WrongList`).
 - **The vault stores logs, not keys.** Logs are re-verified from genesis at startup, which reopens the keys; a log that no longer verifies is dropped and refetched. The one key from outside a log, a link invite's `K_e`, is stored on its own (`key/<account>/<list>/<epoch>`). A store whose cache key is gone is cleared.
 
