@@ -21,6 +21,8 @@ export interface Shell {
   debugLog?: DebugLog;
   /** Opens runer.app's privacy or support page in the browser, linked from Settings. */
   openSite?: (page: 'privacy' | 'support') => Promise<void>;
+  /** Opens a mail draft to support with the app version and platform, linked from Settings. */
+  reportProblem?: () => Promise<void>;
   /** Desktop builds with an update feed: an update was downloaded, and restarting runs it. */
   update?: AppUpdate;
 }

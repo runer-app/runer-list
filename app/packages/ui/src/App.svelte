@@ -89,6 +89,7 @@
       links={shell.links ? (cb) => shell.links!.onLink(cb) : undefined}
       debugLog={shell.debugLog}
       openSite={shell.openSite}
+      reportProblem={shell.reportProblem}
       update={updateReady ? shell.update : undefined}
       version={shell.version}
       signedOut={() => {

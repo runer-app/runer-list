@@ -31,6 +31,7 @@
     links,
     debugLog,
     openSite,
+    reportProblem,
     update,
     version,
   }: {
@@ -45,6 +46,7 @@
     debugLog?: DebugLog | undefined;
     /** Opens runer.app's privacy or support page, linked from Settings. */
     openSite?: Shell['openSite'];
+    reportProblem?: Shell['reportProblem'];
     /** A downloaded update, ready for a restart. */
     update?: AppUpdate | undefined;
     /** The app's version, under Settings. */
@@ -232,7 +234,7 @@
         />
       {/key}
     {:else if view.name === 'settings'}
-      <Settings {core} {signedOut} {debugLog} {openSite} {version} help={() => go({ name: 'help' })} />
+      <Settings {core} {signedOut} {debugLog} {openSite} {reportProblem} {version} help={() => go({ name: 'help' })} />
     {:else if view.name === 'help'}
       <Help back={() => go({ name: 'settings' })} />
     {:else}

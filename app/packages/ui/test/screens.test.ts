@@ -1133,6 +1133,22 @@ describe('settings', () => {
     expect(openSite.mock.calls).toEqual([['privacy'], ['support']]);
   });
 
+  test('report a problem: Settings asks the shell, which names the address and text', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const reportProblem = vi.fn(() => Promise.resolve());
+    render(Main, { core, signedOut: vi.fn(), reportProblem });
+    await fireEvent.click(nav().getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Report a problem' }));
+    expect(reportProblem).toHaveBeenCalledTimes(1);
+    // For those without a mail app: the address is shown, and Copy puts it on the clipboard.
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    expect(screen.getByText('support@runer.app')).toBeTruthy();
+    await fireEvent.click(screen.getByText('support@runer.app').closest('div')!.querySelector('button')!);
+    expect(writeText).toHaveBeenCalledWith('support@runer.app');
+  });
+
   test('delete account: asked first, with what happens to the lists, then back to Welcome', async () => {
     server = new MemoryServer();
     const core = await person();

@@ -21,6 +21,7 @@
     help,
     debugLog,
     openSite,
+    reportProblem,
     version,
   }: {
     core: ClientCore;
@@ -28,6 +29,7 @@
     help: () => void;
     debugLog?: DebugLog | undefined;
     openSite?: Shell['openSite'];
+    reportProblem?: Shell['reportProblem'];
     version?: string | undefined;
   } = $props();
 
@@ -227,14 +229,23 @@
 
 <section>
   {@render about(t('settings.help'), t('settings.helpLead'))}
-  <div>
+  <div class="stack">
     <div class="buttons">
       <button class="small" onclick={help}>{t('settings.openHelp')}</button>
       {#if openSite}
         <button class="small" onclick={() => void openSite('privacy').catch(() => (error = t('settings.failed')))}>{t('settings.privacy')}</button>
         <button class="small" onclick={() => void openSite('support').catch(() => (error = t('settings.failed')))}>{t('settings.support')}</button>
       {/if}
+      {#if reportProblem}
+        <button class="small" onclick={() => void reportProblem().catch(() => (error = t('settings.failed')))}>{t('settings.reportProblem')}</button>
+      {/if}
     </div>
+    {#if reportProblem}
+      <div class="key compact">
+        <span class="muted address">{t('settings.supportAddressLead')} <span class="mono">{t('settings.supportAddress')}</span></span>
+        <button class="small" onclick={() => void navigator.clipboard.writeText(t('settings.supportAddress')).catch(() => undefined)}>{t('settings.diagnosticsCopy')}</button>
+      </div>
+    {/if}
   </div>
 </section>
 
@@ -420,6 +431,15 @@
     border: 1px solid var(--divider);
     border-radius: 10px;
     background: var(--bg-sidebar);
+  }
+  .key.compact {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .key .address {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .key > .mono {
     flex: 1;

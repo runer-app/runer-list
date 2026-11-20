@@ -61,6 +61,7 @@ const shell: Shell = {
     restart: () => tauriIpc.invoke<void>('update_restart'),
   },
   openSite: (page) => tauriIpc.invoke<void>('open_site', { page }),
+  reportProblem: () => tauriIpc.invoke<void>('report_problem'),
   debugLog: { read: () => tauriIpc.invoke<string>('debug_log_read'), clear: clearLog },
 };
 

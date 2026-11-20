@@ -4,7 +4,7 @@
 //!
 //! The webview gets exactly the commands listed in `build.rs` and the
 //! `default` capability: no plugin commands, no filesystem, no shell. The
-//! one URL the app opens in the browser is fixed here (`open_site`).
+//! URLs the app opens are fixed here (`open_site`, `report_problem`).
 
 mod debuglog;
 mod device;
@@ -32,6 +32,36 @@ fn open_site(app: tauri::AppHandle, page: &str) -> wire::Result<()> {
         "support" => "https://runer.app/support.html",
         _ => return Err(wire::Error::new("open", "unknown page")),
     };
+    app.opener().open_url(url, None::<&str>).map_err(|e| wire::Error::new("open", e.to_string()))
+}
+
+/// Percent-encodes a `mailto:` query value.
+fn encode_mail(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// The `mailto:` link of the support email, with the app version and platform in the body.
+fn report_problem_url(version: &str, platform: &str) -> String {
+    let body = format!(
+        "Describe the problem:\n\n\n---\nApp version: {version}\nPlatform: {platform}\n\nTo include the log, copy it under Settings \u{2192} Diagnostics and paste it here.\n"
+    );
+    format!("mailto:support@runer.app?subject={}&body={}", encode_mail("Problem with runer-list"), encode_mail(&body))
+}
+
+/// Opens the mail app with a draft to support. The webview names no address or
+/// text; nothing is sent until the user sends the mail.
+#[tauri::command]
+fn report_problem(app: tauri::AppHandle) -> wire::Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = report_problem_url(&app.package_info().version.to_string(), std::env::consts::OS);
     app.opener().open_url(url, None::<&str>).map_err(|e| wire::Error::new("open", e.to_string()))
 }
 
@@ -182,6 +212,7 @@ pub fn run() {
             debuglog::debug_log_clear,
             links_initial,
             open_site,
+            report_problem,
             update::update_restart,
         ])
         .run(tauri::generate_context!())
@@ -191,6 +222,23 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+
+    /// Settings also shows the address (`settings.supportAddress`), for people without a mail app.
+    #[test]
+    fn the_address_shown_in_settings_is_the_one_mailed() {
+        let messages = include_str!("../../../../packages/ui/src/messages.ts");
+        assert!(messages.contains("'settings.supportAddress': 'support@runer.app'"));
+        assert!(super::report_problem_url("1", "x").starts_with("mailto:support@runer.app?"));
+    }
+
+    #[test]
+    fn report_problem_url_prefills_version_and_platform() {
+        let url = super::report_problem_url("1.2.3", "linux");
+        assert!(url.starts_with("mailto:support@runer.app?subject="));
+        assert!(url.contains("App%20version%3A%201.2.3"));
+        assert!(url.contains("Platform%3A%20linux"));
+        assert!(!url.contains(' ') && !url.contains('\n'));
+    }
 
     /// A command is written in three places: the invoke handler above, `COMMANDS` in `build.rs` (which makes its
     /// permission) and the `default` capability (which grants it to the window). One that is missing from the last

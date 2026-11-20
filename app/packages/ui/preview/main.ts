@@ -209,6 +209,7 @@ const shell: Shell = {
   resume: async () => core as unknown as ClientCore,
   signUp: () => Promise.reject(new Error('preview')),
   signIn: async () => null,
+  reportProblem: async () => console.log('report a problem: the app opens a mail draft here'),
   // `?join` opens the Join screen.
   ...(params.has('join') ? { links: { initial: async () => 'https://example.test/join#preview', onLink: () => () => undefined } } : {}),
 };
