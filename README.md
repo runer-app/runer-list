@@ -26,6 +26,7 @@ make            # list the targets; app/ and server/ have their own Makefiles wi
 make test       # both sides' full suites (the server's end-to-end tests need Docker)
 make up         # the server and PostgreSQL in local Docker on :8080
 make dev        # the desktop app against that local server
+make design     # the app's real UI in a browser on sample data (http://localhost:5199); no server needed
 ```
 
 Each side's README has its setup: [app](app/README.md) · [server](server/README.md).

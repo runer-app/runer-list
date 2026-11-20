@@ -1,10 +1,13 @@
-.PHONY: help install test test-app test-server check up down dev
+.PHONY: help install test test-app test-server check up down dev design
 
 help: ## list targets (default); app/ and server/ have their own Makefiles with more
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 install: ## install the app's npm dependencies
 	$(MAKE) -C app install
+
+design: ## the app's real UI in a browser on sample data at http://localhost:5199 (no server needed)
+	$(MAKE) -C app design
 
 test: test-app test-server ## both sides' full suites, against the shared protocol/ data
 
