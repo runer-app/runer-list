@@ -37,10 +37,12 @@ keyring = { version = "3", features = ["apple-native", "windows-native", "sync-s
 # `keyring` can't set a keychain item's accessibility class.
 [target.'cfg(target_os = "ios")'.dependencies]
 security-framework = "3"
-# BGTaskScheduler, for the background refresh (`wake.rs`).
+# BGTaskScheduler for the background refresh (`wake.rs`), UNUserNotificationCenter (`notify.rs`).
 objc2 = "0.6"
 block2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSDate", "NSError", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSDate", "NSDictionary", "NSError", "NSString"] }
+objc2-background-tasks = { version = "0.3", default-features = false, features = ["std", "block2", "dispatch2", "BGTask", "BGTaskRequest", "BGTaskScheduler"] }
+objc2-user-notifications = { version = "0.3", default-features = false, features = ["std", "block2", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNUserNotificationCenter"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

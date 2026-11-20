@@ -98,30 +98,24 @@ pub async fn notify_replace_all<R: Runtime>(app: AppHandle<R>, mut reminders: Ve
 #[cfg(target_os = "ios")]
 pub fn log_delivered() {
     use block2::RcBlock;
-    use objc2::rc::Retained;
-    use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
-    use objc2_foundation::{NSDate, NSString};
+    use objc2_foundation::{NSArray, NSDictionary, NSString};
+    use objc2_user_notifications::{UNNotification, UNUserNotificationCenter};
     use std::ptr::NonNull;
 
     let Some(seen_file) = crate::debuglog::sidecar("seen") else { return };
-    let done = RcBlock::new(move |delivered: NonNull<AnyObject>| {
-        let delivered = delivered.as_ptr();
+    let done = RcBlock::new(move |delivered: NonNull<NSArray<UNNotification>>| {
+        let delivered = unsafe { delivered.as_ref() };
         let seen: u64 = std::fs::read_to_string(&seen_file).ok().and_then(|s| s.parse().ok()).unwrap_or(0);
         let mut newest = seen;
-        let count: usize = unsafe { msg_send![delivered, count] };
-        for i in 0..count {
-            let (fired, at) = unsafe {
-                let n: *mut AnyObject = msg_send![delivered, objectAtIndex: i];
-                let date: Retained<NSDate> = msg_send![n, date];
-                let request: *mut AnyObject = msg_send![n, request];
-                let content: *mut AnyObject = msg_send![request, content];
-                let info: *mut AnyObject = msg_send![content, userInfo];
-                let extra: *mut AnyObject = msg_send![info, objectForKey: &*NSString::from_str("__EXTRA__")];
-                let at: Option<Retained<NSString>> =
-                    if extra.is_null() { None } else { msg_send![extra, objectForKey: &*NSString::from_str("at")] };
-                ((date.timeIntervalSince1970() * 1000.0) as u64, at.and_then(|a| a.to_string().parse::<u64>().ok()))
-            };
+        for n in delivered {
+            let fired = (n.date().timeIntervalSince1970() * 1000.0) as u64;
+            let info = n.request().content().userInfo();
+            let get = |d: &NSDictionary, k: &str| d.objectForKey(&NSString::from_str(k));
+            let at = get(&info, "__EXTRA__")
+                .and_then(|e| e.downcast::<NSDictionary>().ok())
+                .and_then(|e| get(&e, "at"))
+                .and_then(|a| a.downcast::<NSString>().ok())
+                .and_then(|a| a.to_string().parse::<u64>().ok());
             let Some(at) = at.filter(|_| fired > seen) else { continue };
             newest = newest.max(fired);
             log(&format!(
@@ -134,10 +128,7 @@ pub fn log_delivered() {
             let _ = std::fs::write(&seen_file, newest.to_string());
         }
     });
-    unsafe {
-        let center: Retained<AnyObject> = msg_send![class!(UNUserNotificationCenter), currentNotificationCenter];
-        let _: () = msg_send![&*center, getDeliveredNotificationsWithCompletionHandler: &*done];
-    }
+    UNUserNotificationCenter::currentNotificationCenter().getDeliveredNotificationsWithCompletionHandler(&done);
 }
 
 /// Makes the scheduled set exactly `reminders`. Ones already due are dropped, not fired late.

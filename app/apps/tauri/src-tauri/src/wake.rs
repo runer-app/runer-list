@@ -31,9 +31,9 @@ pub use ios::{register, schedule};
 mod ios {
     use block2::RcBlock;
     use objc2::rc::Retained;
-    use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
-    use objc2_foundation::{NSDate, NSError, NSString};
+    use objc2::AnyThread;
+    use objc2_background_tasks::{BGAppRefreshTaskRequest, BGTask, BGTaskScheduler};
+    use objc2_foundation::{NSDate, NSString};
     use std::ptr::NonNull;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::{Mutex, OnceLock};
@@ -54,23 +54,20 @@ mod ios {
     static TASK: Mutex<Option<(u64, Task)>> = Mutex::new(None);
 
     /// A `BGTask`, which may be completed from any thread.
-    struct Task(Retained<AnyObject>);
+    struct Task(Retained<BGTask>);
     unsafe impl Send for Task {}
 
-    fn scheduler() -> Retained<AnyObject> {
-        unsafe { msg_send![class!(BGTaskScheduler), sharedScheduler] }
+    fn scheduler() -> Retained<BGTaskScheduler> {
+        unsafe { BGTaskScheduler::sharedScheduler() }
     }
 
     /// Registers the refresh and asks for the first one. Apple wants it
     /// before launch ends: `setup` runs inside `didFinishLaunching`.
     pub fn register(app: &AppHandle) {
         let _ = APP.set(app.clone());
-        let handler = RcBlock::new(|task: NonNull<AnyObject>| run(unsafe { Retained::retain(task.as_ptr()) }));
+        let handler = RcBlock::new(|task: NonNull<BGTask>| run(unsafe { Retained::retain(task.as_ptr()) }));
         let id = NSString::from_str(TASK_ID);
-        let queue: *const AnyObject = std::ptr::null();
-        let ok: bool = unsafe {
-            msg_send![&*scheduler(), registerForTaskWithIdentifier: &*id, usingQueue: queue, launchHandler: &*handler]
-        };
+        let ok = unsafe { scheduler().registerForTaskWithIdentifier_usingQueue_launchHandler(&id, None, &handler) };
         crate::debuglog::log(if ok { "refresh: registered" } else { "refresh: registering failed" });
         schedule();
     }
@@ -78,11 +75,10 @@ mod ios {
     /// Asks for the next refresh. The Simulator always refuses.
     pub fn schedule() {
         let id = NSString::from_str(TASK_ID);
-        let result: Result<(), Retained<NSError>> = unsafe {
-            let request: Retained<AnyObject> =
-                msg_send![msg_send![class!(BGAppRefreshTaskRequest), alloc], initWithIdentifier: &*id];
-            let _: () = msg_send![&*request, setEarliestBeginDate: &*NSDate::dateWithTimeIntervalSinceNow(INTERVAL)];
-            msg_send![&*scheduler(), submitTaskRequest: &*request, error: _]
+        let result = unsafe {
+            let request = BGAppRefreshTaskRequest::initWithIdentifier(BGAppRefreshTaskRequest::alloc(), &id);
+            request.setEarliestBeginDate(Some(&NSDate::dateWithTimeIntervalSinceNow(INTERVAL)));
+            scheduler().submitTaskRequest_error(&request)
         };
         match result {
             Ok(()) => crate::debuglog::log("refresh: next one requested"),
@@ -91,14 +87,14 @@ mod ios {
     }
 
     /// iOS runs the refresh: hand it to the webview, and end it if the webview doesn't.
-    fn run(task: Option<Retained<AnyObject>>) {
+    fn run(task: Option<Retained<BGTask>>) {
         let Some(task) = task else { return };
         let n = RUNS.fetch_add(1, Ordering::SeqCst) + 1;
         crate::debuglog::log(&format!("refresh: iOS started run {n}"));
         let expired = RcBlock::new(move || finish(Some(n), false, "expired by iOS"));
-        let _: () = unsafe { msg_send![&*task, setExpirationHandler: &*expired] };
+        unsafe { task.setExpirationHandler(Some(&expired)) };
         if let Some((_, Task(t))) = TASK.lock().unwrap().replace((n, Task(task))) {
-            let _: () = unsafe { msg_send![&*t, setTaskCompleted: false] };
+            unsafe { t.setTaskCompletedWithSuccess(false) };
         }
         std::thread::spawn(move || {
             std::thread::sleep(TIMEOUT);
@@ -124,7 +120,7 @@ mod ios {
         };
         crate::debuglog::log(&format!("refresh: run {m} ended: {why}"));
         PENDING.store(false, Ordering::SeqCst);
-        let _: () = unsafe { msg_send![&*t, setTaskCompleted: success] };
+        unsafe { t.setTaskCompletedWithSuccess(success) };
         schedule();
     }
 }
