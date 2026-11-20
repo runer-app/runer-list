@@ -314,7 +314,8 @@ sequenceDiagram
 
 - **Notifications.** On iOS the plugin reads a scheduled time as local, so it is passed shifted by the time zone offset. On macOS it ignores schedules (§6.1).
 - **`runer://`** registers only in an installed build, not in `cargo tauri dev`.
-- **iOS builds** need `rustup component add llvm-tools`: Xcode 27 makes Swift `@_cdecl` exports local in Release, and `scripts/ios-swift-helpers.sh` (run after "Build Rust Code") makes the `SwiftRs` ones global again. Xcode needs `ENABLE_USER_SCRIPT_SANDBOXING = NO` and `cargo` on its PATH, and the crate builds no `cdylib` for iOS.
+- **iOS builds** need `rustup component add llvm-tools`: Xcode 27 makes Swift `@_cdecl` exports local in Release, and `scripts/ios-swift-helpers.sh` (run after "Build Rust Code") makes the `SwiftRs` helpers and Tauri's own exports (`log_stdout`, `register_plugin`, `on_webview_created`, `run_plugin_command`) global again. Xcode needs `ENABLE_USER_SCRIPT_SANDBOXING = NO` and `cargo` on its PATH, and the crate builds no `cdylib` for iOS.
+- **iOS icons** (`gen/apple/Assets.xcassets/AppIcon.appiconset`) must be square and have no alpha channel, or App Store Connect rejects the upload. Generate them with `tauri icon <svg> --ios-color "#2A2240"` (the tile colour fills the rounded corners), then save them without alpha.
 
 ### 6.3 Invite links
 
