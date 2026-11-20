@@ -41,7 +41,7 @@ mod ios {
     use tauri::{AppHandle, Emitter};
 
     /// Also in `BGTaskSchedulerPermittedIdentifiers` in `Info.ios.plist`.
-    const TASK_ID: &str = "app.runer.refresh";
+    const TASK_ID: &str = "app.runer.list.refresh";
     /// iOS gives a refresh about 30 s; past this the task ends unfinished.
     const TIMEOUT: Duration = Duration::from_secs(25);
     /// The earliest the next refresh may come, in seconds.

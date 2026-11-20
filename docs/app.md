@@ -250,7 +250,7 @@ Beyond Sync §2:
 
 - Subscribe to every list on connect; Today needs all of them.
 - On mobile, close the socket in the background and reconnect in the foreground.
-- **Background refresh (iOS)** (`app.runer.refresh`, `src-tauri/src/wake.rs`): iOS runs it when it sees fit. Rust holds the wake and emits `runer://wake`; the webview claims it with `wake_pending`, on that event and once when it starts listening, for a wake that came before. It connects, catches up, reconciles and waits until settled (at most 20 s), waits until the reminders are with the OS, closes the socket again and calls `wake_done`. Rust ends the run after 25 s if the webview doesn't.
+- **Background refresh (iOS)** (`app.runer.list.refresh`, `src-tauri/src/wake.rs`): iOS runs it when it sees fit. Rust holds the wake and emits `runer://wake`; the webview claims it with `wake_pending`, on that event and once when it starts listening, for a wake that came before. It connects, catches up, reconciles and waits until settled (at most 20 s), waits until the reminders are with the OS, closes the socket again and calls `wake_done`. Rust ends the run after 25 s if the webview doesn't.
 - **Reconcile** (`GET /v1/groups`, catch up changed logs, `checkHead`, drop lost lists, add new ones) on a `group` frame, on foreground, hourly and after a `forbidden`.
 
 ### 5.2 Sync
@@ -450,7 +450,7 @@ A rename or a fork touches only these places. Changing the label prefix changes 
 |---|---|
 | Label prefix `runer/v1/` | `crates/runer-crypto/src/labels.rs`, then regenerate `protocol/vectors`; the server has its own copy |
 | Link scheme `runer` | `APP_SCHEME` in `packages/client-core/src/invite/link.ts`; `plugins.deep-link` in `tauri.conf.json`; the server's `/join` page |
-| App id `app.runer` | `identifier` in `tauri.conf.json`; `DEV_CONFIG` in `Makefile` and `.cargo/run-signed.sh` (`app.runer.dev`); `apps/tauri/src-tauri/gen/apple` |
+| App id `app.runer.list` | `identifier` in `tauri.conf.json`; `DEV_CONFIG` in `Makefile` and `.cargo/run-signed.sh` (`app.runer.list.dev`); `apps/tauri/src-tauri/gen/apple` |
 | Product name `runer` | `PRODUCT_NAME` in `packages/ui/src/product.ts`; `productName` and window `title` in `tauri.conf.json`; `apps/tauri/index.html` |
 
-Dev builds are a separate app (`app.runer.dev`, "runer dev") with their own data and keychain entries. `RUNER_PROFILE=<name>` gives a debug build its own data directory and keychain service, so `make dev2` runs a second account beside the first.
+Dev builds are a separate app (`app.runer.list.dev`, "runer dev") with their own data and keychain entries. `RUNER_PROFILE=<name>` gives a debug build its own data directory and keychain service, so `make dev2` runs a second account beside the first.

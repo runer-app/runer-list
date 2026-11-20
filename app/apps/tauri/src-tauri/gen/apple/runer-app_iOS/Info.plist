@@ -53,7 +53,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>app.runer.refresh</string>
+		<string>app.runer.list.refresh</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

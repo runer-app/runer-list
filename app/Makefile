@@ -7,7 +7,7 @@ LOCAL_API := http://localhost:8080
 # Dev builds are their own app, so they install and keep their data and keychain entries beside the release.
 # Their icon carries a DEV band (img/runer-icon-macos-dev.svg; regenerate with `tauri icon`), and they leave out the
 # release's macOS 26 icon (macos-icon), so macOS shows their icon.icns.
-DEV_CONFIG = '{"identifier":"app.runer.dev","productName":"runer dev","bundle":{"icon":["icons-dev/32x32.png","icons-dev/128x128.png","icons-dev/128x128@2x.png","icons-dev/icon.icns","icons-dev/icon.ico"],"macOS":{"files":null,"infoPlist":null}}}'
+DEV_CONFIG = '{"identifier":"app.runer.list.dev","productName":"runer dev","bundle":{"icon":["icons-dev/32x32.png","icons-dev/128x128.png","icons-dev/128x128@2x.png","icons-dev/icon.icns","icons-dev/icon.ico"],"macOS":{"files":null,"infoPlist":null}}}'
 
 # iOS gets its own dev server port, so it runs beside `make dev` (5173).
 IOS_CONFIG = '{"build":{"devUrl":"http://localhost:5174","beforeDevCommand":"npm run dev -- --port 5174"}}'
@@ -38,8 +38,8 @@ ios-phone: ## build and install on the connected iPhone, against API (required: 
 # Copying the file doesn't launch or attach to the app, so background refresh behaves as without it.
 ios-log: ## print the debug log of the ios-phone build, copied from the phone
 	@d=$$(mktemp -d) && trap 'rm -r $$d' EXIT && \
-		xcrun devicectl device copy from --device "$(PHONE)" --domain-type appDataContainer --domain-identifier app.runer \
-			--source "Library/Application Support/app.runer/debug.log" --destination $$d/log > /dev/null && \
+		xcrun devicectl device copy from --device "$(PHONE)" --domain-type appDataContainer --domain-identifier app.runer.list \
+			--source "Library/Application Support/app.runer.list/debug.log" --destination $$d/log > /dev/null && \
 		perl -MPOSIX -pe 's/^(\d+)\d{3} /strftime("%F %T ", localtime $$1)/e' $$d/log
 
 build-dev: ## installers for this OS as the separate app "runer dev", against API (required)

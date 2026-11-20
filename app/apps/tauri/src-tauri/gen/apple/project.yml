@@ -1,6 +1,6 @@
 name: runer-app
 options:
-  bundleIdPrefix: app.runer
+  bundleIdPrefix: app.runer.list
   deploymentTarget:
     iOS: 18.6
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: runer
-      PRODUCT_BUNDLE_IDENTIFIER: app.runer
+      PRODUCT_BUNDLE_IDENTIFIER: app.runer.list
 targetTemplates:
   app:
     type: application
