@@ -1,7 +1,8 @@
 //! Signed updates, in builds that were given an update feed and its key:
 //! the release workflow adds `plugins.updater` to the config, so a build
-//! from a laptop never updates itself. Checked once at start, from Rust. The
-//! webview only hears that an update is ready and can ask to restart into
+//! from a laptop never updates itself. Checked at start and then every six
+//! hours while the app runs, until an update is ready (a failed check is
+//! logged and tried again at the next interval), from Rust. The webview only hears that an update is ready and can ask to restart into
 //! it (`update_restart`): it never names a version, a URL or the bytes.
 
 // Off Windows, `Pending` is `()`.
@@ -40,6 +41,10 @@ fn failure(e: &tauri_plugin_updater::Error) -> &'static str {
     }
 }
 
+/// How long a running app waits between update checks.
+#[cfg(desktop)]
+const CHECK_EVERY: std::time::Duration = std::time::Duration::from_secs(6 * 60 * 60);
+
 /// Managed only in builds with an update feed.
 #[derive(Default)]
 pub struct Ready(Mutex<Option<Pending>>);
@@ -56,29 +61,37 @@ pub fn start(app: &AppHandle) -> tauri::Result<()> {
     app.manage(Ready::default());
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let done = async {
-            log("update: checking");
-            let Some(update) = app.updater()?.check().await? else {
-                log("update: up to date");
-                return Ok(());
+        loop {
+            let done = async {
+                log("update: checking");
+                let Some(update) = app.updater()?.check().await? else {
+                    log("update: up to date");
+                    return Ok(false);
+                };
+                log(&format!("update: {} found, downloading", update.version));
+                // `download` checks the signature against the key in the config: nothing unsigned gets past it.
+                let bytes = update.download(|_, _| {}, || {}).await?;
+                // macOS and Linux swap the app on disk now; the running one is unaffected and the new one runs
+                // from the next start. Windows waits for the click.
+                #[cfg(not(windows))]
+                let pending = update.install(bytes)?;
+                #[cfg(windows)]
+                let pending = (update, bytes);
+                *app.state::<Ready>().0.lock().unwrap_or_else(PoisonError::into_inner) = Some(pending);
+                log("update: ready");
+                app.emit(READY_EVENT, ())?;
+                Ok::<_, tauri_plugin_updater::Error>(true)
             };
-            log(&format!("update: {} found, downloading", update.version));
-            // `download` checks the signature against the key in the config: nothing unsigned gets past it.
-            let bytes = update.download(|_, _| {}, || {}).await?;
-            // macOS and Linux swap the app on disk now; the running one is unaffected and the new one runs from
-            // the next start. Windows waits for the click.
-            #[cfg(not(windows))]
-            let pending = update.install(bytes)?;
-            #[cfg(windows)]
-            let pending = (update, bytes);
-            *app.state::<Ready>().0.lock().unwrap_or_else(PoisonError::into_inner) = Some(pending);
-            log("update: ready");
-            app.emit(READY_EVENT, ())?;
-            Ok::<_, tauri_plugin_updater::Error>(())
-        };
-        if let Err(e) = done.await {
-            log(&format!("update: failed: {}", failure(&e)));
-            eprintln!("update: {e}");
+            match done.await {
+                // Ready: a later check has nothing to add.
+                Ok(true) => break,
+                Ok(false) => {}
+                Err(e) => {
+                    log(&format!("update: failed: {}", failure(&e)));
+                    eprintln!("update: {e}");
+                }
+            }
+            tokio::time::sleep(CHECK_EVERY).await;
         }
     });
     Ok(())
