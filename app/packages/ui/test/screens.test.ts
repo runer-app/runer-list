@@ -446,6 +446,20 @@ describe('lists', () => {
     await waitFor(() => expect(value(core.lists).some((l) => l.id === id)).toBe(false));
     expect(await screen.findByRole('heading', { name: 'Lists' })).toBeTruthy();
   });
+  test('deleting a shared list says it goes for everyone, also on their devices', async () => {
+    server = new MemoryServer();
+    const [alice, bob] = [await person(), await person()];
+    const id = await alice.createList('Trip');
+    await (await bob.invites.open((await alice.list(id).createInvite()).link)).join();
+    await waitFor(() => expect(value(alice.lists).find((l) => l.id === id)!.members).toHaveLength(2));
+    await signedIn(alice);
+    await fireEvent.click(await nav().findByRole('button', { name: 'Trip' }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'List options' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete list' }));
+    const dialog = within(screen.getByRole('alertdialog'));
+    expect(dialog.getByText('The list will be deleted for everyone in it, also on their devices.')).toBeTruthy();
+    expect(dialog.queryByText(/keep what/)).toBeNull();
+  });
 });
 
 describe('Today', () => {
@@ -1128,6 +1142,8 @@ describe('settings', () => {
     await fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
     const dialog = within(screen.getByRole('alertdialog', { name: 'Delete account' }));
     expect(dialog.getByText(/Lists you own are deleted for everyone/)).toBeTruthy();
+    expect(dialog.getByText(/The server removes your data at once\./)).toBeTruthy();
+    expect(dialog.queryByText(/30 days/)).toBeNull();
     expect(signedOut).not.toHaveBeenCalled();
     await fireEvent.click(dialog.getByRole('button', { name: 'Delete for good' }));
     await waitFor(() => expect(signedOut).toHaveBeenCalled());

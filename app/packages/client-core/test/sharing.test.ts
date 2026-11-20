@@ -312,6 +312,10 @@ describe('sharing', () => {
     await until('Bob loses the list', () => !has(bob, list));
     expect(value(bob.notices).filter((n) => n.kind === 'lost-access')).toEqual([{ kind: 'lost-access', list, name: 'Groceries' }]);
     expect(value(alice.notices).some((n) => n.kind === 'lost-access')).toBe(false);
+    // The local copy is wiped too, not only hidden: the vault no longer knows the list.
+    const { account } = (bob as unknown as { sync: Sync }).sync;
+    const { platform, handle } = account;
+    await expect(platform.vault.listState(handle, list)).rejects.toMatchObject({ code: 'UnknownList' });
   });
 
   test('a list whose log Bob can’t fetch doesn’t keep a deleted one on his device', async () => {
