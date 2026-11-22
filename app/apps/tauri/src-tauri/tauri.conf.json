@@ -43,7 +43,6 @@
     "active": true,
     "targets": "all",
     "iOS": { "developmentTeam": "GA2VD8932H" },
-    "macOS": { "minimumSystemVersion": "14.0" },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -52,6 +51,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
+      "minimumSystemVersion": "14.0",
       "files": { "Resources/Assets.car": "icons/Assets.car" },
       "infoPlist": "icons/Info.plist"
     }

@@ -9,6 +9,9 @@
 # secrets TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD), MACOS_CERTIFICATE (and
 # _PASSWORD). Without UPDATER_PUBKEY the build has no updater. Without the macOS
 # certificate the app is signed ad hoc (Apple silicon runs nothing unsigned).
+# With a Developer ID certificate, the secrets APPLE_API_KEY, APPLE_API_ISSUER
+# and APPLE_API_KEY_P8 (an App Store Connect API key) have the macOS app
+# notarized; without them it is signed only.
 name: app-release
 
 on:
@@ -67,6 +70,9 @@ jobs:
           MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
           test -n "$RUNER_SERVER" || { echo "set the repository variable RUNER_SERVER"; exit 1; }
           echo "VITE_RUNER_SERVER=$RUNER_SERVER" >> "$GITHUB_ENV"
@@ -81,6 +87,12 @@ jobs:
             security list-keychains -d user -s build.keychain login.keychain
             rm "$RUNNER_TEMP/cert.p12"
             export SIGN_AS="$MACOS_SIGNING_IDENTITY"
+            if [ -n "$APPLE_API_KEY_P8" ]; then
+              # The Tauri build notarizes the signed app with this key and staples the ticket.
+              printf '%s\n' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+              { echo "APPLE_API_KEY=$APPLE_API_KEY"; echo "APPLE_API_ISSUER=$APPLE_API_ISSUER"
+                echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8"; } >> "$GITHUB_ENV"
+            fi
           fi
           node -e '
             const fs = require("fs");
