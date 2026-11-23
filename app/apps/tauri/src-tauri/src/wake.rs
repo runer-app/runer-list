@@ -30,8 +30,8 @@ pub use ios::{register, schedule};
 #[cfg(target_os = "ios")]
 mod ios {
     use block2::RcBlock;
-    use objc2::rc::Retained;
     use objc2::AnyThread;
+    use objc2::rc::Retained;
     use objc2_background_tasks::{BGAppRefreshTaskRequest, BGTask, BGTaskScheduler};
     use objc2_foundation::{NSDate, NSString};
     use std::ptr::NonNull;
