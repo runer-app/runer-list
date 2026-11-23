@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "runer-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "block2",
  "futures-util",
