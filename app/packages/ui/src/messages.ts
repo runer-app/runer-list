@@ -293,7 +293,6 @@ const en = {
   'settings.modeDark': 'Dark',
   'settings.theme': 'Theme',
   'theme.default': 'Default',
-  'theme.moss': 'Moss',
   'theme.harbor': 'Harbor',
   'theme.ember': 'Ember',
   'settings.clock': 'Time format',

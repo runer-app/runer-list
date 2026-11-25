@@ -27,14 +27,12 @@
     width: 1.1em;
     height: 1.1em;
     margin-right: 0.35em;
-    fill: currentColor;
-    fill-opacity: 0.1;
+    fill: var(--logo-grid);
   }
   .mark .lit {
-    fill: #7ccfd6;
-    fill-opacity: 1;
+    fill: var(--logo-lit);
   }
   .dot {
-    color: var(--accent);
+    color: var(--logo-lit);
   }
 </style>

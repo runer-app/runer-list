@@ -6,7 +6,7 @@
  * under `[data-theme]` and `[data-mode]` on the root element.
  */
 
-export const THEMES = ['default', 'moss', 'harbor', 'ember'] as const;
+export const THEMES = ['default', 'harbor', 'ember'] as const;
 export type Theme = (typeof THEMES)[number];
 /** `system` follows the device's light or dark setting. */
 export type Mode = 'system' | 'light' | 'dark';

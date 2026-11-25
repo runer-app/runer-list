@@ -16,6 +16,17 @@
   --titlebar: env(safe-area-inset-top, 0px);
 }
 
+/* The logo's blocks: brand colours, the same in every theme, solid so they don't take on the background. Teal is too faint on light. */
+:root,
+[data-mode='dark'] {
+  --logo-grid: #463d58;
+  --logo-lit: #7ccfd6;
+}
+[data-mode='light'] {
+  --logo-grid: #cec8d9;
+  --logo-lit: #6e4fc2;
+}
+
 /* Default: violet. Also what is drawn before the app entry has chosen. */
 :root,
 [data-theme='default'] {
@@ -73,58 +84,6 @@
   --danger: #b84040;
   --danger-strong: #b84040;
   --ok: #2f8a5b;
-}
-
-/* Moss: sage green; warm paper in light. */
-[data-theme='moss'] {
-  color-scheme: dark;
-  --bg: #161b17;
-  --bg-sidebar: #1a201b;
-  --bg-popover: #1f2620;
-  --surface: #222a23;
-  --surface-hover: #263027;
-  --border: #344036;
-  --border-strong: #5f8f6a;
-  --divider: #232a24;
-  --text: #e8eee8;
-  --text-soft: #c4cec5;
-  --text-muted: #97a499;
-  --text-faint: #76837a;
-  --ring-track: #3f4b41;
-  --checkbox: #56635a;
-  --accent: #8fd19e;
-  --accent-text: #142016;
-  --accent-soft: #253a2a;
-  --accent-soft-text: #cdeed4;
-  --accent-label: #a8dcb3;
-  --danger: #e6a07a;
-  --danger-strong: #c4604f;
-  --ok: #7fcf9a;
-}
-[data-theme='moss'][data-mode='light'] {
-  color-scheme: light;
-  --bg: #f6f5ef;
-  --bg-sidebar: #eeede5;
-  --bg-popover: #ffffff;
-  --surface: #ffffff;
-  --surface-hover: #e5e6dc;
-  --border: #d6d8cb;
-  --border-strong: #5d8a67;
-  --divider: #e3e4d9;
-  --text: #1c241e;
-  --text-soft: #354238;
-  --text-muted: #5d695f;
-  --text-faint: #7f8a80;
-  --ring-track: #cfd3c4;
-  --checkbox: #a3ab9f;
-  --accent: #2f7a45;
-  --accent-text: #ffffff;
-  --accent-soft: #dcebdc;
-  --accent-soft-text: #1f5a31;
-  --accent-label: #2a6b3d;
-  --danger: #b5452f;
-  --danger-strong: #b5452f;
-  --ok: #2f7a45;
 }
 
 /* Harbor: cool blue. */

@@ -358,7 +358,7 @@ Minimums: macOS 14 (`minimumSystemVersion` in `app/apps/tauri/src-tauri/tauri.co
 | Help | What can be typed, from the parser's own examples |
 | Security warnings | Banner and detail for every `SecurityWarning` (§3.3) |
 
-**Appearance** is a theme (Default, Moss, Harbor, Ember) and a mode (System, Light, Dark), for this device and not the account. It lives in the webview's `localStorage` (`appearance.svelte.ts` in `packages/ui`), outside `LocalStore`, because it holds before sign-in and is read synchronously before the first paint. The entry calls `startAppearance()`, which sets `data-theme` and `data-mode` (light or dark, resolved from the system setting for System) on the root element. The colors are tokens in `theme.css`, one block per theme and mode; a new theme is one more pair of blocks and a name in `THEMES`.
+**Appearance** is a theme (Default, Harbor, Ember) and a mode (System, Light, Dark), for this device and not the account. It lives in the webview's `localStorage` (`appearance.svelte.ts` in `packages/ui`), outside `LocalStore`, because it holds before sign-in and is read synchronously before the first paint. The entry calls `startAppearance()`, which sets `data-theme` and `data-mode` (light or dark, resolved from the system setting for System) on the root element. The colors are tokens in `theme.css`, one block per theme and mode; a new theme is one more pair of blocks and a name in `THEMES`.
 
 ### 7.2 Reminders
 

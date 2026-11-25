@@ -10,7 +10,7 @@ import { lowContrast } from './contrast.ts';
 
 const LONG_NAME = 'W'.repeat(60);
 const MIN_CONTRAST = 4.5; // WCAG AA
-const THEMES = ['default', 'moss', 'harbor', 'ember']; // appearance.svelte.ts, which only loads under Svelte
+const THEMES = ['default', 'harbor', 'ember']; // appearance.svelte.ts, which only loads under Svelte
 let server: ViteDevServer;
 let browsers: Browser[];
 let url: string;

@@ -1022,8 +1022,8 @@ describe('settings', () => {
 
     await fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
     expect(root.dataset['mode']).toBe('light');
-    await fireEvent.click(screen.getByRole('radio', { name: 'Moss' }));
-    expect(root.dataset['theme']).toBe('moss');
+    await fireEvent.click(screen.getByRole('radio', { name: 'Ember' }));
+    expect(root.dataset['theme']).toBe('ember');
     // The theme previews are drawn in the mode the app is in.
     const preview = screen.getByRole('radio', { name: 'Harbor' }).parentElement!.querySelector('[data-theme]')!;
     expect(preview.getAttribute('data-mode')).toBe('light');
@@ -1031,7 +1031,7 @@ describe('settings', () => {
     // The next start reads it back before anything is drawn.
     root.removeAttribute('data-theme');
     startAppearance();
-    expect([root.dataset['theme'], root.dataset['mode']]).toEqual(['moss', 'light']);
+    expect([root.dataset['theme'], root.dataset['mode']]).toEqual(['ember', 'light']);
     await fireEvent.click(screen.getByRole('radio', { name: 'System' }));
     // jsdom has no system setting: System is dark there.
     expect(root.dataset['mode']).toBe('dark');
