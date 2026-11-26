@@ -13,7 +13,7 @@
     "@runer/platform-tauri": "*",
     "@runer/ui": "*",
     "@tauri-apps/api": "^2.8.0",
-    "svelte": "^5.39.0"
+    "svelte": "^5.59.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
