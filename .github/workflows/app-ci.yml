@@ -46,7 +46,7 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:layout -w @runer/ui
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@v7.1.0
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
