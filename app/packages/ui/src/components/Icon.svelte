@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type IconName = 'sun' | 'inbox' | 'list' | 'lists' | 'people' | 'lock' | 'settings' | 'back' | 'add-person' | 'chevron' | 'warning' | 'close' | 'plus' | 'copy' | 'check' | 'calendar' | 'clock' | 'person' | 'trash' | 'search' | 'bell' | 'key' | 'server' | 'help';
+  export type IconName = 'sun' | 'inbox' | 'list' | 'lists' | 'people' | 'lock' | 'settings' | 'back' | 'add-person' | 'chevron' | 'warning' | 'close' | 'plus' | 'copy' | 'check' | 'calendar' | 'clock' | 'person' | 'trash' | 'search' | 'bell' | 'key' | 'server' | 'help' | 'repeat';
 </script>
 
 <script lang="ts">
@@ -53,6 +53,11 @@
     <rect x="4" y="4" width="16" height="6" rx="1.5" />
     <rect x="4" y="14" width="16" height="6" rx="1.5" />
     <path d="M8 7h.01M8 17h.01" />
+  {:else if name === 'repeat'}
+    <path d="M17 2l3 3-3 3" />
+    <path d="M4 11V9a4 4 0 0 1 4-4h12" />
+    <path d="M7 22l-3-3 3-3" />
+    <path d="M20 13v2a4 4 0 0 1-4 4H4" />
   {:else if name === 'plus'}
     <path d="M12 5v14M5 12h14" />
   {:else if name === 'copy'}

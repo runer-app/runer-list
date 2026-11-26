@@ -1,4 +1,4 @@
-import { addDays, ClientCore, en, localDateString, type ClientCoreOptions, type Readable } from '@runer/client-core';
+import { addDays, ClientCore, en, localDateString, parseRule, type ClientCoreOptions, type Readable } from '@runer/client-core';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MemoryServer } from '../../client-core/test/platform-node/memory-server.js';
@@ -658,6 +658,110 @@ describe('typed dates', () => {
     expect(screen.getByRole('heading', { name: 'Help' })).toBeTruthy();
     await fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Settings' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
+  });
+});
+
+describe('repeating tasks', () => {
+  const field = () => screen.getByRole('textbox', { name: 'Add a task for today' }) as HTMLInputElement;
+  const today = () => localDateString(new Date());
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const weekdayOf = (d: string) => (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+  test('a repeat typed in the capture field is set on the task; ticking moves it on, unticked, and says where to', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    await signedIn(core);
+    await fireEvent.input(field(), { target: { value: 'Water plants every day' } });
+    expect(screen.getByRole('button', { name: /^Date: Every day · Today\./ })).toBeTruthy();
+    await fireEvent.submit(field().closest('form')!);
+    const item = () => value(core.list(core.inbox).content).items[0]!;
+    expect(item()).toMatchObject({ title: 'Water plants', due: today(), repeat: 'FREQ=DAILY', done: false });
+
+    const main = within(screen.getByRole('main'));
+    expect(main.getByRole('img', { name: 'Repeats' })).toBeTruthy();
+    const box = main.getByRole('checkbox', { name: 'Done: Water plants' }) as HTMLInputElement;
+    await fireEvent.click(box);
+    expect(item()).toMatchObject({ due: addDays(today(), 1), done: false, repeat: 'FREQ=DAILY' });
+    expect(box.checked).toBe(false);
+    expect(await screen.findByText('Next: Tomorrow')).toBeTruthy();
+  });
+
+  test('in a list: the row shows the repeat, and its checkbox moves it to the next date', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const id = await core.createList('Home');
+    const task = core.list(id).addTask('Bins out', { due: today(), repeat: 'FREQ=WEEKLY' });
+    await signedIn(core);
+    await fireEvent.click(nav().getByRole('button', { name: 'Home' }));
+    await screen.findByDisplayValue('Bins out');
+    const main = within(screen.getByRole('main'));
+    expect(main.getByRole('img', { name: 'Repeats' })).toBeTruthy();
+    const box = main.getByRole('checkbox', { name: 'Done: Bins out' }) as HTMLInputElement;
+    await fireEvent.click(box);
+    expect(value(core.list(id).content).items.find((i) => i.id === task)).toMatchObject({ due: addDays(today(), 7), done: false });
+    expect(box.checked).toBe(false);
+    expect(await screen.findByText(/^Next: /)).toBeTruthy();
+  });
+
+  test('task detail sets, changes and stops a repeat', async () => {
+    server = new MemoryServer();
+    const core = await person();
+    const id = await core.createList('Health');
+    core.list(id).addTask('Run', { due: today() });
+    await signedIn(core);
+    await fireEvent.click(nav().getByRole('button', { name: 'Health' }));
+    await fireEvent.click(await screen.findByDisplayValue('Run'));
+    const item = () => value(core.list(id).content).items[0]!;
+    const dow = weekdayOf(today());
+
+    // Weekly starts on the task's own weekday.
+    await fireEvent.change(screen.getByLabelText('Repeat'), { target: { value: 'WEEKLY' } });
+    expect(item()).toMatchObject({ repeat: `FREQ=WEEKLY;BYDAY=${['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'][dow]}`, due: today() });
+    const day = (i: number) => screen.getByRole('button', { name: weekdays[i]! });
+    expect(day(dow).getAttribute('aria-pressed')).toBe('true');
+    // Another day added; the one picked can't be the last to go.
+    const other = (dow + 1) % 7;
+    await fireEvent.click(day(other));
+    expect(parseRule(item().repeat)!.byDay).toEqual([dow, other].sort());
+    await fireEvent.click(day(dow));
+    await fireEvent.click(day(other));
+    expect(parseRule(item().repeat)!.byDay).toEqual([other]);
+    // The date moved to the first day the rule names.
+    expect(item().due).toBe(addDays(today(), 1));
+
+    await fireEvent.change(screen.getByLabelText('How often'), { target: { value: '2' } });
+    expect(parseRule(item().repeat)!.interval).toBe(2);
+    expect(screen.getByText(`Every 2 weeks on ${weekdays[other]}`)).toBeTruthy();
+    // Not a number of weeks: nothing changes.
+    await fireEvent.change(screen.getByLabelText('How often'), { target: { value: '0' } });
+    expect(parseRule(item().repeat)!.interval).toBe(2);
+
+    await fireEvent.change(screen.getByLabelText('Repeat'), { target: { value: 'MONTHLY' } });
+    expect(item().repeat).toBe(`FREQ=MONTHLY;BYMONTHDAY=${Number(item().due!.slice(8))}`);
+    await fireEvent.change(screen.getByLabelText('Day of the month'), { target: { value: '31' } });
+    expect(item().repeat).toBe('FREQ=MONTHLY;BYMONTHDAY=31');
+    expect(screen.getByText('Every month on the 31st')).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Stop repeating' }));
+    expect(item().repeat).toBeUndefined();
+    expect(item().due).toBeDefined();
+    expect((screen.getByLabelText('Repeat') as HTMLSelectElement).value).toBe('');
+
+    // Removing the date stops the repeat too.
+    await fireEvent.change(screen.getByLabelText('Repeat'), { target: { value: 'DAILY' } });
+    expect(item().repeat).toBe('FREQ=DAILY');
+    await fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    await fireEvent.click(await screen.findByRole('button', { name: 'Remove date' }));
+    expect(item().repeat).toBeUndefined();
+    expect(item().due).toBeUndefined();
+  });
+
+  test('Help shows the repeats it understands', async () => {
+    await signedIn();
+    await fireEvent.click(nav().getByRole('button', { name: 'Help' }));
+    const main = within(screen.getByRole('main'));
+    expect(main.getByRole('row', { name: /^Gym every monday Gym Every Monday · / })).toBeTruthy();
+    expect(main.getByRole('row', { name: /^Pay rent every month on the 15th Pay rent Every month on the 15th · / })).toBeTruthy();
   });
 });
 

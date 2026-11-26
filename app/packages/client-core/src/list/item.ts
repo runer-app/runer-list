@@ -17,6 +17,11 @@ export interface Item {
   remindAt?: number;
   /** Tasks only: `identity_sign_pub` (base64url) of a member from the verified log. */
   assignee?: string;
+  /**
+   * Tasks only: a repeat rule (`repeat.ts`), in canonical form. Absent when
+   * the stored one isn't supported, the task has no date or is done.
+   */
+  repeat?: string;
 }
 
 /** Everything the derived views need to know about one list. */
@@ -30,7 +35,7 @@ export interface ListSnapshot {
 
 export class ListError extends Error {
   constructor(
-    readonly code: 'invalid-date' | 'invalid-reminder',
+    readonly code: 'invalid-date' | 'invalid-reminder' | 'invalid-repeat',
     message: string,
   ) {
     super(message);

@@ -29,7 +29,7 @@
     overdue?: boolean;
     /** The list's name. */
     where?: string | undefined;
-    toggle: () => void;
+    toggle: (e: Event) => void;
     /** Opens the item's detail. */
     open?: () => void;
     /** A drag handle, shown in the gutter on hover or focus. */
@@ -50,6 +50,7 @@
   {:else}
     <span class="title">{item.title}</span>
   {/if}
+  {#if item.repeat !== undefined}<span class="repeat" title={t('task.repeats')} aria-label={t('task.repeats')} role="img"><Icon name="repeat" /></span>{/if}
   {#if overdue}<span class="when late">{t('task.overdue')}{when === undefined ? '' : ` · ${when}`}</span>
   {:else if when !== undefined}<span class="when" class:reminder>{#if reminder}<Icon name="bell" />{/if}{when}</span>{/if}
   {#if where !== undefined}<span class="where"><span class="ring" aria-hidden="true"></span>{where}</span>{/if}
@@ -116,6 +117,15 @@
   }
   .when.late {
     color: var(--danger);
+  }
+  .repeat {
+    flex: none;
+    display: inline-flex;
+    color: var(--text-muted);
+  }
+  .repeat :global(svg) {
+    width: 13px;
+    height: 13px;
   }
   .where {
     justify-content: flex-end;

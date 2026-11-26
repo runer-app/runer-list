@@ -17,7 +17,7 @@
     const typed = readTyped(text, now);
     return p === null || typed === null ? [] : [{ before: text.slice(0, p.match[0]), words: text.slice(...p.match), after: text.slice(p.match[1]), title: typed.title, when: typed.label }];
   });
-  const rules: MessageKey[] = ['help.ruleKeep', 'help.ruleNumber', 'help.ruleWeekday', 'help.ruleShort', 'help.rulePast', 'help.ruleOrder', 'help.ruleEdit'];
+  const rules: MessageKey[] = ['help.ruleKeep', 'help.ruleNumber', 'help.ruleWeekday', 'help.ruleShort', 'help.rulePast', 'help.ruleOrder', 'help.ruleRepeat', 'help.ruleEdit'];
 </script>
 
 <p class="kicker"><button class="back" onclick={back}><Icon name="back" />{t('nav.settings')}</button></p>

@@ -1,4 +1,5 @@
 import { isDateString } from '../list/item.js';
+import { firstDue, formatRule, nextDue, type Freq, type Rule } from '../list/repeat.js';
 import { addDays } from '../views/dates.js';
 
 /**
@@ -39,6 +40,16 @@ export interface Language {
   examplesAt: Now;
   /** Texts that hold no date, however much they look like it. */
   plain: string[];
+  /** "every monday". */
+  every: string[];
+  /** Between weekdays: "mon and thu". */
+  and: string[];
+  /** "on the 15th". */
+  the: string[];
+  /** Monday to Friday: "every weekday". */
+  workdays: string[];
+  /** One word for a repeat: "daily". Like a short weekday, it counts only at the end of the text or beside a time. */
+  repeats: Record<'day' | 'week' | 'month' | 'year', string[]>;
 }
 
 export interface Example {
@@ -46,6 +57,8 @@ export interface Example {
   title: string;
   due: string;
   time?: string;
+  /** The repeat rule (`list/repeat.ts`). */
+  repeat?: string;
 }
 
 export interface Now {
@@ -61,6 +74,8 @@ export interface Parsed {
   due: string;
   /** `HH:MM`, on `due`. */
   time?: string;
+  /** A repeat rule (`list/repeat.ts`); `due` is its first date. */
+  repeat?: string;
   /** Where the recognised words were in the text. */
   match: [start: number, end: number];
 }
@@ -112,6 +127,15 @@ interface DateMatch {
   loose: boolean;
 }
 
+interface RepeatMatch {
+  end: number;
+  rule: Rule;
+  loose: boolean;
+}
+
+const FREQ: Record<'day' | 'week' | 'month' | 'year', Freq> = { day: 'DAILY', week: 'WEEKLY', month: 'MONTHLY', year: 'YEARLY' };
+const UNITS = ['day', 'week', 'month', 'year'] as const;
+
 interface TimeMatch {
   end: number;
   time: string;
@@ -126,7 +150,9 @@ interface TimeMatch {
  * - a short weekday ("sun") counts only at the end of the text, or beside "on", "next" or a time;
  * - a weekday is the next one after today, "next friday" the Friday of next week;
  * - a date without a year that has passed is next year's; a time without a date is today, or tomorrow once it has passed;
- * - of several dates, the last one wins.
+ * - of several dates, the last one wins;
+ * - a repeat ("every monday", "every 2 weeks", "every month on the 15th") starts on its first date from today,
+ *   or the next one if that is today and its time has passed.
  */
 export function parseTask(text: string, { today, now, lang }: Now & { lang: Language }): Parsed | null {
   const tokens = [...text.matchAll(/\S+/g)].map((m) => ({ start: m.index, end: m.index + m[0].length, word: m[0].toLowerCase().replace(/[,;!?]+$/, '') }));
@@ -210,6 +236,44 @@ export function parseTask(text: string, { today, now, lang }: Now & { lang: Lang
     return null;
   }
 
+  /** Weekdays from token `i` on: "mon", "monday and thursday", "mon, wed, fri". */
+  function weekdaysAt(i: number): { end: number; days: number[] } | null {
+    const days: number[] = [];
+    let j = i;
+    for (;;) {
+      const d = indexIn(j, lang.weekdays);
+      if (d === -1) break;
+      if (!days.includes(d)) days.push(d);
+      j++;
+      if (is(j, lang.and) && indexIn(j + 1, lang.weekdays) !== -1) j++;
+    }
+    return days.length === 0 ? null : { end: j, days: days.sort((a, b) => a - b) };
+  }
+
+  function repeatAt(i: number): RepeatMatch | null {
+    const one = UNITS.find((u) => is(i, lang.repeats[u]));
+    if (one !== undefined) return { end: i + 1, rule: { freq: FREQ[one], interval: 1, byDay: [] }, loose: true };
+    if (!is(i, lang.every)) return null;
+    const found = (end: number, rule: Rule): RepeatMatch => ({ end, rule, loose: false });
+    if (is(i + 1, lang.workdays)) return found(i + 2, { freq: 'WEEKLY', interval: 1, byDay: [0, 1, 2, 3, 4] });
+    const days = weekdaysAt(i + 1);
+    if (days !== null) return found(days.end, { freq: 'WEEKLY', interval: 1, byDay: days.days });
+    const n = /^[1-9]\d{0,2}$/.test(word(i + 1)) ? Number(word(i + 1)) : null;
+    const at = n === null ? i + 1 : i + 2;
+    const unit = UNITS.find((u) => is(at, lang.units[u]));
+    if (unit === undefined) return null;
+    const rule: Rule = { freq: FREQ[unit], interval: n ?? 1, byDay: [] };
+    // "every 2 weeks on monday", "every month on the 15th".
+    if (is(at + 1, lang.on)) {
+      const on = weekdaysAt(at + 2);
+      if (unit === 'week' && on !== null) return found(on.end, { ...rule, byDay: on.days });
+      const dayAt2 = is(at + 2, lang.the) ? at + 3 : at + 2;
+      const day = dayAt(dayAt2);
+      if (unit === 'month' && day !== null && day >= 1 && day <= 31) return found(dayAt2 + 1, { ...rule, byMonthDay: day });
+    }
+    return found(at + 1, rule);
+  }
+
   const halves = [...lang.am, ...lang.pm].filter((w) => w.length > 1);
   function timeAt(start: number): TimeMatch | null {
     const led = is(start, lang.at);
@@ -225,8 +289,23 @@ export function parseTask(text: string, { today, now, lang }: Now & { lang: Lang
     return { end: i + 1, time: one };
   }
 
-  /** A date, a time, or both in either order, starting at token `i`. */
-  function phraseAt(i: number): { end: number; due: string; time?: string } | null {
+  /** A repeat and maybe a time, in either order, starting at token `i`. */
+  function repeatPhraseAt(i: number): { end: number; due: string; time?: string; repeat: string } | null {
+    let time = timeAt(i);
+    const rep = repeatAt(time?.end ?? i);
+    if (rep === null) return null;
+    if (time === null) time = timeAt(rep.end);
+    const end = Math.max(rep.end, time?.end ?? 0);
+    if (rep.loose && time === null && end !== tokens.length) return null;
+    let due = firstDue(rep.rule, today);
+    if (time !== null && due === today && time.time <= now) due = nextDue(rep.rule, today, today);
+    return { end, due, ...(time === null ? {} : { time: time.time }), repeat: formatRule(rep.rule) };
+  }
+
+  /** A date, a time, or both in either order, or a repeat, starting at token `i`. */
+  function phraseAt(i: number): { end: number; due: string; time?: string; repeat?: string } | null {
+    const repeat = repeatPhraseAt(i);
+    if (repeat !== null) return repeat;
     let time = timeAt(i);
     const date = dateAt(time?.end ?? i);
     if (date !== null && time === null) time = timeAt(date.end);
@@ -248,5 +327,5 @@ export function parseTask(text: string, { today, now, lang }: Now & { lang: Lang
   let title = `${text.slice(0, match[0])} ${text.slice(match[1])}`.replace(/\s+/g, ' ').trim().replace(/,$/, '');
   // "Tomorrow call mom" is saved as "Call mom".
   if (last.start === 0 && text[match[0]] !== text[match[0]]!.toLowerCase()) title = title.charAt(0).toUpperCase() + title.slice(1);
-  return { title, due: last.due, ...(last.time === undefined ? {} : { time: last.time }), match };
+  return { title, due: last.due, ...(last.time === undefined ? {} : { time: last.time }), ...(last.repeat === undefined ? {} : { repeat: last.repeat }), match };
 }

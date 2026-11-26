@@ -11,7 +11,7 @@
 
 import { Account, type Notice } from '../account/account.js';
 import { toBase64url } from '../base64url.js';
-import type { AddOptions, AddTaskOptions } from '../list/doc.js';
+import type { AddOptions, AddTaskOptions, Ticked } from '../list/doc.js';
 import type { ListSnapshot } from '../list/item.js';
 import { logReason } from '../log-reason.js';
 import { moveItem } from '../list/move.js';
@@ -112,8 +112,10 @@ export interface ListHandle {
   /** The mutators below return false when the item no longer exists (e.g. removed by a sync). */
   setTitle(id: string, title: string): boolean;
   setBody(id: string, body: string | null): boolean;
-  toggleDone(id: string, done?: boolean): boolean;
+  /** For a repeating task, moves it to its next date instead (`ListDoc.toggleDone`). */
+  toggleDone(id: string, done?: boolean): Ticked | false;
   setDue(id: string, due: string | null): boolean;
+  setRepeat(id: string, rule: string | null): boolean;
   setReminder(id: string, at: number | null): boolean;
   assign(id: string, assignee: string | null): boolean;
   move(id: string, toIndex: number): boolean;
@@ -424,6 +426,7 @@ export class ClientCore {
       setBody: (item, body) => doc.setBody(item, body),
       toggleDone: (item, done) => doc.toggleDone(item, done),
       setDue: (item, due) => doc.setDue(item, due),
+      setRepeat: (item, rule) => doc.setRepeat(item, rule),
       setReminder: (item, at) => doc.setReminder(item, at),
       assign: (item, assignee) => doc.assign(item, assignee),
       move: (item, toIndex) => doc.move(item, toIndex),

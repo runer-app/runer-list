@@ -1,4 +1,4 @@
-import { addDays, en, localDateString, parseTask, parseTime as parseTimeIn } from '@runer/client-core';
+import { addDays, en, localDateString, parseRule, parseTask, parseTime as parseTimeIn } from '@runer/client-core';
 import { clock } from './clock.svelte.js';
 import { day } from './day.svelte.js';
 import { t } from './messages.js';
@@ -49,6 +49,38 @@ export function whenLabel(due: string | undefined, remindAt: number | undefined,
   return due === undefined ? undefined : dueLabel(due, now);
 }
 
+const weekdayShort = [1, 2, 3, 4, 5, 6, 7].map((d) => shortDay.format(new Date(2024, 0, d)));
+const weekdayLong = [1, 2, 3, 4, 5, 6, 7].map((d) => weekday.format(new Date(2024, 0, d)));
+
+/** "1st", "22nd". */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
+/** A repeat rule in words: "Every day", "Every Mon, Thu", "Every month on the 15th"; `undefined` for none. */
+export function repeatLabel(rule: string | undefined): string | undefined {
+  const r = rule === undefined ? null : parseRule(rule);
+  if (r === null) return undefined;
+  const n = r.interval;
+  switch (r.freq) {
+    case 'DAILY':
+      return n === 1 ? t('repeat.day') : t('repeat.days', { n });
+    case 'WEEKLY': {
+      if (r.byDay.length === 0) return n === 1 ? t('repeat.week') : t('repeat.weeks', { n });
+      if (n === 1 && r.byDay.join() === '0,1,2,3,4') return t('repeat.weekday');
+      const days = r.byDay.length === 1 ? weekdayLong[r.byDay[0]!]! : r.byDay.map((d) => weekdayShort[d]).join(', ');
+      return n === 1 ? t('repeat.on', { days }) : t('repeat.weeksOn', { n, days });
+    }
+    case 'MONTHLY':
+      if (r.byMonthDay === undefined) return n === 1 ? t('repeat.month') : t('repeat.months', { n });
+      return n === 1 ? t('repeat.monthOn', { day: ordinal(r.byMonthDay) }) : t('repeat.monthsOn', { n, day: ordinal(r.byMonthDay) });
+    case 'YEARLY':
+      return n === 1 ? t('repeat.year') : t('repeat.years', { n });
+  }
+}
+
 /** `HH:MM` on the user's clock, for the time field. */
 export function timeLabel(hm: string): string {
   const [h, m] = hm.split(':').map(Number) as [number, number];
@@ -85,7 +117,9 @@ export interface Typed {
   title: string;
   due: string;
   remindAt?: number;
-  /** As the task will show it: "Tomorrow 09:30". */
+  /** A repeat rule (`client-core` `list/repeat.ts`). */
+  repeat?: string;
+  /** As the task will show it: "Tomorrow 09:30", "Every Monday · Monday 09:00". */
   label: string;
 }
 
@@ -95,5 +129,13 @@ export function readTyped(text: string, now: Date = new Date()): Typed | null {
   const p = parseTask(text, { today: localDateString(now), now: `${pad(now.getHours())}:${pad(now.getMinutes())}`, lang: en });
   if (p === null) return null;
   const remindAt = p.time === undefined ? null : fromLocalInput(`${p.due}T${p.time}`);
-  return { title: p.title, due: p.due, ...(remindAt === null ? {} : { remindAt }), label: whenLabel(p.due, remindAt ?? undefined, localDateString(now))! };
+  const when = whenLabel(p.due, remindAt ?? undefined, localDateString(now))!;
+  const repeat = repeatLabel(p.repeat);
+  return {
+    title: p.title,
+    due: p.due,
+    ...(remindAt === null ? {} : { remindAt }),
+    ...(p.repeat === undefined ? {} : { repeat: p.repeat }),
+    label: repeat === undefined ? when : `${repeat} · ${when}`,
+  };
 }

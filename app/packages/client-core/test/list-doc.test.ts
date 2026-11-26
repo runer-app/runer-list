@@ -56,7 +56,7 @@ describe('ListDoc', () => {
   it('edits task fields and clears them again', () => {
     const l = mk();
     const id = l.addTask('Call Anna');
-    expect(l.toggleDone(id)).toBe(true);
+    expect(l.toggleDone(id)).toEqual({ done: true });
     expect(l.item(id)?.done).toBe(true);
     l.toggleDone(id, false);
     l.setDue(id, '2026-10-02');

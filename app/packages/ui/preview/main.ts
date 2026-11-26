@@ -66,7 +66,7 @@ if (new URLSearchParams(location.search).get('seed') === 'marketing') {
   seed('home', 'Home', [me, anna], (d) => {
     d.setPerson(ANNA, 'Anna');
     d.addTask('Fix the bike light', { due: today, assignee: ME });
-    d.addTask('Buy groceries for the weekend', { due: today, assignee: ME, body: 'Oat milk, pasta, basil' });
+    d.addTask('Buy groceries for the weekend', { due: today, assignee: ME, body: 'Oat milk, pasta, basil', repeat: 'FREQ=WEEKLY' });
     d.addTask('Book the boiler service', { due: addDays(today, 2) });
   });
   seed('work', 'Side project', [me], (d) => {
@@ -148,6 +148,7 @@ function handle(id: string): ListHandle {
     setBody: (i, v) => d.setBody(i, v),
     toggleDone: (i, v) => d.toggleDone(i, v),
     setDue: (i, v) => d.setDue(i, v),
+    setRepeat: (i, v) => d.setRepeat(i, v),
     setReminder: (i, v) => d.setReminder(i, v),
     assign: (i, v) => d.assign(i, v),
     move: (i, to) => d.move(i, to),

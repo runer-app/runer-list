@@ -11,6 +11,7 @@
   import Logo from '../components/Logo.svelte';
   import Ring from '../components/Ring.svelte';
   import Notices from '../components/Notices.svelte';
+  import TickNote from '../components/TickNote.svelte';
   import WarningBanner from '../components/WarningBanner.svelte';
   import UpdateBanner from '../components/UpdateBanner.svelte';
   import Today from './Today.svelte';
@@ -215,6 +216,7 @@
       <UpdateBanner {update} />
     {/if}
     <Notices {core} />
+    <TickNote />
 
     {#if view.name === 'today'}
       <Today {core} open={select} selected={selected?.id} />

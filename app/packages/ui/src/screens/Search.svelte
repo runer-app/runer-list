@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tickTask } from '../tick.svelte.js';
   import type { ClientCore, ListId, SearchHit } from '@runer/client-core';
   import { whenLabel } from '../dates.js';
   import { t } from '../messages.js';
@@ -47,7 +48,7 @@
         when={whenLabel(item.due, item.remindAt)}
         reminder={item.remindAt !== undefined}
         where={listName(h)}
-        toggle={() => core.list(h.listId).toggleDone(item.id)}
+        toggle={(e) => tickTask(core.list(h.listId), item.id, e.currentTarget)}
         open={() => open(h.listId, item.id)}
         selected={selected === item.id}
       />

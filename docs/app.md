@@ -90,7 +90,7 @@ One Yjs document per list:
 ```text
 name:   Y.Text
 order:  Y.Array<item_id>
-items:  Y.Map<item_id, Y.Map>   // {type: task|note, title, body?, done, due?, remind_at?, assignee?}; title and body are Y.Text
+items:  Y.Map<item_id, Y.Map>   // {type: task|note, title, body?, done, due?, remind_at?, assignee?, repeat?}; title and body are Y.Text
 views:  Y.Map<view, item_id[]>  // Inbox only: the user's order of Today and My tasks
 people: Y.Map<member id, name>   // §3.7
 ```
@@ -98,12 +98,16 @@ people: Y.Map<member id, name>   // §3.7
 - **Tasks and notes, flat.** A note's `title` is Markdown: `#`–`###`, `-`/`1.` lists, `>`, `---`, bold, italic, code, strike; a line ending in `\` continues the block. The lines between two tasks are one note. No sub-tasks; a heading is a line of a note.
 - **Text merges.** `title`, `body` and `name` are `Y.Text`, written as a diff between common prefix and suffix (never splitting a surrogate pair). Reads also accept a plain string. Other fields are last-writer-wins.
 - **Fields.** `due` is a local date `YYYY-MM-DD`. `remind_at` is Unix ms; the UI shows it as a time on the `due` date, not as a separate reminder. `assignee` is a member's `identity_sign_pub` (base64url) from the verified log.
+- **Repeat.** `repeat` (tasks only) is a string in a subset of the RFC 5545 RRULE syntax (`list/repeat.ts`): `FREQ=DAILY|WEEKLY|MONTHLY|YEARLY`, `INTERVAL=n` (1–999), `BYDAY` (weekly only: plain weekdays, `MO,TU,WE,TH,FR` is every weekday) and `BYMONTHDAY=n` (monthly only, 1–31; a month without that day uses its last day). It is written in canonical form (parts in that order, no `INTERVAL=1`). Any other part, value or spelling is refused on write (`ListError` `invalid-repeat`) and ignored on read: the task is shown, and ticks, as one without a repeat. So is a `repeat` on a task with no `due` or with `done` set.
+  - **Occurrences** are counted from `due` (RFC 5545's DTSTART), weeks starting on Monday. Setting a repeat moves `due` to the rule's first date on or after it, or on or after today for a task without a date; a monthly rule without `BYMONTHDAY` gets `due`'s day, so a task on the 31st keeps to each month's last day. A yearly task on 29 February falls on the 28th in other years.
+  - **Ticking** a repeating task doesn't set `done`: `due` moves to the rule's first date after both the old `due` and today (`nextDue`), so missed dates are skipped and the next one is counted from the schedule, not the day it was ticked. `remind_at` moves to the same wall-clock time on the new date, in the time zone of the device that ticks (the document holds no zone). Two devices ticking it offline on the same day write the same values, so the tick lands once.
+  - Clearing `due` also removes `repeat`. Views and reminders see only the current `due` and `remind_at`.
 - **Unknown `type`s** from a newer client are shown as text and kept.
 - **Moving between lists** keeps the id: insert into the target, then delete from the source. If a crash left both, the copy in the list with the smallest id wins.
 - **Moving within a list** is delete + insert in `order`; reads skip repeats and unknown ids and append items missing from `order`.
 - **Mutators return `false`** for an item that no longer exists, since a sync can remove it under the UI.
 
-The UI never touches Yjs: `list/` exposes typed operations (`addTask`, `addNote`, `setTitle`, `toggleDone`, `setDue`, `setReminder`, `assign`, `move`, `remove`, `moveToList`).
+The UI never touches Yjs: `list/` exposes typed operations (`addTask`, `addNote`, `setTitle`, `toggleDone`, `setDue`, `setReminder`, `setRepeat`, `assign`, `move`, `remove`, `moveToList`). `toggleDone` returns the task's `done` and, for a repeating task, the date it moved to.
 
 ### 3.2 Public API
 
@@ -337,7 +341,8 @@ Minimums: macOS 14 (`minimumSystemVersion` in `app/apps/tauri/src-tauri/tauri.co
 - **A list is a page edited in place.** Enter after a task starts a task, Enter on an empty task row starts text, Shift+Enter is a new line in a block. `/` and Markdown prefixes change a line's type; so does its gutter badge. Drag by the gutter handle or Alt+↑/↓.
 - **Notes regroup** (`ui/blocks.ts`): rearranging lines keeps a note's id where it can, so concurrent edits stay on one item.
 - **Saves** happen when a block is left or split, so one edit is one sealed update. The time field is plain text (`dates.ts`, `parseTime`), not `type="time"`.
-- **Typed dates.** "Call mom tomorrow 9:30" in a new task sets the date and time and leaves "Call mom". A chip shows what was read; Escape keeps the words. The parser is `client-core/src/nl/` (`parse.ts`, one data file per language with its test examples); the UI passes it the device's clock. Repeats aren't read.
+- **Typed dates.** "Call mom tomorrow 9:30" in a new task sets the date and time and leaves "Call mom"; "Gym every monday at 9" also sets a repeat, whose first date is the due date (the next one if that is today and the time has passed). A chip shows what was read; Escape keeps the words. The parser is `client-core/src/nl/` (`parse.ts`, one data file per language with its test examples); the UI passes it the device's clock.
+- **Repeating tasks** show a repeat icon in their row. Ticking one leaves it unticked on its next date and says "Next: <date>" for a few seconds; there is no Undo.
 - **Layout:** one responsive tree. Desktop: sidebar and list. Mobile: tab bar and stack. Touch targets ≥ 44 px, no hover-only actions.
 - **Quiet security:** a small "Encrypted" marker.
 - **Strings** live in one catalogue (`messages.ts`); the product name is one constant.
@@ -351,7 +356,7 @@ Minimums: macOS 14 (`minimumSystemVersion` in `app/apps/tauri/src-tauri/tauri.co
 | Sign in | The account key with BIP-39 autocomplete; checksum checked before any request |
 | Today | Start screen: capture field (to Inbox) and My tasks across lists |
 | Inbox, List | The page of tasks and text; members line; offline indicator; never blocks on the network |
-| Task detail | Done, title, description, date (with optional time), assignee (this list's members), list |
+| Task detail | Done, title, description, date (with optional time), repeat (none, daily, weekly with its weekdays, monthly with its day, yearly; every n of them; stop), assignee (this list's members), list. A done task has no repeat row |
 | Share list | Owner only. Members, known contacts, link invite, pending invites (revoke), one "Show safety codes" line, remove ("keeps what they've already seen") |
 | Join | Shows the list and inviter's name from the package, then sign in or up, then join |
 | Settings | Show/change account key, notifications, links to runer.app's privacy and support pages, name, appearance, sign out, delete account (`ClientCore.deleteAccount`: leaves others' lists, then `DELETE /v1/account`, which deletes the account and the lists it owns at once, with no undo) |

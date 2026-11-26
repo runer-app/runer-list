@@ -1,10 +1,14 @@
 import * as Y from 'yjs';
 import type { Readable } from '../readable.js';
+import { localDateString } from '../views/dates.js';
 import { isDateString, ListError, type Item, type ListSnapshot } from './item.js';
+import { firstDue, formatRule, moveReminder, nextDue, parseRule, type Rule } from './repeat.js';
 
 export interface ListDocOptions {
   /** Item id generator; a test seam. Default: `crypto.randomUUID()`. */
   newId?: () => string;
+  /** Today's date on this device; a test seam. Default: the local date. */
+  today?: () => string;
 }
 
 export interface AddOptions {
@@ -17,6 +21,14 @@ export interface AddTaskOptions extends AddOptions {
   remindAt?: number;
   assignee?: string;
   body?: string;
+  /** A repeat rule (`repeat.ts`); see `setRepeat`. */
+  repeat?: string;
+}
+
+/** What ticking a task did: its `done` now, and for a repeating task the date it moved on to (it stays not done). */
+export interface Ticked {
+  done: boolean;
+  next?: string;
 }
 
 /**
@@ -25,7 +37,7 @@ export interface AddTaskOptions extends AddOptions {
  * ```text
  * name:   Y.Text
  * order:  Y.Array<item_id>
- * items:  Y.Map<item_id, Y.Map>   // type, title, body?, done, due?, remind_at?, assignee?
+ * items:  Y.Map<item_id, Y.Map>   // type, title, body?, done, due?, remind_at?, assignee?, repeat?
  * people: Y.Map<key, string>      // names, by a member's identity_sign_pub (base64url)
  * ```
  *
@@ -46,6 +58,7 @@ export class ListDoc {
   /** What the people in the list are called, by member id. Any member may set any name. */
   private readonly peopleMap: Y.Map<string>;
   private readonly newId: () => string;
+  private readonly today: () => string;
 
   constructor(doc: Y.Doc = new Y.Doc(), opts: ListDocOptions = {}) {
     this.doc = doc;
@@ -55,6 +68,7 @@ export class ListDoc {
     this.views = doc.getMap<string[]>('views');
     this.peopleMap = doc.getMap<string>('people');
     this.newId = opts.newId ?? (() => crypto.randomUUID());
+    this.today = opts.today ?? (() => localDateString(new Date()));
   }
 
   // --- reading ---------------------------------------------------------
@@ -142,11 +156,13 @@ export class ListDoc {
 
   addTask(title: string, opts: AddTaskOptions = {}): string {
     if (opts.due !== undefined) assertDate(opts.due);
+    if (opts.remindAt !== undefined) assertReminder(opts.remindAt);
     const fields: Record<string, unknown> = { type: 'task', title, done: false };
     if (opts.body !== undefined) fields['body'] = opts.body;
     if (opts.due !== undefined) fields['due'] = opts.due;
-    if (opts.remindAt !== undefined) fields['remind_at'] = assertReminder(opts.remindAt);
+    if (opts.remindAt !== undefined) fields['remind_at'] = opts.remindAt;
     if (opts.assignee !== undefined) fields['assignee'] = opts.assignee;
+    if (opts.repeat !== undefined) Object.assign(fields, repeating(assertRule(opts.repeat), opts.due, opts.remindAt, this.today()));
     return this.create(fields, opts.index);
   }
 
@@ -163,15 +179,59 @@ export class ListDoc {
     return this.edit(id, (m) => (body === null ? m.delete('body') : setText(m, 'body', body)));
   }
 
-  /** Tasks only. `done` omitted = toggle. */
-  toggleDone(id: string, done?: boolean): boolean {
-    return this.editTask(id, (m) => m.set('done', done ?? m.get('done') !== true));
+  /**
+   * Tasks only. `done` omitted = toggle. Ticking a repeating task doesn't
+   * make it done: its date moves on to the rule's next one after the old
+   * date and today (`nextDue`), and its reminder with it, to the same time
+   * of day on this device's clock. Two devices ticking it offline on the
+   * same day write the same date. `false` if there is no such task.
+   */
+  toggleDone(id: string, done?: boolean): Ticked | false {
+    let ticked: Ticked | false = false;
+    this.editTask(id, (m) => {
+      const now = m.get('done') === true;
+      const want = done ?? !now;
+      const rep = now ? undefined : repeatOf(m);
+      if (want && rep !== undefined) {
+        const next = nextDue(rep.rule, rep.due, this.today());
+        m.set('due', next);
+        const at = m.get('remind_at');
+        if (typeof at === 'number') m.set('remind_at', moveReminder(at, next));
+        ticked = { done: false, next };
+        return;
+      }
+      if (want !== now) m.set('done', want);
+      ticked = { done: want };
+    });
+    return ticked;
   }
 
-  /** Tasks only. `null` clears the date. */
+  /** Tasks only. `null` clears the date, and with it the repeat: a repeating task always has a date. */
   setDue(id: string, due: string | null): boolean {
     if (due !== null) assertDate(due);
-    return this.editTask(id, (m) => (due === null ? m.delete('due') : m.set('due', due)));
+    return this.editTask(id, (m) => {
+      if (due !== null) return m.set('due', due);
+      m.delete('due');
+      m.delete('repeat');
+    });
+  }
+
+  /**
+   * Tasks only. `null` stops the repeat; anything but a supported rule
+   * (`repeat.ts`) throws. The date moves to the rule's first date on or
+   * after it (today's, for a task without one), the reminder with it. A
+   * monthly rule without a day gets the date's day, so a task on the 31st
+   * stays on the month's last day instead of drifting to the 28th.
+   */
+  setRepeat(id: string, rule: string | null): boolean {
+    const r = rule === null ? null : assertRule(rule);
+    return this.editTask(id, (m) => {
+      if (r === null) return m.delete('repeat');
+      const due = m.get('due');
+      const at = m.get('remind_at');
+      const fields = repeating(r, typeof due === 'string' && isDateString(due) ? due : undefined, typeof at === 'number' ? at : undefined, this.today());
+      for (const [k, v] of Object.entries(fields)) if (m.get(k) !== v) m.set(k, v);
+    });
   }
 
   /** Tasks only. `null` clears the reminder. */
@@ -334,6 +394,7 @@ function readItem(id: string, m: Y.Map<unknown>): Item {
   const due = m.get('due');
   const remindAt = m.get('remind_at');
   const assignee = m.get('assignee');
+  const repeat = m.get('done') === true ? undefined : repeatOf(m);
   return {
     id,
     type: typeof type === 'string' ? type : 'note',
@@ -343,14 +404,40 @@ function readItem(id: string, m: Y.Map<unknown>): Item {
     ...(typeof due === 'string' ? { due } : {}),
     ...(typeof remindAt === 'number' ? { remindAt } : {}),
     ...(typeof assignee === 'string' ? { assignee } : {}),
+    ...(repeat === undefined ? {} : { repeat: formatRule(repeat.rule) }),
   };
+}
+
+/** A task's repeat as it counts: a supported rule on a task with a date. Anything else is no repeat. */
+function repeatOf(m: Y.Map<unknown>): { rule: Rule; due: string } | undefined {
+  if (m.get('type') !== 'task') return undefined;
+  const due = m.get('due');
+  const rule = parseRule(m.get('repeat'));
+  return rule === null || typeof due !== 'string' || !isDateString(due) ? undefined : { rule, due };
+}
+
+/** The fields of a task given `rule`: the rule as written, and the date (and reminder) moved to its first date. */
+function repeating(rule: Rule, due: string | undefined, remindAt: number | undefined, today: string): Record<string, unknown> {
+  const from = due ?? today;
+  const r: Rule = rule.freq === 'MONTHLY' && rule.byMonthDay === undefined ? { ...rule, byMonthDay: Number(from.slice(8)) } : rule;
+  const first = firstDue(r, from);
+  return {
+    repeat: formatRule(r),
+    due: first,
+    ...(remindAt !== undefined && first !== due ? { remind_at: moveReminder(remindAt, first) } : {}),
+  };
+}
+
+function assertRule(rule: string): Rule {
+  const r = parseRule(rule);
+  if (r === null) throw new ListError('invalid-repeat', `not a supported repeat rule: ${rule}`);
+  return r;
 }
 
 function assertDate(due: string): void {
   if (!isDateString(due)) throw new ListError('invalid-date', `not a YYYY-MM-DD date: ${due}`);
 }
 
-function assertReminder(at: number): number {
+function assertReminder(at: number): void {
   if (!Number.isSafeInteger(at) || at < 0) throw new ListError('invalid-reminder', `not a Unix-ms instant: ${at}`);
-  return at;
 }

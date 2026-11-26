@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tickTask } from '../tick.svelte.js';
   import type { Item, ListHandle, ListSnapshot, PublicIdentity } from '@runer/client-core';
   import { tick } from 'svelte';
   import { dueLabel, readTyped, reminderLabel, today } from '../dates.js';
@@ -275,8 +276,8 @@
   function commitDraft(): boolean {
     const text = (draftWhen?.title ?? draftText).trim();
     if (text === '' || text.startsWith('/')) return false;
-    const { due, remindAt } = draftWhen ?? {};
-    list.addTask(text, { index: draftIndex, ...(due === undefined ? {} : { due }), ...(remindAt === undefined ? {} : { remindAt }) });
+    const { due, remindAt, repeat } = draftWhen ?? {};
+    list.addTask(text, { index: draftIndex, ...(due === undefined ? {} : { due }), ...(remindAt === undefined ? {} : { remindAt }), ...(repeat === undefined ? {} : { repeat }) });
     draftAsText = false;
     return true;
   }
@@ -743,7 +744,7 @@
       <div class="row task" class:done={item.done} class:selected={selected === item.id} class:dragged={dragging === row.key} class:drop={dropGap === blockIndex.get(row.key)} use:rowEl={row.key}>
         <span class="gutter"><Grip down={(e) => beginDrag(e, row.key)} key={(e) => keyOnGrip(e, row.key)} /></span>
         <span class="lead">
-          <input type="checkbox" checked={item.done} onchange={() => list.toggleDone(item.id)} aria-label={`${t('task.done')}: ${item.title}`} />
+          <input type="checkbox" checked={item.done} onchange={(e) => tickTask(list, item.id, e.currentTarget)} aria-label={`${t('task.done')}: ${item.title}`} />
         </span>
         <div class="body">
           <textarea
@@ -759,6 +760,7 @@
           ></textarea>
         </div>
         {#if sub.who !== undefined}<span class="meta who" title={sub.who}>{sub.who}</span>{/if}
+        {#if item.repeat !== undefined}<span class="meta repeat" title={t('task.repeats')} aria-label={t('task.repeats')} role="img"><Icon name="repeat" /></span>{/if}
         {#if sub.late}<span class="meta late">{t('task.overdue')}{sub.when === undefined ? '' : ` · ${sub.when}`}</span>
         {:else if sub.when !== undefined}<span class="meta" class:reminder={sub.reminder}>{#if sub.reminder}<Icon name="bell" />{/if}{sub.when}</span>{/if}
       </div>

@@ -1,4 +1,4 @@
-import { Account, Sync, type ListDoc, type Platform, type SyncOptions } from '@runer/client-core';
+import { Account, addDays, localDateString, Sync, type ListDoc, type Platform, type SyncOptions } from '@runer/client-core';
 import { afterEach, describe, expect, test } from 'vitest';
 import { createMemoryPlatform, type MemoryLocalStore } from '../packages/client-core/test/platform-node/memory.js';
 import { device, restart, server, transport } from './device.js';
@@ -230,6 +230,31 @@ describe('sync (Sync protocol)', () => {
     await until('both on both', () => [a, b].every((s) => titles(s.doc(list)).length === 2));
     await Promise.all([a.settled(), b.settled()]);
     expect(titles(a.doc(list))).toEqual(titles(b.doc(list)));
+  });
+
+  test('a repeating task ticked on both devices, one of them offline, moves on once, and its rule never crosses the wire', async () => {
+    const { a, b, proxy, list } = await sharedOverProxy();
+    const today = localDateString(new Date());
+    const nineAm = (date: string) => new Date(`${date}T09:00`).getTime();
+    const id = a.doc(list)!.addTask('Water plants', { due: today, remindAt: nineAm(today), repeat: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA,SU' });
+    await until('the task on b', () => b.doc(list)?.item(id)?.repeat !== undefined);
+    await b.settled();
+
+    proxy.offline = true;
+    proxy.drop();
+    const next = (b.doc(list)!.toggleDone(id) as { next: string }).next;
+    expect(a.doc(list)!.toggleDone(id)).toEqual({ done: false, next });
+    expect(next).toBe(addDays(today, 1));
+    await until('the tick in b’s outbox', async () => (await b.store.outbox(list)).length === 1);
+    await a.settled();
+
+    proxy.offline = false;
+    await until('b caught up', async () => (await b.store.outbox(list)).length === 0);
+    await Promise.all([a.settled(), b.settled()]);
+    for (const s of [a, b]) expect(s.doc(list)!.item(id)).toMatchObject({ due: next, remindAt: nineAm(next), done: false, repeat: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA,SU' });
+    expect(a.doc(list)!.item(id)).toEqual(b.doc(list)!.item(id));
+    // The rule lives in the sealed document only.
+    expect(proxy.seen.some((f) => f.includes('FREQ=') || f.includes('BYDAY'))).toBe(false);
   });
 
   test('a slow link: edits made while acks are pending all arrive, in the same order', async () => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tickTask } from '../tick.svelte.js';
   import { type ClientCore, type ListId, type TaskRef } from '@runer/client-core';
   import { tick } from 'svelte';
   import { fromStore } from 'svelte/store';
@@ -40,7 +41,11 @@
 
   // A task captured here goes to the Inbox, due today, so it shows up right here.
   function add(title: string, when?: Typed) {
-    core.list(core.inbox).addTask(title, { due: when?.due ?? today(), ...(when?.remindAt === undefined ? {} : { remindAt: when.remindAt }) });
+    core.list(core.inbox).addTask(title, {
+      due: when?.due ?? today(),
+      ...(when?.remindAt === undefined ? {} : { remindAt: when.remindAt }),
+      ...(when?.repeat === undefined ? {} : { repeat: when.repeat }),
+    });
   }
 
   const listName = (ref: TaskRef) => (ref.listId === core.inbox ? t('nav.inbox') : ref.listName || t('list.untitled'));
@@ -89,7 +94,7 @@
         when={when(ref.item, withDate)}
         reminder={ref.item.remindAt !== undefined}
         where={listName(ref)}
-        toggle={() => core.list(ref.listId).toggleDone(ref.item.id)}
+        toggle={(e) => tickTask(core.list(ref.listId), ref.item.id, e.currentTarget)}
         open={() => open(ref.listId, ref.item.id)}
         selected={selected === ref.item.id}
         dragged={dragging === keyOf(ref)}

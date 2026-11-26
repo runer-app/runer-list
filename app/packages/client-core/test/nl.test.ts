@@ -4,11 +4,23 @@ import { comingWeekend, en, nextWeek, parseTask, parseTime } from '../src/index.
 const at = { ...en.examplesAt, lang: en };
 
 describe('parseTask, English', () => {
-  test.each(en.examples)('$text', ({ text, title, due, time }) => {
+  test.each(en.examples)('$text', ({ text, title, due, time, repeat }) => {
     const p = parseTask(text, at);
     expect(p).toMatchObject({ title, due });
     expect(p?.time).toBe(time);
+    expect(p?.repeat).toBe(repeat);
   });
+
+  test.each([
+    ['Gym every 2 weeks on mon, thu', 'Gym', '2026-10-08', 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH'],
+    ['Call mom every sunday at 6pm', 'Call mom', '2026-10-11', 'FREQ=WEEKLY;BYDAY=SU'],
+    ['At 9 every day stretch', 'Stretch', '2026-10-09', 'FREQ=DAILY'], // 9:00 has passed today
+    ['Gym every thursday at 18:00', 'Gym', '2026-10-08', 'FREQ=WEEKLY;BYDAY=TH'], // not passed yet
+    ['Gym every thursday at 9', 'Gym', '2026-10-15', 'FREQ=WEEKLY;BYDAY=TH'], // passed: next week
+    ['Pay every 3 months on the 31st', 'Pay', '2026-10-31', 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=31'],
+    ['Taxes annually', 'Taxes', '2026-10-08', 'FREQ=YEARLY'],
+    ['Stand-up daily at 9:30', 'Stand-up', '2026-10-09', 'FREQ=DAILY'], // a bare word beside a time
+  ])('%s', (text, title, due, repeat) => expect(parseTask(text, at)).toMatchObject({ title, due, repeat }));
 
   test.each(en.plain)('%s holds no date', (text) => expect(parseTask(text, at)).toBeNull());
 
